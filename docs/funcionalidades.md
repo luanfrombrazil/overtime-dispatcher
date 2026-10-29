@@ -94,6 +94,23 @@ Lista de funcionalidades por área. A coluna **Fase** remete ao [roadmap](roadma
 | F-64 | Aceitar comandos só de números autorizados | 5 |
 | F-65 | Escolher quais avisos vão para cada canal | 5 |
 
+## Protocolos
+
+| ID | Funcionalidade | Fase |
+|---|---|---|
+| F-100 | Criar, editar, ativar e desativar protocolos (nome, passos, quando roda, acessos) | 4 |
+| F-101 | Rodar nos horários ou intervalos definidos, com prioridade sobre Tasks | 4 |
+| F-102 | Crawling de sites somente leitura, num navegador da app com login feito por você | 4 |
+| F-103 | E-mail por conector, somente leitura (sem apagar, mover, marcar ou enviar) | 4 |
+| F-104 | Calendário por conector, restrito à agenda própria do agente | 4 |
+| F-105 | Resultado por execução com "novidades desde a última vez" e histórico | 4 |
+| F-106 | Avisar só quando houver novidades | 4 |
+| F-107 | Seção Protocolos na barra da esquerda e tela do protocolo | 4 |
+| F-108 | Injetar tasks em outros protocolos e em projetos, com origem e chave contra duplicatas | 4 |
+| F-109 | Lista "aceitar tasks direto de" por protocolo e projeto; o resto vira proposta | 4 |
+| F-110 | Aceitar, editar ou descartar propostas (na tela, no desktop e no WhatsApp) | 4 |
+| F-111 | Rascunhos de e-mail criados pelo agente | 4 |
+
 ## Home
 
 | ID | Funcionalidade | Fase |

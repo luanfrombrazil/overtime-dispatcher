@@ -46,6 +46,13 @@ Pasta de dados padrão: `%USERPROFILE%\.overtime-dispatcher\` (configurável). T
           execucoes\
             E-0031.json    metadados da execução (subtarefa, consumo, resultado, provedor, esforço)
             E-0031.log     saída completa do agente
+  protocolos\
+    tarefas-faculdade\     uma pasta por protocolo
+      protocolo.json       passos, quando roda, acessos, provedor, aviso
+      resultados\
+        R-0007.json        o que foi encontrado, o que é novo, ações feitas, consumo
+        R-0007.log         saída completa do agente
+  navegador\               perfil do navegador usado no crawling (sessões de login feitas por você)
   workspace\
     backup-pessoal-T-15\   pasta de trabalho de Tasks de projetos sem repositório
   worktrees\

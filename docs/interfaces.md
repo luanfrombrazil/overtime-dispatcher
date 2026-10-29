@@ -8,7 +8,7 @@ Arquivo no Figma: [OvertimeDispatcher](https://www.figma.com/design/0BqwZD0E88qR
 |---|---|
 | `Fundamentos` | Variáveis de cor (modo único `Escuro`), cores de atividade, espaçamentos, estilos de texto |
 | `Componentes` | `ItemStatus`, `LinhaProjeto`, `PrioridadeBadge`, `EsforcoBadge`, `ProvedorBadge`, `Botao` |
-| `Telas` | `MainFrame`, `HomeFrame`, `TaskDialog`, `SubtarefaDialog`, `ProjetoDialog`, `VerificacaoPanel`, `ConfiguracoesDialog` (Agendamento e Notificações) |
+| `Telas` | `MainFrame`, `HomeFrame`, `ProtocoloFrame`, `TaskDialog`, `SubtarefaDialog`, `ProjetoDialog`, `ProtocoloDialog`, `VerificacaoPanel`, `ConfiguracoesDialog` (Agendamento e Notificações) |
 
 O plano gratuito do Figma permite só 3 páginas (decisão D-24).
 
@@ -60,7 +60,7 @@ O estado de um projeto ou Task é o mais grave entre os seus itens: Erro > Aten�
 ```
 
 - **Barra superior:** Home (só a casinha), iniciar/pausar o agendador, consumo por provedor, notificações (sino com contador) e configurações.
-- **Barra da esquerda:** só **projetos**. Todas as linhas têm a mesma altura (52px), com ícone de iniciais, nome e motivo opcional.
+- **Barra da esquerda:** duas seções, **Projetos** e **Protocolos**, cada uma com o seu botão "+". Todas as linhas têm a mesma altura (52px), com ícone de iniciais, nome e motivo opcional.
 - **Área central:** o projeto selecionado, com Tasks em cartões. A Task expandida mostra as subtarefas e as ações. Prioridade e esforço **não aparecem no cartão**; ficam no diálogo de edição.
 - **Console do projeto:** embaixo do projeto, com Log, Histórico e Pendências **só daquele projeto**.
 - **Dependências amarradas com fio:** cada subtarefa tem um **círculo** à esquerda. Arrastar de um círculo até o de outra subtarefa as **amarra**: um **fio vermelho** liga os dois círculos, que ficam vermelhos. A de baixo depende da de cima (só roda depois que ela termina). Uma subtarefa pode ter vários fios. Clicar num fio oferece **Desamarrar**. Ao reordenar, os fios acompanham; se a ordem ficar invertida, a app avisa e não deixa soltar.
@@ -76,11 +76,23 @@ Aberta pelo botão da casinha. Tudo em 1280 × 800:
 - **Precisa de você:** pendências de todos os projetos.
 - **Últimas 14 noites:** gráfico de linha com pontos.
 
+## Protocolo (`ProtocoloFrame`)
+
+Aberto ao clicar num protocolo na barra da esquerda ([conceito](modulos/protocolos.md)).
+
+- **Cabeçalho:** nome, provedor, esforço, chave Ativo/Desativado, Editar e **Rodar agora**. Embaixo, os horários e a próxima execução (`07:00 · 19:00 · próxima às 19:00`).
+- **Passo a passo:** o texto que o agente segue.
+- **Acessos:** o que o protocolo pode usar (ex.: `Calendário · agenda Overtime`) e **"Aceita direto de"**: as origens que podem injetar tasks sem passar por você.
+- **Fila de entrada:** tasks injetadas por outros protocolos, esperando a próxima execução, com a origem embaixo do título.
+- **Propostas:** tasks de origens não confiáveis; Aceitar, Editar ou Descartar.
+- **Console:** Última execução (o que foi feito, com `+` para criado e `~` para alterado) e Histórico.
+
 ## Diálogos e painéis
 
 | Tela | Conteúdo |
 |---|---|
 | `ProjetoDialog` | Ícone (iniciais) + nome, descrição, repositório (vincular? pasta + "Procurar…", branch padrão), padrões das tasks (provedor, esforço), permissões do agente (editar arquivos, rodar testes e build, instalar dependências, acessar a internet) |
+| `ProtocoloDialog` | Ícone + nome, passo a passo, **Quando** (horários fixos com chips de horário, ou intervalo), **Acessos** (Sites com URL e "Fazer login"; E-mail: leitura e rascunhos; Calendário: só a agenda do agente), **Execução** (provedor · modelo, esforço, avisar: só novidades / sempre / nunca), **Aceitar tasks direto de** |
 | `TaskDialog` | Título, descrição, prioridade, esforço, "Provedor · modelo" (ex.: Claude Code · Sonnet), permissões (herdar do projeto ou personalizar) |
 | `SubtarefaDialog` | Título, instrução, critério de aceite, requer verificação (as dependências são feitas amarrando no cartão, não aqui) |
 | `ConfiguracoesDialog` | Navegação lateral: Geral, Agendamento, Provedores, Notificações, Projetos padrão, Avançado. **Agendamento:** horário de funcionamento (uma barra vertical larga por dia, 0h–24h, com 48 segmentos de 30 min; clicar e arrastar seleciona; verde = horário válido; + atalhos), reserva para você por provedor (controle deslizante), intervalo, tentativas, timeout. **Notificações:** modo silencioso (agora, faixa automática, falhas furam o silêncio), canais (Desktop, WhatsApp, Som), tipos de aviso |

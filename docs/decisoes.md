@@ -51,6 +51,12 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 
 | D-43 | Distribuição final como **`.exe` com Java embutido e reduzido**, gerado pelo `jpackage` com `jlink` (só os módulos usados); ícone próprio no `.exe`, na janela, na bandeja e nas notificações; durante o desenvolvimento, `.jar` (29/10/2026) | Quem usa não precisa instalar Java; nenhum símbolo do Java aparece; o atalho registrado permite notificações com botões (D-41) |
 
+| D-44 | Além de Projetos, a app terá **Protocolos**: rotinas contínuas em que o agente segue um passo a passo definido por você, disparadas por horário ou intervalo (ex.: buscar tarefas no portal da faculdade, triar o e-mail, preencher o calendário) (29/10/2026) | Nome claro e fiel à ideia de "o agente segue as minhas regras" |
+| D-45 | Protocolos acessam **sites por crawling** (navegador da app com perfil próprio, login feito por você) e **e-mail e calendário por conectores**; crawling é **somente leitura** e roda sem aprovação (29/10/2026) | Buscar informação não traz risco; a app nunca guarda senhas |
+| D-46 | **E-mail: leitura e rascunhos**. Pode ler, buscar e criar rascunhos; nada de enviar, apagar, mover, marcar ou arquivar; bloqueado tecnicamente, não só no prompt (29/10/2026) | O e-mail é seu; o agente prepara, você envia |
+| D-47 | O agente tem **agenda própria** no calendário e age sozinho nela (criar, editar, apagar eventos); nunca mexe nas suas agendas (29/10/2026) | Autonomia sem risco de bagunçar a sua agenda; você vê os eventos dele junto com os seus |
+| D-48 | Agentes podem **injetar tasks** em outros protocolos e em projetos (ex.: "Tarefas da faculdade" injeta "incluir entrega no calendário" no protocolo "Agenda"); a task guarda a origem e uma chave contra duplicatas; limites contra laços (29/10/2026) | Protocolos que se alimentam formam um fluxo automático |
+| D-49 | Cada destino define **de quem aceita tasks direto**; o resto chega como **proposta** para você aceitar, editar ou descartar; projetos exigem aprovação por padrão (29/10/2026) | Autonomia onde você confia, controle no resto |
 ## Em aberto
 
 | # | Pergunta | Situação | Necessária para |

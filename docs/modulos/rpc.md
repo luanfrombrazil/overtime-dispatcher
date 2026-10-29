@@ -38,7 +38,9 @@ Sem RPC, a app não sabe que alguém mexeu nos arquivos, e uma alteração exter
 | `tarefa.recarregar` | `taskId` | Relê o `task.json` do disco, valida e atualiza a fila e a tela |
 | `tarefa.buscar` | `taskId` | Devolve a Task com suas subtarefas |
 | `tarefa.listar` | filtros opcionais | Lista Tasks (id, título, status, prioridade) |
-| `tarefa.criar` | título, descrição, repositório, prioridade, esforço | Cria uma Task (entra como `RASCUNHO` se vier de um agente) |
+| `tarefa.criar` | título, descrição, prioridade, esforço | Só `DONO`: cria uma Task num projeto |
+| `task.injetar` | destino (protocolo ou projeto), título, descrição, dados, chave | Cria trabalho para outro destino: **task direta** se o destino confia na origem, senão **proposta** (ver [protocolos](protocolos.md#injeção-de-tasks)). Com a mesma chave, atualiza a existente. Exposto no MCP como `injetar_task` |
+| `proposta.aceitar` / `proposta.descartar` | `propostaId`, edições | Só `DONO`: transforma a proposta em task ou a descarta |
 | `subtarefa.adicionar` | `taskId`, título, instrução, critério, posição | Adiciona subtarefa |
 | `subtarefa.atualizar` | `subtarefaId`, campos | Edita uma subtarefa que ainda não começou |
 | `subtarefa.atual` | — | A subtarefa que está sendo executada por quem chama |
@@ -71,7 +73,7 @@ O agente roda sem supervisão, então ele **não pode ter os mesmos poderes que 
 
    | Papel | Token | Pode |
    |---|---|---|
-   | `AGENTE` | gerado por execução, expira quando ela termina | ler Tasks; mexer **só na própria Task** (recarregar, adicionar e editar subtarefas pendentes); criar Tasks como `RASCUNHO`; anotar; pedir verificação; pedir direcionamento |
+   | `AGENTE` | gerado por execução, expira quando ela termina | ler Tasks; mexer **só na própria Task** (recarregar, adicionar e editar subtarefas pendentes); injetar tasks em outros protocolos e projetos (direto ou como proposta, conforme o destino); anotar; pedir verificação; pedir direcionamento |
    | `DONO` | fixo, guardado em `config.json` | tudo o que a UI faz |
 
 4. **O que um agente nunca pode fazer:** aprovar ou rejeitar verificações (nem as próprias), responder direcionamentos, fazer merge ou push, concluir subtarefas diretamente, mudar prioridade, provedor, esforço, orçamento ou permissões, e iniciar ou pausar o agendador.

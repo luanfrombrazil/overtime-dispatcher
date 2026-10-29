@@ -8,7 +8,9 @@ Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escr
 
 ## Como funciona
 
-Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks**, cada uma quebrada em **Subtarefas** pequenas. Nos horários que você liberar, a app entrega a próxima subtarefa a um agente livre e registra o resultado. Quando uma subtarefa exige conferência humana, a app avisa você (na tela, no desktop e pelo WhatsApp) e espera sua aprovação. Com a janela fechada, ela continua trabalhando na bandeja do Windows.
+Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks**, cada uma quebrada em **Subtarefas** pequenas. Nos horários que você liberar, a app entrega a próxima subtarefa a um agente livre e registra o resultado.
+
+Além dos projetos, você cria **Protocolos**: rotinas que o agente segue de tempos em tempos, como ver as tarefas no portal da faculdade, ler o e-mail e montar um resumo, ou organizar a agenda dele com base no que encontrou. Quando uma subtarefa exige conferência humana, a app avisa você (na tela, no desktop e pelo WhatsApp) e espera sua aprovação. Com a janela fechada, ela continua trabalhando na bandeja do Windows.
 
 ## Telas
 
@@ -25,6 +27,12 @@ Mostra, num relance, quanto os agentes produziram, o que aconteceu na última se
 Onde você organiza o trabalho: cria projetos, quebra cada Task em subtarefas, acompanha o andamento e o que o agente está fazendo, e revisa o que ficou pronto.
 
 ![Projeto](docs/imagens/projeto.png)
+
+### Protocolo
+
+Onde você define uma rotina para o agente seguir: o passo a passo, quando roda, o que ele pode acessar e de quem aceita tarefas. Mostra o que chegou de outros protocolos, as propostas esperando você e o que foi feito na última execução.
+
+![Protocolo](docs/imagens/protocolo.png)
 
 ### Configurações
 
@@ -64,11 +72,13 @@ Define quando os agentes podem trabalhar sozinhos em cada dia da semana e quanto
 | Serviço | [docs/modulos/servico.md](docs/modulos/servico.md) |
 | Interface | [docs/modulos/ui.md](docs/modulos/ui.md) |
 | RPC (chamadas externas e dos agentes) | [docs/modulos/rpc.md](docs/modulos/rpc.md) |
+| Protocolos (rotinas contínuas) | [docs/modulos/protocolos.md](docs/modulos/protocolos.md) |
 
 ## Glossário
 
 | Termo | Significado |
 |---|---|
+| **Protocolo** | Rotina contínua: um passo a passo que o agente segue de tempos em tempos (ex.: ver tarefas no portal da faculdade, triar o e-mail, preencher o calendário). |
 | **Projeto** | Agrupa Tasks com o mesmo contexto; pode ter um repositório git. É o que aparece na barra da esquerda. |
 | **Task** | Unidade de trabalho com objetivo claro (equivale a uma história de usuário). |
 | **Subtarefa** | Passo pequeno e verificável de uma Task; é o que o agente executa por vez. |

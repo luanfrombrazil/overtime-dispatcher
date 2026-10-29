@@ -47,6 +47,7 @@ Cada fase entrega algo utilizável. Os IDs remetem a [funcionalidades](funcional
 - `VerificacaoPanel` (verificação e direcionamento), `MergePanel` com diff e merge.
 - Adaptadores Codex e Gemini; modo automático de escolha de provedor.
 - F-28, F-29, F-31 a F-33, F-50 a F-53, F-60.
+- **Protocolos:** crawling somente leitura, e-mail somente leitura e a agenda própria do agente (F-100 a F-107).
 
 > Verificação e multiagente podem virar fases separadas se uma delas ficar grande.
 

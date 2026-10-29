@@ -39,6 +39,9 @@ ui
 │   ├─ FioDependencia              curva vermelha desenhada entre dois nós (Graphics2D)
 │   ├─ ProjetoLogPanel             console do projeto: Log · Histórico · Pendências
 │   └─ ProjetoDialog               criar/editar projeto
+├─ protocolo/
+│   ├─ ProtocoloDetailPanel        passos, acessos, fila de entrada, propostas, console
+│   └─ ProtocoloDialog             criar/editar protocolo
 ├─ task/
 │   ├─ TaskDialog                  criar/editar Task
 │   └─ SubtarefaDialog             criar/editar subtarefa

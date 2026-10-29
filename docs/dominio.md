@@ -5,6 +5,8 @@
 ```
 Projeto 1 ────► * Task 1 ────► * Subtarefa 1 ────► * Execucao
    └── 0..1 Repositorio
+
+Protocolo 1 ────► * ResultadoProtocolo (uma por execução)
 ```
 
 ### Projeto
@@ -19,6 +21,27 @@ Agrupa Tasks com o mesmo contexto. É o que aparece na barra da esquerda da app 
 | `repositorio` | `Optional<Repositorio>` | Sem repositório → as Tasks usam `workspace/<task>/` |
 | `permissoesPadrao` | `Permissoes` | Herdadas pelas Tasks |
 | `provedorPadrao`, `esforcoPadrao` | | Valores iniciais das Tasks novas |
+| `aceitaDiretoDe` | `List<String>` | Protocolos que podem criar Tasks aqui sem proposta; vazio = tudo chega como proposta |
+
+### Protocolo
+
+Rotina contínua que o agente segue de tempos em tempos (decisões D-44 a D-47; detalhes em [protocolos](modulos/protocolos.md)).
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `id` | `String` | Interno (slug); não aparece na interface |
+| `nome` | `String` | Ex.: "Tarefas da faculdade" |
+| `passos` | `String` | O passo a passo, em texto livre |
+| `quando` | `Gatilho` | Horários fixos ou intervalo |
+| `acessos` | `List<Acesso>` | `SITE(url)`, `EMAIL(conector)`, `CALENDARIO(conector, agendaDoAgente)` |
+| `provedor`, `modelo`, `esforco` | | Como nas Tasks |
+| `avisar` | `PoliticaAviso` | `SO_NOVIDADES`, `SEMPRE`, `NUNCA` |
+| `ativo` | `boolean` | Desativado não roda |
+| `filaDeEntrada` | `List<Task>` | Tasks injetadas por outros agentes, processadas na próxima execução |
+| `aceitaDiretoDe` | `List<String>` | Origens confiáveis; as demais chegam como proposta |
+| `sessionId` | `String` | Opcional: manter memória entre execuções |
+
+Cada execução gera um `ResultadoProtocolo`: o que foi encontrado, o que é novo desde a anterior, as ações feitas e o consumo.
 
 ### Repositorio
 
@@ -49,6 +72,9 @@ Unidade de trabalho com objetivo claro — equivalente a uma história de usuár
 | `commitBase` | `String` | Só com repositório: commit da branch padrão de onde a branch partiu; base do diff de revisão |
 | `mergeada` | `boolean` | Só com repositório: você aprovou e o merge foi feito |
 | `subtarefas` | `List<Subtarefa>` | A ordem da lista é a ordem de execução |
+| `origem` | `Origem` | `MANUAL` (você) ou `INJETADA(origem, execução)` — de qual protocolo ou Task veio (decisão D-48) |
+| `chave` | `String` | Opcional; identifica a task injetada para evitar duplicatas (ex.: `entrega:fisica:relatorio-3`) |
+| `proposta` | `boolean` | Injetada por origem não confiável: espera você aceitar, editar ou descartar (decisão D-49) |
 
 O **status da Task não é guardado**: é derivado das subtarefas e de `pausada` (ver abaixo). As permissões vêm do projeto.
 
