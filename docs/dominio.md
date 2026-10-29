@@ -75,7 +75,7 @@ Unidade de trabalho com objetivo claro — equivalente a uma história de usuár
 | `commitBase` | `String` | Só em projeto com git: commit da branch padrão de onde a branch partiu; base do diff de revisão |
 | `mergeada` | `boolean` | Só em projeto com git: você aprovou e o merge foi feito |
 | `subtarefas` | `List<Subtarefa>` | A ordem da lista é a ordem de execução |
-| `origem` | `Origem` | `MANUAL` (você) ou `INJETADA(origem, execução)` — de qual protocolo ou Task veio (decisão D-48) |
+| `origem` | `Origem` | `MANUAL` (você), `INJETADA(origem, execução)` — de qual protocolo ou Task veio (decisão D-48) — ou `ORACULO` (decisão D-54) |
 | `chave` | `String` | Opcional; identifica a task injetada para evitar duplicatas (ex.: `entrega:fisica:relatorio-3`) |
 | `proposta` | `boolean` | Injetada por origem não confiável: espera você aceitar, editar ou descartar (decisão D-49) |
 

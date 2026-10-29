@@ -58,6 +58,14 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-48 | Agentes podem **injetar tasks** em outros protocolos e em projetos (ex.: "Tarefas da faculdade" injeta "incluir entrega no calendário" no protocolo "Agenda"); a task guarda a origem e uma chave contra duplicatas; limites contra laços (29/10/2026) | Protocolos que se alimentam formam um fluxo automático |
 | D-49 | Cada destino define **de quem aceita tasks direto**; o resto chega como **proposta** para você aceitar, editar ou descartar; projetos exigem aprovação por padrão (29/10/2026) | Autonomia onde você confia, controle no resto |
 | D-50 | **Todo projeto aponta para uma pasta do sistema** (obrigatória), onde o agente trabalha; git é opcional sobre essa pasta. Com git: branch `overtime/…`, worktree e merge com revisão. Sem git: o agente trabalha direto na pasta (29/10/2026) | Projetos que não são de código também têm um lugar no disco; a pasta `workspace/` deixa de existir |
+| D-51 | **Oráculo**: observa projetos e protocolos e propõe tasks, diagnósticos, roadmaps e estudos; não executa trabalho; fica no topo da barra lateral, com olho roxo e fundo levemente roxo (29/10/2026) | Projetos contínuos precisam de alguém que decida o que vem depois |
+| D-52 | Projetos podem ser **finitos** ou **contínuos**; contínuos têm objetivo e acionam o Oráculo quando ficam sem tasks ou com poucas (29/10/2026) | Alguns projetos nunca terminam |
+| D-53 | O Oráculo tem **reserva própria** de créditos, definida nas configurações (barra roxa) (29/10/2026) | Sugestões não competem com o seu uso nem com as Tasks |
+| D-54 | O Oráculo **inclui tasks** na lista do projeto, **em roxo**, com **Aceitar** e **Recusar**; só rodam depois de aceitas; o motivo da recusa alimenta o Oráculo (29/10/2026) | Sugestões aparecem onde o trabalho está, sem misturar com o que já foi decidido |
+| D-55 | **Tudo o que é do Oráculo é roxo**, inclusive os botões de ação (Aceitar roxo, Recusar com contorno roxo) (29/10/2026) | Identidade visual única: dá para saber de relance o que veio do Oráculo |
+| D-56 | **Trilhas**: tarefas para você (estudos, trabalhos, projetos pessoais), agrupadas em trilhas e guardadas num **vault real do Obsidian** (arquivos `.md`); a app implementa só a seção de tarefas; terceira seção da barra lateral (29/10/2026) | O Obsidian já resolve notas e links; a app foca no planejamento |
+| D-57 | Duração **planejada em blocos**; andamento = blocos feitos / total; cada bloco é injetado no protocolo Agenda e vai para o calendário (29/10/2026) | Transforma prazo em tempo reservado |
+| D-58 | A **Home vira hub**: além de consumo e atividade, agrega as trilhas (blocos de hoje e próximos prazos) (29/10/2026) | Um só lugar para começar o dia |
 
 ## Em aberto
 

@@ -42,7 +42,12 @@ public interface PoliticaDeConsumo {
 
 Na tela (**Configurações › Agendamento**, decisão D-38):
 - **Horário de funcionamento:** uma **barra vertical larga por dia da semana**, de 0h (topo) a 24h (base), dividida em **48 segmentos de 30 minutos**. Segmento verde = selecionado = horário válido para a execução automática. Clicar alterna um segmento; clicar e arrastar seleciona (ou desmarca) vários de uma vez, inclusive entre dias. Atalhos: "Sempre", "Noites e fins de semana" e "Personalizado". Vale para todos os provedores; é guardado como uma lista de 7 × 48 valores.
-- **Reserva para você:** um controle deslizante por provedor; o valor é a parte que fica para você (ex.: 40% → a automação usa até 60% da janela).
+- **Reserva para você:** um controle deslizante por provedor com **duas alças**, que dividem a janela em três partes:
+  - **azul** (do início até a alça branca): o que a automação de Tasks e Protocolos pode usar;
+  - **roxo** (entre a alça branca e a alça roxa): a **reserva do Oráculo** (D-53);
+  - **cinza** (depois da alça roxa): o que fica para você.
+
+  Ao lado aparecem a parte do Oráculo (roxo) e a sua (ex.: `15%  40%`). Arrastar a alça branca troca espaço entre automação e Oráculo; arrastar a roxa troca espaço entre Oráculo e você.
 - **Execução:** intervalo do agendador, tentativas e timeout.
 
 ## Regras da política

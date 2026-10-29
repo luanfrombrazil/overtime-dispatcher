@@ -111,6 +111,17 @@ Lista de funcionalidades por área. A coluna **Fase** remete ao [roadmap](roadma
 | F-110 | Aceitar, editar ou descartar propostas (na tela, no desktop e no WhatsApp) | 4 |
 | F-111 | Rascunhos de e-mail criados pelo agente | 4 |
 
+## Trilhas
+
+| ID | Funcionalidade | Fase |
+|---|---|---|
+| F-120 | Ligar a app a um vault do Obsidian (pasta de `.md`); "Abrir no Obsidian" | 3 |
+| F-121 | Criar trilhas e tarefas pessoais (título, duração, prazo), gravadas como checklist no vault | 3 |
+| F-122 | Dividir a duração em blocos e injetar cada bloco no protocolo Agenda | 4 |
+| F-123 | Marcar blocos feitos; andamento = blocos feitos / total | 3 |
+| F-124 | Receber tarefas de protocolos e sugestões do Oráculo (roxo, com o porquê) | 4 |
+| F-125 | Seção Trilhas na barra lateral e tela da trilha | 3 |
+
 ## Home
 
 | ID | Funcionalidade | Fase |
@@ -120,7 +131,7 @@ Lista de funcionalidades por área. A coluna **Fase** remete ao [roadmap](roadma
 | F-92 | Mapa de atividade do último ano (estilo contribuições do GitHub) | 3 |
 | F-93 | Resumo da última sessão de overtime (horário, consumo, Tasks) | 3 |
 | F-94 | "Precisa de você" com as pendências de todos os projetos | 3 |
-| F-95 | Gráfico das últimas 14 noites | 3 |
+| F-95 | Cartão "Hoje": blocos das trilhas do dia e próximos prazos (substitui o gráfico das últimas 14 noites) | 3 |
 
 ## Configuração
 

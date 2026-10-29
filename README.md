@@ -10,7 +10,13 @@ Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escr
 
 Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks**, cada uma quebrada em **Subtarefas** pequenas. Nos horários que você liberar, a app entrega a próxima subtarefa a um agente livre e registra o resultado.
 
-Além dos projetos, você cria **Protocolos**: rotinas que o agente segue de tempos em tempos, como ver as tarefas no portal da faculdade, ler o e-mail e montar um resumo, ou organizar a agenda dele com base no que encontrou. Quando uma subtarefa exige conferência humana, a app avisa você (na tela, no desktop e pelo WhatsApp) e espera sua aprovação. Com a janela fechada, ela continua trabalhando na bandeja do Windows.
+Além dos projetos, você cria **Protocolos**: rotinas que o agente segue de tempos em tempos, como ver as tarefas no portal da faculdade, ler o e-mail e montar um resumo, ou organizar a agenda dele com base no que encontrou.
+
+Para o que é trabalho seu, existem as **Trilhas**: tarefas como estudos e trabalhos da faculdade, com o tempo dividido em blocos que vão para a agenda e guardadas no seu vault do Obsidian.
+
+Acima de tudo isso está o **Oráculo**, que observa projetos, protocolos e trilhas e sugere o que fazer a seguir.
+
+Quando algo exige uma decisão sua, a app avisa (na tela, no desktop e pelo WhatsApp) e espera. Com a janela fechada, ela continua trabalhando na bandeja do Windows.
 
 ## Telas
 
@@ -18,15 +24,19 @@ Protótipos no Figma ([OvertimeDispatcher](https://www.figma.com/design/0BqwZD0E
 
 ### Home
 
-Mostra, num relance, quanto os agentes produziram, o que aconteceu na última sessão de overtime e o que está esperando uma decisão sua.
+O ponto de partida do dia: quanto os agentes produziram, o que aconteceu na última sessão de overtime, o que está esperando uma decisão sua e os blocos de estudo e trabalho marcados para hoje.
 
 ![Home](docs/imagens/home.png)
 
 ### Projeto
 
-Onde você organiza o trabalho: cria projetos, quebra cada Task em subtarefas, acompanha o andamento e o que o agente está fazendo, e revisa o que ficou pronto.
+Onde você organiza o trabalho dos agentes: quebra cada Task em subtarefas, define o que depende do quê, acompanha o que o agente está fazendo e revisa o que ficou pronto.
 
 ![Projeto](docs/imagens/projeto.png)
+
+Ao criar um projeto, você escolhe a pasta do computador onde ele vive, se ela usa git, os padrões das tasks e o que o agente pode fazer.
+
+![Novo projeto](docs/imagens/novo-projeto.png)
 
 ### Protocolo
 
@@ -34,11 +44,35 @@ Onde você define uma rotina para o agente seguir: o passo a passo, quando roda,
 
 ![Protocolo](docs/imagens/protocolo.png)
 
+Ao criar um protocolo, você escreve o passo a passo, escolhe os horários, os acessos (sites, e-mail, calendário) e quanto esforço o agente deve usar.
+
+![Novo protocolo](docs/imagens/novo-protocolo.png)
+
+### Trilha
+
+Onde ficam as suas tarefas: estudos, trabalhos e projetos pessoais, cada um com o tempo dividido em blocos. Mostra o que já foi feito, o que está na agenda e o próximo bloco. Tudo fica num arquivo do seu vault do Obsidian.
+
+![Trilha](docs/imagens/trilha.png)
+
 ### Configurações
 
-Define quando os agentes podem trabalhar sozinhos em cada dia da semana e quanto dos seus créditos fica reservado para você usar manualmente.
+Define quando os agentes podem trabalhar sozinhos em cada dia da semana e como os créditos de cada assinatura se dividem entre a automação, o Oráculo e você.
 
 ![Configurações](docs/imagens/configuracoes.png)
+
+## Oráculo
+
+O Oráculo é quem pensa no que vem depois. Ele lê os projetos, os protocolos e as trilhas e entende em que ponto cada um está. A partir disso:
+
+- **sugere tasks** quando um projeto contínuo fica sem trabalho, sempre com uma frase dizendo **por quê**;
+- **faz diagnósticos**, como um projeto parado, testes falhando ou tasks rejeitadas pelo mesmo motivo;
+- **monta e acompanha roadmaps**, principalmente de estudos, marcando o progresso a cada etapa concluída;
+- **sugere estudos** (vídeos, leituras, exercícios) a partir das matérias e dos trabalhos da faculdade;
+- **propõe novos protocolos** quando percebe algo que vale acompanhar sempre.
+
+Ele não executa nada sozinho: tudo o que sugere chega para você **aceitar ou recusar**, e a recusa ensina o que não sugerir de novo. Tudo o que vem do Oráculo aparece em **roxo**, e ele tem uma fatia própria dos créditos, definida nas configurações.
+
+![Oráculo](docs/imagens/oraculo.png)
 
 ## Princípios
 
@@ -73,11 +107,15 @@ Define quando os agentes podem trabalhar sozinhos em cada dia da semana e quanto
 | Interface | [docs/modulos/ui.md](docs/modulos/ui.md) |
 | RPC (chamadas externas e dos agentes) | [docs/modulos/rpc.md](docs/modulos/rpc.md) |
 | Protocolos (rotinas contínuas) | [docs/modulos/protocolos.md](docs/modulos/protocolos.md) |
+| Oráculo (sugestões e roadmap) — em definição | [docs/modulos/oraculo.md](docs/modulos/oraculo.md) |
+| Trilhas (suas tarefas, no vault do Obsidian) | [docs/modulos/trilhas.md](docs/modulos/trilhas.md) |
 
 ## Glossário
 
 | Termo | Significado |
 |---|---|
+| **Oráculo** | Observa os projetos e protocolos e sugere o que fazer: novas tasks, diagnósticos, roadmaps e estudos. |
+| **Trilha** | Conjunto de tarefas para você (estudo, trabalho, projeto pessoal), com tempo planejado em blocos que vão para a agenda; fica no seu vault do Obsidian. |
 | **Protocolo** | Rotina contínua: um passo a passo que o agente segue de tempos em tempos (ex.: ver tarefas no portal da faculdade, triar o e-mail, preencher o calendário). |
 | **Projeto** | Agrupa Tasks com o mesmo contexto; pode ter um repositório git. É o que aparece na barra da esquerda. |
 | **Task** | Unidade de trabalho com objetivo claro (equivale a uma história de usuário). |
