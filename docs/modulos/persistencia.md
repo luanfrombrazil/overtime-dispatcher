@@ -53,8 +53,6 @@ Pasta de dados padrão: `%USERPROFILE%\.overtime-dispatcher\` (configurável). T
         R-0007.json        o que foi encontrado, o que é novo, ações feitas, consumo
         R-0007.log         saída completa do agente
   navegador\               perfil do navegador usado no crawling (sessões de login feitas por você)
-  workspace\
-    backup-pessoal-T-15\   pasta de trabalho de Tasks de projetos sem repositório
   worktrees\
     meu-app-T-12\          git worktree da Task (branch overtime/T-12)
   estatisticas\
@@ -71,12 +69,15 @@ A pasta por Task mantém o `task.json` pequeno: o histórico de execuções, que
   "id": "meu-app",
   "nome": "Meu App",
   "descricao": "App web de agendamento. Java 21, Spring Boot, testes com JUnit 5.",
-  "repositorio": { "caminho": "C:\\code\\meu-app", "branchPadrao": "main" },
+  "pasta": "C:\\code\\meu-app",
+  "git": { "branchPadrao": "main" },
   "provedorPadrao": "AUTOMATICO",
   "esforcoPadrao": "MEDIO",
   "permissoes": ["EDITAR_ARQUIVOS", "RODAR_TESTES_E_BUILD"]
 }
 ```
+
+Os dados da app ficam em `.overtime-dispatcher\`; os **arquivos do projeto** ficam na pasta do sistema que você escolheu (`pasta`). A app não move nem copia essa pasta. Projeto sem git omite o campo `git`.
 
 ## Exemplo de `task.json`
 

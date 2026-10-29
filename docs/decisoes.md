@@ -9,7 +9,7 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-01 | Aplicação desktop em Java com Swing | Simples, sem servidor, roda local onde estão os CLIs e repositórios |
 | D-02 | A app controla as execuções; "ocioso" = nenhuma execução da app em andamento naquele provedor | Confiável e simples; detectar uso externo fica como extra |
 | D-03 | Tasks com subtarefas pequenas, executadas em ordem | Abordagem ágil; cada execução tem escopo e critério de aceite claros |
-| D-04 | Task pode ou não ter Repositório; sem repositório usa `workspace/<id>/` | Permite tarefas que não são de código |
+| D-04 | Projeto pode ou não usar git (substituída em parte pela D-50: todo projeto tem uma pasta do sistema) | Permite tarefas que não são de código |
 | D-05 | Prompt enviado por stdin | Evita problemas de aspas e caracteres especiais no Windows |
 | D-06 | Persistência atrás de interface; começa em JSON (formato detalhado em D-16 e D-19) | Fácil de inspecionar; troca para SQLite sem afetar o resto |
 | D-07 | UI só fala com o `service`; eventos para atualização | Modularidade e testes |
@@ -26,7 +26,7 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-18 | Campo de **esforço** por Task, em níveis neutros traduzidos por cada adaptador (28/10/2026) | Controlar qualidade × consumo de créditos por Task |
 | D-19 | `task.json` enxuto: só o que o agendador e o prompt usam; o resto é derivado ou vem da configuração (28/10/2026) | Menos campos para manter em sincronia e arquivos fáceis de ler e editar |
 | D-20 | RPC local (JSON-RPC 2.0 sobre HTTP em `127.0.0.1`) com o comando `odctl`; papéis `DONO` e `AGENTE` (28/10/2026) | Agentes conseguem atualizar a fila pela app, com as mesmas validações da UI, sem poder aprovar o próprio trabalho |
-| D-21 | Cada Task com repositório trabalha na branch `overtime/<id>`, numa `git worktree` própria (28/10/2026) | Tasks isoladas entre si; a cópia do repositório do usuário nunca é alterada pelo agente |
+| D-21 | Cada Task de projeto com git trabalha na branch `overtime/<id>`, numa `git worktree` própria (28/10/2026) | Tasks isoladas entre si; a cópia do repositório do usuário nunca é alterada pelo agente |
 | D-22 | Merge na branch padrão só depois da sua revisão do diff da Task inteira; squash e sem push automático (28/10/2026) | Controle humano sobre o que entra na main |
 | D-23 | O agente pode pedir direcionamento (`AGUARDANDO_DIRECIONAMENTO`); Tasks paradas por você não bloqueiam a fila, e o agente segue para outra Task (28/10/2026) | Evita que o agente chute decisões importantes e mantém os créditos em uso |
 | D-24 | Figma no plano gratuito: 3 páginas (Fundamentos, Componentes, Telas); fontes Inter e JetBrains Mono (28/10/2026) | Limite do plano; fontes disponíveis como pacotes do FlatLaf |
@@ -57,6 +57,8 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-47 | O agente tem **agenda própria** no calendário e age sozinho nela (criar, editar, apagar eventos); nunca mexe nas suas agendas (29/10/2026) | Autonomia sem risco de bagunçar a sua agenda; você vê os eventos dele junto com os seus |
 | D-48 | Agentes podem **injetar tasks** em outros protocolos e em projetos (ex.: "Tarefas da faculdade" injeta "incluir entrega no calendário" no protocolo "Agenda"); a task guarda a origem e uma chave contra duplicatas; limites contra laços (29/10/2026) | Protocolos que se alimentam formam um fluxo automático |
 | D-49 | Cada destino define **de quem aceita tasks direto**; o resto chega como **proposta** para você aceitar, editar ou descartar; projetos exigem aprovação por padrão (29/10/2026) | Autonomia onde você confia, controle no resto |
+| D-50 | **Todo projeto aponta para uma pasta do sistema** (obrigatória), onde o agente trabalha; git é opcional sobre essa pasta. Com git: branch `overtime/…`, worktree e merge com revisão. Sem git: o agente trabalha direto na pasta (29/10/2026) | Projetos que não são de código também têm um lugar no disco; a pasta `workspace/` deixa de existir |
+
 ## Em aberto
 
 | # | Pergunta | Situação | Necessária para |

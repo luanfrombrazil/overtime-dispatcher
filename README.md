@@ -43,7 +43,7 @@ Define quando os agentes podem trabalhar sozinhos em cada dia da semana e quanto
 ## Princípios
 
 - **Você tem prioridade** — a automação nunca consome os créditos reservados para o seu uso manual.
-- **Você decide o que entra** — em projetos com repositório, o agente trabalha numa cópia separada; nada chega à versão principal sem a sua revisão.
+- **Você decide o que entra** — cada projeto aponta para uma pasta no seu computador; se ela usa git, o agente trabalha numa cópia separada e nada chega à versão principal sem a sua revisão.
 - **Pergunta em vez de chutar** — quando falta informação, o agente pede orientação e segue para outra tarefa enquanto espera.
 - **Trabalha em segundo plano** — roda com a janela fechada e avisa só quando precisa de você.
 - **Vários agentes, uma fila** — Claude Code, Codex e Gemini usam os créditos de cada assinatura, sem mudar o jeito de trabalhar.
@@ -83,7 +83,7 @@ Define quando os agentes podem trabalhar sozinhos em cada dia da semana e quanto
 | **Task** | Unidade de trabalho com objetivo claro (equivale a uma história de usuário). |
 | **Subtarefa** | Passo pequeno e verificável de uma Task; é o que o agente executa por vez. |
 | **Agente / Provedor** | Ferramenta de IA que executa subtarefas (Claude Code, Codex, Gemini), cada uma com seus créditos. |
-| **Repositório** | Pasta versionada com git que um projeto pode ter (opcional). |
+| **Pasta do projeto** | Pasta no seu computador para onde o projeto aponta e onde o agente trabalha; pode usar git ou não. |
 | **Execução** | Uma chamada a um agente para uma subtarefa, com log e consumo. |
 | **Ocioso** | Estado em que nenhuma execução da app está em andamento naquele provedor. |
 | **Reserva** | Parte do limite de uso de cada provedor que a automação não pode consumir. |

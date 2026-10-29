@@ -128,8 +128,8 @@ Nada mais na aplicação muda.
 
 ## Pasta de trabalho
 
-- Task com repositório → a worktree da Task (`worktrees/<projeto>-<id>/`, branch `overtime/<id>`), nunca a pasta original do repositório.
-- Task sem repositório → `workspace/<taskId>/`, criada na primeira execução.
+- Projeto com git → a worktree da Task (`worktrees/<projeto>-<id>/`, branch `overtime/<id>`), nunca a pasta original.
+- Projeto sem git → a própria pasta do projeto.
 
 ## Logs
 

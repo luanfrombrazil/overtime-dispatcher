@@ -91,7 +91,7 @@ Aberto ao clicar num protocolo na barra da esquerda ([conceito](modulos/protocol
 
 | Tela | Conteúdo |
 |---|---|
-| `ProjetoDialog` | Ícone (iniciais) + nome, descrição, repositório (vincular? pasta + "Procurar…", branch padrão), padrões das tasks (provedor, esforço), permissões do agente (editar arquivos, rodar testes e build, instalar dependências, acessar a internet) |
+| `ProjetoDialog` | Ícone (iniciais) + nome, descrição, **pasta do projeto** (obrigatória, com "Procurar…"), "Usar git" + branch padrão, padrões das tasks (provedor, esforço), permissões do agente (editar arquivos, rodar testes e build, instalar dependências, acessar a internet) |
 | `ProtocoloDialog` | Ícone + nome, passo a passo, **Quando** (horários fixos com chips de horário, ou intervalo), **Acessos** (Sites com URL e "Fazer login"; E-mail: leitura e rascunhos; Calendário: só a agenda do agente), **Execução** (provedor · modelo, esforço, avisar: só novidades / sempre / nunca), **Aceitar tasks direto de** |
 | `TaskDialog` | Título, descrição, prioridade, esforço, "Provedor · modelo" (ex.: Claude Code · Sonnet), permissões (herdar do projeto ou personalizar) |
 | `SubtarefaDialog` | Título, instrução, critério de aceite, requer verificação (as dependências são feitas amarrando no cartão, não aqui) |

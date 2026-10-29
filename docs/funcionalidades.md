@@ -7,8 +7,8 @@ Lista de funcionalidades por área. A coluna **Fase** remete ao [roadmap](roadma
 | ID | Funcionalidade | Fase |
 |---|---|---|
 | F-10 | Criar, editar e remover projeto (nome, ícone de iniciais, descrição) | 1 |
-| F-11 | Vincular repositório git ao projeto (pasta, branch padrão) ou deixar sem | 1 |
-| F-12 | Validar se a pasta existe e é um repositório git | 1 |
+| F-11 | Escolher a pasta do sistema do projeto (obrigatória) e, se quiser, usar git com branch padrão | 1 |
+| F-12 | Validar se a pasta existe e, com git ligado, se é um repositório git | 1 |
 | F-14 | Padrões das Tasks (provedor, esforço) e permissões do agente por projeto | 1 |
 | F-15 | Barra de projetos com estado agregado (borda colorida) e motivo curto | 1 |
 | F-16 | Buscar projeto | 1 |

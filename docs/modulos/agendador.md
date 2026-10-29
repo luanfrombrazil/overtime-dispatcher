@@ -42,13 +42,13 @@ Entre as elegíveis: maior **prioridade** da Task primeiro; em empate, a Task co
 | `NAO_AUTENTICADO` | Provedor desabilitado até você resolver; aviso pelos canais |
 | `CANCELADO` | Volta para `A_FAZER` sem contar tentativa |
 | Agente pediu direcionamento | Subtarefa → `AGUARDANDO_DIRECIONAMENTO` **sem** contar tentativa; emite `DirecionamentoSolicitado` |
-| Última subtarefa da Task terminou (Task com repositório) | Task → `PRONTA_PARA_MERGE`; emite `MergeSolicitado` |
+| Última subtarefa da Task terminou (projeto com git) | Task → `PRONTA_PARA_MERGE`; emite `MergeSolicitado` |
 
 Depois de tratar o resultado, dispara um novo ciclo imediatamente, para que o agente liberado pegue outra Task em aberto.
 
 ## Branch e worktree
 
-Antes da primeira execução de uma Task com repositório, o agendador (via `service`) cria a branch `overtime/<id>` a partir da branch padrão, grava `branch` e `commitBase` na Task e cria a worktree em `worktrees/<projeto>-<id>/`. Todas as execuções da Task rodam nessa worktree. Depois do merge aprovado, a worktree e a branch são removidas.
+Antes da primeira execução de uma Task de projeto com git, o agendador (via `service`) cria a branch `overtime/<id>` a partir da branch padrão, grava `branch` e `commitBase` na Task e cria a worktree em `worktrees/<projeto>-<id>/`. Todas as execuções da Task rodam nessa worktree. Depois do merge aprovado, a worktree e a branch são removidas.
 
 ## Tudo esperando por você
 

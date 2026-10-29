@@ -4,7 +4,8 @@
 
 ```
 Projeto 1 ────► * Task 1 ────► * Subtarefa 1 ────► * Execucao
-   └── 0..1 Repositorio
+   ├── 1 pasta do sistema (obrigatória)
+   └── 0..1 Git (se a pasta usa git)
 
 Protocolo 1 ────► * ResultadoProtocolo (uma por execução)
 ```
@@ -18,7 +19,8 @@ Agrupa Tasks com o mesmo contexto. É o que aparece na barra da esquerda da app 
 | `id` | `String` | Interno (slug, ex.: `meu-app`); não aparece na interface |
 | `nome` | `String` | Ex.: "Meu App" |
 | `descricao` | `String` | Contexto geral; entra no prompt de todas as Tasks do projeto |
-| `repositorio` | `Optional<Repositorio>` | Sem repositório → as Tasks usam `workspace/<task>/` |
+| `pasta` | `Path` | **Obrigatória**: a pasta do sistema onde o projeto vive (ex.: `C:\code\meu-app`, `D:\Faculdade\TCC`). É onde o agente trabalha (decisão D-50) |
+| `git` | `Optional<Git>` | Preenchido quando a pasta usa git; liga as branches `overtime/…`, worktrees e merge com revisão |
 | `permissoesPadrao` | `Permissoes` | Herdadas pelas Tasks |
 | `provedorPadrao`, `esforcoPadrao` | | Valores iniciais das Tasks novas |
 | `aceitaDiretoDe` | `List<String>` | Protocolos que podem criar Tasks aqui sem proposta; vazio = tudo chega como proposta |
@@ -43,14 +45,15 @@ Rotina contínua que o agente segue de tempos em tempos (decisões D-44 a D-47; 
 
 Cada execução gera um `ResultadoProtocolo`: o que foi encontrado, o que é novo desde a anterior, as ações feitas e o consumo.
 
-### Repositorio
+### Git
 
-Valor dentro de um Projeto (não é cadastrado à parte).
+Valor dentro de um Projeto, presente só quando a pasta do projeto é um repositório git ("Usar git" no cadastro).
 
 | Campo | Tipo | Observação |
 |---|---|---|
-| `caminho` | `Path` | Pasta local; precisa existir e ser um repositório git |
 | `branchPadrao` | `String` | Ex.: `main`; base das branches `overtime/…` e destino dos merges |
+
+**Projeto sem git:** o agente trabalha **direto na pasta do projeto**, sem cópia separada nem revisão antes de entrar. As permissões do projeto valem do mesmo jeito. Para tarefas que alteram arquivos importantes, use git.
 
 ### Task
 
@@ -68,9 +71,9 @@ Unidade de trabalho com objetivo claro — equivalente a uma história de usuár
 | `modelo` | `String` | Opcional; modelo do provedor (ex.: `sonnet`). Vazio = padrão do CLI. Na tela aparece combinado: "Claude Code · Sonnet" (decisão D-40) |
 | `sessionId` | `String` | Sessão do agente compartilhada pelas subtarefas; vazio até a primeira execução |
 | `pausada` | `boolean` | Você pausou manualmente |
-| `branch` | `String` | Só com repositório: `overtime/<id>`, criada na primeira execução |
-| `commitBase` | `String` | Só com repositório: commit da branch padrão de onde a branch partiu; base do diff de revisão |
-| `mergeada` | `boolean` | Só com repositório: você aprovou e o merge foi feito |
+| `branch` | `String` | Só em projeto com git: `overtime/<id>`, criada na primeira execução |
+| `commitBase` | `String` | Só em projeto com git: commit da branch padrão de onde a branch partiu; base do diff de revisão |
+| `mergeada` | `boolean` | Só em projeto com git: você aprovou e o merge foi feito |
 | `subtarefas` | `List<Subtarefa>` | A ordem da lista é a ordem de execução |
 | `origem` | `Origem` | `MANUAL` (você) ou `INJETADA(origem, execução)` — de qual protocolo ou Task veio (decisão D-48) |
 | `chave` | `String` | Opcional; identifica a task injetada para evitar duplicatas (ex.: `entrega:fisica:relatorio-3`) |
@@ -182,7 +185,7 @@ As transições válidas ficam no próprio `domain` (ex.: `subtarefa.iniciar()`,
 | `EM_ANDAMENTO` | Alguma subtarefa `EM_ANDAMENTO` |
 | `AGUARDANDO_VOCE` | Próxima subtarefa está `AGUARDANDO_VERIFICACAO`, `AGUARDANDO_DIRECIONAMENTO` ou `FALHOU` |
 | `PAUSADA` | Você pausou manualmente |
-| `PRONTA_PARA_MERGE` | Task com repositório, todas as subtarefas finalizadas, esperando sua revisão do diff completo |
+| `PRONTA_PARA_MERGE` | Task de projeto com git, todas as subtarefas finalizadas, esperando sua revisão do diff completo |
 | `CONCLUIDA` | Todas as subtarefas `CONCLUIDA` ou `CANCELADA` e, se tiver repositório, `mergeada = true` |
 
 ## Estado visual
@@ -203,7 +206,7 @@ A interface não mostra os status com badges. Cada status vira um de cinco **est
 
 1. **Dependências:** uma subtarefa só começa quando todas as de `dependeDe` estão `CONCLUIDA` ou `CANCELADA`. Dentro de uma Task roda **uma subtarefa por vez** (mesma sessão e worktree). Entre as elegíveis, vale a ordem da lista. Dependências circulares são recusadas ao salvar.
 2. Uma Task que depende de você (`AGUARDANDO_VOCE`, `PRONTA_PARA_MERGE`, `PAUSADA`) **não bloqueia as outras**: o agente fica livre na hora e o agendador dispara um novo ciclo imediatamente, pegando a próxima Task em aberto. Quando você responde, a Task volta para a fila com a prioridade normal.
-3. **Branch e worktree por Task:** toda Task com repositório trabalha na branch `overtime/<id>` (ex.: `overtime/T-12`), criada a partir da branch padrão, numa worktree própria em `worktrees/<projeto>-<id>/`. A sua cópia do repositório nunca é alterada pelo agente. Por isso, Tasks diferentes do mesmo repositório podem rodar em paralelo (limitado pela configuração de execuções simultâneas).
+3. **Branch e worktree por Task:** toda Task de projeto com git trabalha na branch `overtime/<id>` (ex.: `overtime/T-12`), criada a partir da branch padrão, numa worktree própria em `worktrees/<projeto>-<id>/`. A sua cópia do repositório nunca é alterada pelo agente. Por isso, Tasks diferentes do mesmo repositório podem rodar em paralelo (limitado pela configuração de execuções simultâneas).
 4. Rejeição devolve a subtarefa para `A_FAZER` sem contar tentativa e anexa o comentário ao `feedback`.
 5. Subtarefa `EM_ANDAMENTO` não pode ser editada nem removida.
 6. Uma Task fica no mesmo provedor do início ao fim (o `provedor` gravado na primeira execução), porque a sessão de um agente não é aproveitável em outro. Trocar de provedor no meio é uma ação manual, e a próxima subtarefa começa uma sessão nova com um resumo do que já foi feito.
