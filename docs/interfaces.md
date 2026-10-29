@@ -1,6 +1,6 @@
 # Interfaces
 
-Arquivo no Figma: [Hyper-AI](https://www.figma.com/design/0BqwZD0E88qRrWcxHGRb49/Hyper-AI). Cada frame tem o **mesmo nome** da classe Swing correspondente ([módulo ui](modulos/ui.md)).
+Arquivo no Figma: [OvertimeDispatcher](https://www.figma.com/design/0BqwZD0E88qRrWcxHGRb49/OvertimeDispatcher). Cada frame tem o **mesmo nome** da classe Swing correspondente ([módulo ui](modulos/ui.md)).
 
 ## Páginas do Figma
 

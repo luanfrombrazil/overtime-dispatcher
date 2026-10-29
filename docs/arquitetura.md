@@ -48,7 +48,7 @@ Todos abaixo de `io.github.luanfrombrazil.overtimedispatcher`.
 |---|---|---|
 | `domain` | Entidades, enums e regras puras (transições de status). | nada |
 | `persistence` | Salvar e carregar Tasks, Repositórios, Execuções e config. | `domain` |
-| `agente` | Interface comum para agentes de código (Claude Code, Codex, Gemini...): montar o prompt, rodar o processo, interpretar a saída. Um adaptador por provedor. | `domain` |
+| `agente` | Interface comum para agentes de IA (Claude Code, Codex, Gemini...): montar o prompt, rodar o processo, interpretar a saída. Um adaptador por provedor. | `domain` |
 | `consumo` | Contabilizar uso **por provedor** e decidir se a automação pode rodar. | `domain` |
 | `scheduler` | Ciclo periódico: ocioso? orçamento? próxima subtarefa? qual provedor? | `domain`, `agente`, `consumo` (via interfaces) |
 | `comunicacao` | Enviar avisos e receber comandos (Swing, WhatsApp). | `domain` |

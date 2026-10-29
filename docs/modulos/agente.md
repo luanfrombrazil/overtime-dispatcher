@@ -1,6 +1,6 @@
 # Módulo `agente`
 
-Executa uma subtarefa num agente de código (Claude Code, Codex, Gemini...) e devolve o resultado num formato comum. É o **único** lugar da aplicação que sabe que existem provedores diferentes.
+Executa uma subtarefa num agente de IA (Claude Code, Codex, Gemini...) e devolve o resultado num formato comum. É o **único** lugar da aplicação que sabe que existem provedores diferentes.
 
 ## Interface
 
