@@ -1,6 +1,6 @@
 # Módulo `service`
 
-Casos de uso da aplicação. É a **única** porta de entrada para a UI e para os canais de comunicação.
+Casos de uso da aplicação. É a **única** porta de entrada para a UI, para os canais de comunicação e para o [RPC](rpc.md). Cada chamada carrega quem está chamando (`DONO` ou `AGENTE`), e o serviço recusa o que aquele papel não pode fazer.
 
 ## Responsabilidades
 
@@ -15,7 +15,9 @@ Casos de uso da aplicação. É a **única** porta de entrada para a UI e para o
 |---|---|
 | `TaskService` | criar, editar, remover, pausar/retomar Task; adicionar, editar, reordenar, cancelar, reabrir Subtarefa |
 | `VerificacaoService` | listar pendências, aprovar, rejeitar (com motivo) |
-| `RepositorioService` | cadastrar, editar, remover Repositório (não remove se houver Task vinculada) |
+| `ProjetoService` | criar, editar, remover projeto (não remove com Task em andamento); estado agregado e motivo de cada projeto para a barra da esquerda |
+| `HomeService` | números da Home, mapa de atividade, última sessão, "precisa de você", últimas 14 noites |
+| `NotificacaoService` | notificações do sino: listar, marcar como lidas, contador |
 | `ExecucaoService` | executar agora, cancelar, consultar histórico e logs |
 | `AgendadorService` | iniciar, pausar, pausar provedor, estado atual |
 | `ConsumoService` | uso por provedor, "vou usar agora", configuração de tetos |

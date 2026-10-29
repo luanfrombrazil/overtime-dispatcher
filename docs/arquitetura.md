@@ -29,7 +29,20 @@
                               └─────────────────────┘
 ```
 
+## Base técnica
+
+| Item | Escolha |
+|---|---|
+| Linguagem | **Java 25 LTS** (records, sealed interfaces, pattern matching, virtual threads, FFM para APIs do Windows) — D-36 |
+| Build | **Maven** — D-36 |
+| JSON | **Jackson** — D-35 |
+| Interface | Swing + **FlatLaf** (`FlatDarkLaf`) — D-13, D-25 |
+| Pacote raiz | `io.github.luanfrombrazil.overtimedispatcher` — D-37 |
+| Notificações com botões | biblioteca nativa de toast do Windows, a escolher (A-15) — D-41 |
+
 ## Pacotes
+
+Todos abaixo de `io.github.luanfrombrazil.overtimedispatcher`.
 
 | Pacote | Responsabilidade | Depende de |
 |---|---|---|
@@ -39,10 +52,10 @@
 | `consumo` | Contabilizar uso **por provedor** e decidir se a automação pode rodar. | `domain` |
 | `scheduler` | Ciclo periódico: ocioso? orçamento? próxima subtarefa? qual provedor? | `domain`, `agente`, `consumo` (via interfaces) |
 | `comunicacao` | Enviar avisos e receber comandos (Swing, WhatsApp). | `domain` |
-| `service` | Casos de uso da aplicação; único ponto de entrada da UI. | todos acima |
+| `service` | Casos de uso da aplicação; único ponto de entrada da UI, dos canais e do RPC. | todos acima |
 | `ui` | Telas Swing. | `service`, `domain` (só leitura) |
+| `rpc` | Servidor JSON-RPC local para agentes e programas externos chamarem funções da app ([detalhes](modulos/rpc.md)). | `service`, `domain` |
 
-> O nome raiz dos pacotes (ex.: `overtimedispatcher.*`) está em [decisões](decisoes.md).
 
 ## Regras
 
@@ -62,6 +75,7 @@
 | **Execução** | Uma thread por execução de agente em andamento (limite configurável; inicialmente 1 por provedor). |
 | **Leitura de saída** | Lê stdout/stderr do processo e repassa linha a linha ao log. |
 | **Canais** | Cada canal externo (ex.: WhatsApp) recebe mensagens na sua própria thread. |
+| **RPC** | Pool pequeno do servidor HTTP local; cada chamada vira uma chamada ao `service`. |
 
 Eventos que vêm de outras threads chegam à UI por `SwingUtilities.invokeLater`.
 
@@ -85,11 +99,23 @@ O `service` publica eventos para quem se inscrever (UI, canais de comunicação)
 2. Criar implementações concretas (store, agentes habilitados, fontes de uso, canais).
 3. Criar o `TaskService` injetando essas dependências (injeção manual por construtor, sem framework).
 4. Abrir a `MainFrame` na EDT.
-5. Iniciar o agendador **pausado** — você liga quando quiser.
-6. Ao iniciar, recuperar execuções interrompidas: subtarefas que ficaram `EM_ANDAMENTO` voltam para `A_FAZER` (contando tentativa).
+5. Iniciar o servidor RPC em `127.0.0.1`.
+6. Iniciar o agendador **pausado** — você liga quando quiser.
+7. Ao iniciar, recuperar execuções interrompidas: subtarefas que ficaram `EM_ANDAMENTO` voltam para `A_FAZER` (contando tentativa).
+
+## Ciclo de vida: bandeja do Windows
+
+A app **continua rodando com a janela fechada** (decisão D-31):
+
+- Fechar a janela (X) esconde a janela e mantém a app na **bandeja do sistema** (`java.awt.SystemTray`). Agendador, agentes, RPC e canais seguem funcionando.
+- O ícone da bandeja muda conforme o estado geral: normal, executando, precisa de você.
+- Menu do ícone: **Abrir**, **Pausar/Retomar agendador**, **Sair**. Só "Sair" encerra a app (e pergunta se há execução em andamento).
+- Duplo clique no ícone, ou clique numa notificação, reabre a janela.
+- **Resumo da ausência:** a app guarda o momento em que a janela foi escondida. Ao reabrir, se algo aconteceu nesse intervalo, mostra o `ResumoAusenciaDialog` com o que foi concluído, o que precisa de você e o que falhou (decisão D-32).
+- Opção nas configurações: iniciar com o Windows, já na bandeja.
 
 ## Fora do escopo (por enquanto)
 
 - Rodar em servidor ou sem interface gráfica.
 - Múltiplos usuários.
-- Executar Tasks em paralelo no mesmo repositório.
+- Push automático para o remoto (o merge é local e o push fica com você).

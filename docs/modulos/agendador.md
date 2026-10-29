@@ -26,11 +26,10 @@ Uma subtarefa é elegível quando:
 
 - está `A_FAZER`;
 - é a primeira não concluída da sua Task (ordem);
-- a Task não está `PAUSADA`, `RASCUNHO` nem `AGUARDANDO_VOCE`;
-- nenhuma outra Task do **mesmo repositório** está em execução;
-- o provedor da Task (fixado, preferido ou escolhido no modo automático) é o provedor em questão.
+- a Task não está `PAUSADA`, `RASCUNHO`, `AGUARDANDO_VOCE` nem `PRONTA_PARA_MERGE` (ela espera por você, e o agente segue para outra Task);
+- o `provedor` da Task é o provedor em questão, ou é `AUTOMATICO` e a política de consumo escolhe este provedor.
 
-Entre as elegíveis: maior **prioridade** da Task primeiro; em empate, a Task mais antiga.
+Entre as elegíveis: maior **prioridade** da Task primeiro; em empate, a Task com o menor ID (a mais antiga).
 
 ## Ao terminar uma execução
 
@@ -42,14 +41,24 @@ Entre as elegíveis: maior **prioridade** da Task primeiro; em empate, a Task ma
 | `TIMEOUT` / `FALHA_DO_AGENTE` | Conta tentativa; volta para `A_FAZER` ou vai para `FALHOU` |
 | `NAO_AUTENTICADO` | Provedor desabilitado até você resolver; aviso pelos canais |
 | `CANCELADO` | Volta para `A_FAZER` sem contar tentativa |
+| Agente pediu direcionamento | Subtarefa → `AGUARDANDO_DIRECIONAMENTO` **sem** contar tentativa; emite `DirecionamentoSolicitado` |
+| Última subtarefa da Task terminou (Task com repositório) | Task → `PRONTA_PARA_MERGE`; emite `MergeSolicitado` |
 
-Depois de tratar o resultado, dispara um novo ciclo imediatamente.
+Depois de tratar o resultado, dispara um novo ciclo imediatamente, para que o agente liberado pegue outra Task em aberto.
+
+## Branch e worktree
+
+Antes da primeira execução de uma Task com repositório, o agendador (via `service`) cria a branch `overtime/<id>` a partir da branch padrão, grava `branch` e `commitBase` na Task e cria a worktree em `worktrees/<projeto>-<id>/`. Todas as execuções da Task rodam nessa worktree. Depois do merge aprovado, a worktree e a branch são removidas.
+
+## Tudo esperando por você
+
+Se todas as Tasks elegíveis estiverem paradas esperando você, o agente fica ocioso. Nesse caso a app envia um resumo pelos canais (ex.: "3 Tasks paradas esperando você: …"), no máximo uma vez a cada X horas (configurável).
 
 ## Controles
 
 - **Iniciar / Pausar** o agendador inteiro.
 - **Pausar um provedor** específico.
-- **Executar agora**: roda uma subtarefa escolhida por você, ignorando o intervalo (mas respeitando a regra do mesmo repositório). Execuções manuais são marcadas com `origem = MANUAL`.
+- **Executar agora**: roda uma subtarefa escolhida por você, ignorando o intervalo. Execuções manuais são marcadas com `origem = MANUAL`.
 - **Cancelar** a execução em andamento.
 
 ## Recuperação

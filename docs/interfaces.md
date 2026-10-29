@@ -1,102 +1,96 @@
-# Interfaces (guia para o Figma)
+# Interfaces
 
-Lista das telas e componentes a modelar. Cada frame do Figma deve ter o **mesmo nome** da classe Swing correspondente (ver [módulo ui](modulos/ui.md)).
+Arquivo no Figma: [Hyper-AI](https://www.figma.com/design/0BqwZD0E88qRrWcxHGRb49/Hyper-AI). Cada frame tem o **mesmo nome** da classe Swing correspondente ([módulo ui](modulos/ui.md)).
 
-## Sugestão de organização no Figma
+## Páginas do Figma
 
 | Página | Conteúdo |
 |---|---|
-| `Fundamentos` | Cores, tipografia, espaçamentos, ícones de status e de provedor |
-| `Componentes` | Badges, barras de consumo, botões, linhas de tabela |
-| `Telas` | Frames das telas abaixo |
-| `Fluxos` | Protótipos de ponta a ponta (ex.: verificação) |
+| `Fundamentos` | Variáveis de cor (modo único `Escuro`), cores de atividade, espaçamentos, estilos de texto |
+| `Componentes` | `ItemStatus`, `LinhaProjeto`, `PrioridadeBadge`, `EsforcoBadge`, `ProvedorBadge`, `Botao` |
+| `Telas` | `MainFrame`, `HomeFrame`, `TaskDialog`, `SubtarefaDialog`, `ProjetoDialog`, `VerificacaoPanel`, `ConfiguracoesDialog` (Agendamento e Notificações) |
 
-## Fundamentos
+O plano gratuito do Figma permite só 3 páginas (decisão D-24).
 
-- **Status** (subtarefa e Task): uma cor e um ícone para cada — `A_FAZER`, `EM_ANDAMENTO`, `AGUARDANDO_VERIFICACAO`, `CONCLUIDA`, `FALHOU`, `CANCELADA`, `PAUSADA`, `RASCUNHO`.
-- **Provedores:** identidade visual neutra por provedor (cor + sigla), sem usar logotipos oficiais.
-- **Prioridade:** `BAIXA`, `MEDIA`, `ALTA`, `URGENTE`.
-- Base visual: **FlatLaf** (decisão D-13). Desenhar a partir dos componentes padrão dele (botões, campos, tabelas, abas) e ajustar cor, cantos e espaçamento, em vez de inventar componentes do zero.
-- Tema claro e escuro (FlatLaf suporta os dois); começar por um deles.
-- **O mais simples possível** (decisão D-14): cores sólidas, sem "Background blur", transparências, sombras elaboradas, gradientes ou animações.
-- Tamanho de referência da janela: 1280 × 800, mínimo 1024 × 640.
+## Princípios
 
-## Componentes
+- **Só tema escuro** (FlatDarkLaf, D-25), componentes padrão do FlatLaf, cores sólidas (D-14).
+- Fontes: **Inter** na interface, **JetBrains Mono** no console.
+- **Tudo cabe em 1280 × 800**, sem rolagem na janela principal (D-30).
+- **Texto mínimo** (D-29): só quando estritamente necessário, o mais curto possível.
+- **Sem IDs** (D-28): nomes e, se preciso, `Projeto › Task › Subtarefa`.
 
-| Componente | Classe | Variações |
+## Estado visual: borda colorida
+
+Projetos, Tasks e subtarefas mostram o estado por uma **borda colorida de 6px à esquerda** (D-27). Não há badges de status.
+
+| Estado | Cor | Texto |
 |---|---|---|
-| Badge de status | `StatusBadge` | um por status |
-| Badge de provedor | `ProvedorBadge` | um por provedor + `AUTOMATICO` |
-| Barra de consumo | `BarraDeConsumo` | livre / perto do teto / no teto / em limite / pausado |
-| Linha de Task | — | normal, selecionada, aguardando você |
-| Linha de subtarefa | — | por status; com/sem "requer verificação" |
-| Barra do agendador | `BarraAgendador` | rodando / pausado / sem orçamento |
+| Concluído | verde | nenhum |
+| Em andamento | azul | nenhum |
+| Pendente (na fila) | cinza | nenhum |
+| Atenção (precisa de você) | amarelo | o motivo, curtíssimo: `1 verificação`, `Direcionamento`, `Merge` |
+| Erro | vermelho | `Falhou` |
 
-## Telas
+O estado de um projeto ou Task é o mais grave entre os seus itens: Erro > Atenção > Em andamento > Pendente > Concluído.
 
-### 1. `MainFrame` — janela principal
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ BarraAgendador: [▶ Iniciar] intervalo 5 min · próximo ciclo 02:13          │
-│                 Claude ▓▓▓░░ 52%   Codex ▓░░░░ 18%   Gemini ▓▓░░░ 31%   ⚙ │
-├──────────────────┬─────────────────────────────────────────────────────────┤
-│ TaskListPanel    │ TaskDetailPanel                                         │
-│ [Buscar...]      │  T-12 · Corrigir login              [ALTA] [Claude]     │
-│ Filtros ▾        │  Repositório: meu-app (main)                            │
-│                  │  Descrição ...                                          │
-│ ● T-12 Corrigir  │ ───────────────────────────────────────────────────     │
-│ ◐ T-9  Docs API  │  SubtarefaTablePanel                                    │
-│ ✓ T-7  Backup    │   # │ Subtarefa         │ Verif. │ Status    │ Tent.     │
-│                  │   1 │ Reproduzir o bug  │        │ Concluída │ 1         │
-│ [+ Nova Task]    │   2 │ Escrever o teste  │   ✓    │ Aguardando│ 1         │
-│                  │   3 │ Corrigir          │        │ A fazer   │ 0         │
-│                  │  [+] [✎] [−] [↑] [↓]   [▶ Executar agora]               │
-├──────────────────┴─────────────────────────────────────────────────────────┤
-│ Abas: [Log ao vivo] [Histórico] [Verificações (2)]                         │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-Estados a desenhar: sem nenhuma Task (vazio com convite para criar), Task selecionada, execução em andamento (log rolando).
-
-### 2. `SubtarefaDialog` — criar/editar subtarefa
-
-Campos: título, instrução (texto longo), critério de aceite (texto longo), requer verificação (checkbox), máximo de tentativas.
-
-### 3. Nova/editar Task
-
-Pode ser no próprio `TaskDetailPanel` (edição inline) ou num diálogo — decidir no Figma. Campos: título, descrição, prioridade, repositório (ou "Nenhum"), provedor (específico ou automático), permissões (herdar do repositório ou personalizar).
-
-### 4. `VerificacaoPanel` — pendências
+## Janela principal (`MainFrame`)
 
 ```
-┌─ Verificações pendentes ──────────────────────────────────────────┐
-│ T-12.2 Escrever o teste          Claude · há 14 min               │
-│   Resumo do agente: ...                                           │
-│   Critério de aceite: ...                                         │
-│   [Ver log] [Ver diff]                                            │
-│   Comentário: [_____________________________]                     │
-│   [✓ Aprovar]  [✗ Rejeitar]                                       │
-└───────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [⌂] [▶ Iniciar agendador] Pausado · 5 min    Claude ▓▓░ Codex ▓░ Gemini ▓░ [🔔3] [⚙] │
+├────────────────────┬─────────────────────────────────────────────────────┤
+│ Projetos  [+Projeto]│ Meu App                [Automático] [Editar] [+ Task] │
+│ [Buscar projeto…]   │ C:\code\meu-app · main                              │
+│▌MA Meu App          │ ┌─────────────────────────────────────────────┐    │
+│▌   1 verificação    │ │▌Corrigir login com e-mail em maiúsculas    ▾│    │
+│▌AP API de Pagamentos│ │▌1 verificação                               │    │
+│▌JU Migração JUnit 5 │ │   ▌Reproduzir o bug com um teste            │    │
+│▌   Direcionamento   │ │   ▌Normalizar o e-mail no login             │    │
+│▌BP Backup Pessoal   │ │   ▌Verificação                              │    │
+│▌   Falhou           │ │   ▌Atualizar a documentação                 │    │
+│▌LP Landing Page     │ │ [+ Subtarefa] [Editar]   [Revisar verificação]│   │
+│▌PC Pesquisa Crawlers│ └─────────────────────────────────────────────┘    │
+│                     │ ▌Tela de recuperação de senha                  ▸   │
+│                     │ ▌Remover dependências antigas · Merge          ▸   │
+│                     │ ┌ Log · Histórico · Pendências (1) ────────────┐   │
+│                     │ │ 16:40 Corrigir login › Normalizar · Claude    │   │
+│                     │ └──────────────────────────────────────────────┘   │
+└────────────────────┴─────────────────────────────────────────────────────┘
 ```
 
-### 5. `ConsumoPanel` — orçamento por provedor
+- **Barra superior:** Home (só a casinha), iniciar/pausar o agendador, consumo por provedor, notificações (sino com contador) e configurações.
+- **Barra da esquerda:** só **projetos**. Todas as linhas têm a mesma altura (52px), com ícone de iniciais, nome e motivo opcional.
+- **Área central:** o projeto selecionado, com Tasks em cartões. A Task expandida mostra as subtarefas e as ações. Prioridade e esforço **não aparecem no cartão**; ficam no diálogo de edição.
+- **Console do projeto:** embaixo do projeto, com Log, Histórico e Pendências **só daquele projeto**.
+- Sem botões de seta: reordenar é por **arrastar e soltar**. Sem "Executar agora" no cartão: fica no **menu de contexto** da subtarefa.
 
-Por provedor: barra da janela atual (uso × teto × limite estimado), barra do período, tempo até renovar, estado, botão **"Vou usar agora"** com duração.
+## Home (`HomeFrame`)
 
-### 6. `RepositoriosDialog`
+Aberta pelo botão da casinha. Tudo em 1280 × 800:
 
-Lista de repositórios + formulário: nome, pasta (com seletor), branch padrão, permissões padrão. Indicador de pasta inválida.
+- **4 números** com mini-gráfico (linha com pontos sobre fundo quadriculado): concluídas em 7 dias, pendências, falhas e horas de overtime.
+- **Mapa de atividade**, no estilo das contribuições do GitHub: subtarefas concluídas por dia no último ano, com a legenda "Menos → Mais" no cabeçalho.
+- **Última sessão:** horário e duração, consumo por provedor e as 4 Tasks mais relevantes (`Projeto › Task`), com "+N concluídas" para o resto.
+- **Precisa de você:** pendências de todos os projetos.
+- **Últimas 14 noites:** gráfico de linha com pontos.
 
-### 7. `ConfiguracoesDialog`
+## Diálogos e painéis
 
-Abas:
-- **Geral:** pasta de dados, intervalo do agendador, tentativas e timeout padrão.
-- **Provedores:** por provedor — habilitado, caminho do CLI, status (instalado/autenticado), tetos, horários, prioridade.
-- **Comunicação:** WhatsApp habilitado, números autorizados, quais avisos enviar.
+| Tela | Conteúdo |
+|---|---|
+| `ProjetoDialog` | Ícone (iniciais) + nome, descrição, repositório (vincular? pasta + "Procurar…", branch padrão), padrões das tasks (provedor, esforço), permissões do agente (editar arquivos, rodar testes e build, instalar dependências, acessar a internet) |
+| `TaskDialog` | Título, descrição, prioridade, esforço, "Provedor · modelo" (ex.: Claude Code · Sonnet), permissões (herdar do projeto ou personalizar) |
+| `SubtarefaDialog` | Título, instrução, critério de aceite, requer verificação, depende de (lista das outras subtarefas) |
+| `ConfiguracoesDialog` | Navegação lateral: Geral, Agendamento, Provedores, Notificações, Projetos padrão, Avançado. **Agendamento:** horário de funcionamento (uma barra vertical larga por dia, 0h–24h, com 48 segmentos de 30 min; clicar e arrastar seleciona; verde = horário válido; + atalhos), reserva para você por provedor (controle deslizante), intervalo, tentativas, timeout. **Notificações:** modo silencioso (agora, faixa automática, falhas furam o silêncio), canais (Desktop, WhatsApp, Som), tipos de aviso |
+| `VerificacaoPanel` | Cartões com borda amarela, `Projeto › Task`, o motivo (`Verificação` ou `Direcionamento`); verificação: Ver log, Ver diff, Rejeitar, Aprovar; direcionamento: pergunta, resposta, Responder |
 
-## Fluxos para prototipar
+## A desenhar
 
-1. Criar Task → adicionar 3 subtarefas → executar a primeira manualmente.
-2. Agendador pega a subtarefa → termina → pede verificação → você rejeita com comentário → nova execução → aprova.
-3. Provedor atinge o teto → agendador pausa aquele provedor → barra de consumo muda de estado.
+- `ResumoAusenciaDialog`: pop-up ao voltar da bandeja, "Enquanto você estava fora" + período; blocos com borda de estado: precisa de você (com ação direta), falhas, concluídas (só contagem e lista curta); botão "Ver pendências".
+- Notificação do desktop (Windows): título curto + `Projeto › Task · motivo`; clique abre a pendência.
+- `NotificacoesPopup`: lista suspensa do sino, itens com borda de estado e texto mínimo (ex.: `Meu App · 1 verificação`).
+- `MergePanel`: revisão do diff de uma Task antes do merge.
+- `ConsumoPanel`: orçamento por provedor, com "Vou usar agora".
+- `ConfiguracoesDialog`: abas Geral, Provedores, Projetos padrão e Avançado.
+- Ajustar no Figma: campo "Provedor · modelo" no `TaskDialog` e "Depende de" no `SubtarefaDialog`.
