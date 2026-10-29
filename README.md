@@ -1,8 +1,8 @@
 # Overtime Dispatcher
 
-Aplicação desktop em Java (Swing) que mantém uma **fila de tarefas** para agentes de código — começando pelo Claude Code e depois Codex e Gemini — e as executa automaticamente quando o agente está ocioso, respeitando um orçamento de uso por provedor que sempre deixa uma reserva para uso manual.
+Aplicação desktop que mantém uma **fila de tarefas** para agentes de código — começando pelo Claude Code e depois Codex e Gemini — e as executa automaticamente quando o agente está ocioso, respeitando um orçamento de uso por provedor que sempre deixa uma reserva para uso manual.
 
-> Status: **fase de documentação e design**. Ainda não há código; este repositório descreve módulos, funcionalidades e decisões. Stack definida: Java 25, Maven, Swing + FlatLaf, Jackson.
+> Status: **fase de documentação e design**. Ainda não há código; este repositório descreve módulos, funcionalidades e decisões.
 
 ## Ideia em uma frase
 
@@ -10,7 +10,7 @@ Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks** (histórias
 
 ## Telas
 
-Protótipos do Figma ([Hyper-AI](https://www.figma.com/design/0BqwZD0E88qRrWcxHGRb49/Hyper-AI)), tema escuro do FlatLaf.
+Protótipos do Figma ([Hyper-AI](https://www.figma.com/design/0BqwZD0E88qRrWcxHGRb49/Hyper-AI)).
 
 ### Home
 
@@ -58,9 +58,9 @@ Horário de funcionamento por dia (48 segmentos de 30 min), reserva de uso para 
 | Agentes (Claude Code, Codex, Gemini) | [docs/modulos/agente.md](docs/modulos/agente.md) |
 | Consumo (orçamento de uso) | [docs/modulos/consumo.md](docs/modulos/consumo.md) |
 | Agendador | [docs/modulos/agendador.md](docs/modulos/agendador.md) |
-| Comunicação (Swing / WhatsApp) | [docs/modulos/comunicacao.md](docs/modulos/comunicacao.md) |
+| Comunicação (app, desktop, WhatsApp) | [docs/modulos/comunicacao.md](docs/modulos/comunicacao.md) |
 | Serviço | [docs/modulos/servico.md](docs/modulos/servico.md) |
-| Interface (Swing) | [docs/modulos/ui.md](docs/modulos/ui.md) |
+| Interface | [docs/modulos/ui.md](docs/modulos/ui.md) |
 | RPC (chamadas externas e dos agentes) | [docs/modulos/rpc.md](docs/modulos/rpc.md) |
 
 ## Glossário
