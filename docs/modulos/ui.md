@@ -10,6 +10,8 @@ Telas da aplicação, construídas com Swing e `JPanel`s pequenos e reaproveitá
 4. Eventos do `service` chegam por `SwingUtilities.invokeLater`.
 5. Tabelas usam `TableModel` próprio (ex.: `SubtarefaTableModel`), não `DefaultTableModel`.
 6. Cores, fontes e espaçamentos ficam numa classe `Tema`, espelhando os estilos do Figma.
+7. Look & feel **FlatLaf** (decisão D-13). Ajustes visuais globais (cantos, cores de destaque, espaçamentos dos componentes padrão) vão em propriedades do FlatLaf, não em cada componente.
+8. Visual o mais simples possível (decisão D-14): componentes padrão do FlatLaf, cores sólidas, sem desfoque nem efeitos de transparência.
 
 ## Estrutura
 

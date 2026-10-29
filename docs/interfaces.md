@@ -16,7 +16,9 @@ Lista das telas e componentes a modelar. Cada frame do Figma deve ter o **mesmo 
 - **Status** (subtarefa e Task): uma cor e um ícone para cada — `A_FAZER`, `EM_ANDAMENTO`, `AGUARDANDO_VERIFICACAO`, `CONCLUIDA`, `FALHOU`, `CANCELADA`, `PAUSADA`, `RASCUNHO`.
 - **Provedores:** identidade visual neutra por provedor (cor + sigla), sem usar logotipos oficiais.
 - **Prioridade:** `BAIXA`, `MEDIA`, `ALTA`, `URGENTE`.
-- Tema claro e escuro, se for usar FlatLaf (ver decisão A-11).
+- Base visual: **FlatLaf** (decisão D-13). Desenhar a partir dos componentes padrão dele (botões, campos, tabelas, abas) e ajustar cor, cantos e espaçamento, em vez de inventar componentes do zero.
+- Tema claro e escuro (FlatLaf suporta os dois); começar por um deles.
+- **O mais simples possível** (decisão D-14): cores sólidas, sem "Background blur", transparências, sombras elaboradas, gradientes ou animações.
 - Tamanho de referência da janela: 1280 × 800, mínimo 1024 × 640.
 
 ## Componentes

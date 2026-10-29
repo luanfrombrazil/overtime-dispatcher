@@ -1,4 +1,4 @@
-# auto-claude
+# Overtime Dispatcher
 
 Aplicação desktop em Java (Swing) que mantém uma **fila de tarefas** para agentes de código — começando pelo Claude Code e depois Codex e Gemini — e as executa automaticamente quando o agente está ocioso, respeitando um orçamento de uso por provedor que sempre deixa uma reserva para uso manual.
 

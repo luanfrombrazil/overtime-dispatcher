@@ -34,7 +34,7 @@ public interface ConfigStore { Config carregar(); void salvar(Config config); }
 - Um arquivo por Task: alterações isoladas e fáceis de inspecionar ou versionar.
 - Escrita **atômica**: grava num arquivo temporário e renomeia, para não corromper em caso de queda.
 - Os logs ficam fora do JSON (só o caminho é guardado).
-- Pasta de dados padrão: `%USERPROFILE%\.auto-claude\` (configurável).
+- Pasta de dados padrão: `%USERPROFILE%\.overtime-dispatcher\` (configurável).
 
 ## Futuro
 

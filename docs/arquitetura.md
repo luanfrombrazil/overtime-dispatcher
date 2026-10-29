@@ -42,7 +42,7 @@
 | `service` | Casos de uso da aplicação; único ponto de entrada da UI. | todos acima |
 | `ui` | Telas Swing. | `service`, `domain` (só leitura) |
 
-> O nome raiz dos pacotes (ex.: `autoclaude.*`) está em [decisões](decisoes.md).
+> O nome raiz dos pacotes (ex.: `overtimedispatcher.*`) está em [decisões](decisoes.md).
 
 ## Regras
 

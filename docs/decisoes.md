@@ -18,6 +18,9 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-10 | Múltiplos provedores (Claude Code, Codex, Gemini) atrás da interface `Agente` | Aproveitar créditos de várias assinaturas |
 | D-11 | Uma Task fica num único provedor do início ao fim | Sessões não são transferíveis entre agentes |
 | D-12 | Interfaces modeladas no Figma antes da implementação da UI | Definir o visual antes de codar os painéis |
+| D-13 | Look & feel **FlatLaf** sobre Swing (28/10/2026) | Visual moderno, temas claro/escuro e componentes customizáveis sem trocar de toolkit |
+| D-14 | **Sem vidro fosco** nem efeitos de desfoque; visual o mais simples possível, com os componentes padrão do FlatLaf e cores sólidas (28/10/2026) | Simplicidade; o desfoque no Swing é frágil ou trabalhoso e não traz valor para o uso da app |
+| D-15 | Nome do projeto: **Overtime Dispatcher** (`overtime-dispatcher`) (28/10/2026) | Não fica preso a um provedor; "overtime" remete a usar os créditos ociosos fora do seu horário e "dispatcher" ao despacho de tarefas para agentes, conexões e crawling |
 
 ## Em aberto
 
@@ -27,10 +30,8 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | A-02 | Subtarefas só sequenciais ou algumas independentes? | Sequenciais (proposta) / com dependências | Fase 1 |
 | A-03 | Biblioteca de JSON | Jackson / Gson / sem dependências | Fase 1 |
 | A-04 | Build e versão do Java | Maven ou Gradle; Java 17 ou 21 | Fase 1 |
-| A-05 | Nome raiz dos pacotes | ex.: `autoclaude`, `dev.luan.autoclaude` | Fase 1 |
+| A-05 | Nome raiz dos pacotes | ex.: `overtimedispatcher`, `dev.luan.overtimedispatcher` | Fase 1 |
 | A-06 | Como definir a reserva | Porcentagem / horários / ambos | Fase 3 |
 | A-07 | Integração com o projeto de WhatsApp | HTTP / biblioteca / processo separado — depende do projeto | Fase 5 |
 | A-08 | Antigravity tem execução sem interface? Senão, usar Gemini CLI | Verificar | Fase 4 |
 | A-09 | Comandos exatos de Codex e Gemini (JSON, retomada de sessão, permissões) | Verificar nas versões instaladas | Fase 4 |
-| A-10 | O nome "auto-claude" continua, mesmo com outros provedores? | Manter / renomear | Antes de publicar |
-| A-11 | Look & feel do Swing | Padrão / FlatLaf (moderno, combina melhor com um design do Figma) | Fase 1 |
