@@ -49,6 +49,8 @@ Registro curto de decisões. Ao fechar uma decisão em aberto, mova-a para **Tom
 | D-41 | Notificações do Windows **com botões de ação** (Aprovar, Rejeitar, Responder), via biblioteca nativa de toast; o clique continua abrindo a pendência (antiga A-14) | Responder sem abrir a app |
 | D-42 | Opções do **Claude Code confirmadas** na versão 2.1.308: `-p`, `--output-format json/stream-json`, `-r`, `--session-id`, `--permission-mode`, `--allowedTools`, `--model`, `--effort` (low, medium, high, xhigh, max), `--mcp-config` (parte da antiga A-09) | Adaptador da fase 2 pode ser implementado sem suposições |
 
+| D-43 | Distribuição final como **`.exe` com Java embutido e reduzido**, gerado pelo `jpackage` com `jlink` (só os módulos usados); ícone próprio no `.exe`, na janela, na bandeja e nas notificações; durante o desenvolvimento, `.jar` (29/10/2026) | Quem usa não precisa instalar Java; nenhum símbolo do Java aparece; o atalho registrado permite notificações com botões (D-41) |
+
 ## Em aberto
 
 | # | Pergunta | Situação | Necessária para |

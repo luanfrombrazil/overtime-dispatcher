@@ -35,6 +35,8 @@ ui
 │   ├─ LinhaProjeto                linha de altura fixa: borda de estado, ícone, nome, motivo
 │   ├─ ProjetoDetailPanel          cabeçalho do projeto + cartões de Task + console
 │   ├─ TaskCard                    Task com borda de estado; expandida mostra subtarefas e ações
+│   ├─ NoDependencia               círculo da subtarefa onde se amarra o fio
+│   ├─ FioDependencia              curva vermelha desenhada entre dois nós (Graphics2D)
 │   ├─ ProjetoLogPanel             console do projeto: Log · Histórico · Pendências
 │   └─ ProjetoDialog               criar/editar projeto
 ├─ task/
@@ -68,6 +70,8 @@ ui
 | Abrir projeto | Clique em `LinhaProjeto` |
 | Expandir Task | Clique no `TaskCard` |
 | Reordenar Tasks e subtarefas | **Arrastar e soltar** (sem botões de seta) |
+| Criar dependência | Arrastar do círculo de uma subtarefa até o de outra; aparece um fio vermelho (`FioDependencia`) |
+| Remover dependência | Clicar no fio › Desamarrar |
 | Executar uma subtarefa agora | Menu de contexto (botão direito) na subtarefa |
 | Ver notificações | Sino na `BarraSuperior`; o contador mostra as não lidas |
 | Fechar a janela | Vai para a bandeja; a app continua trabalhando |

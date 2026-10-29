@@ -63,6 +63,7 @@ O estado de um projeto ou Task é o mais grave entre os seus itens: Erro > Aten�
 - **Barra da esquerda:** só **projetos**. Todas as linhas têm a mesma altura (52px), com ícone de iniciais, nome e motivo opcional.
 - **Área central:** o projeto selecionado, com Tasks em cartões. A Task expandida mostra as subtarefas e as ações. Prioridade e esforço **não aparecem no cartão**; ficam no diálogo de edição.
 - **Console do projeto:** embaixo do projeto, com Log, Histórico e Pendências **só daquele projeto**.
+- **Dependências amarradas com fio:** cada subtarefa tem um **círculo** à esquerda. Arrastar de um círculo até o de outra subtarefa as **amarra**: um **fio vermelho** liga os dois círculos, que ficam vermelhos. A de baixo depende da de cima (só roda depois que ela termina). Uma subtarefa pode ter vários fios. Clicar num fio oferece **Desamarrar**. Ao reordenar, os fios acompanham; se a ordem ficar invertida, a app avisa e não deixa soltar.
 - Sem botões de seta: reordenar é por **arrastar e soltar**. Sem "Executar agora" no cartão: fica no **menu de contexto** da subtarefa.
 
 ## Home (`HomeFrame`)
@@ -81,16 +82,17 @@ Aberta pelo botão da casinha. Tudo em 1280 × 800:
 |---|---|
 | `ProjetoDialog` | Ícone (iniciais) + nome, descrição, repositório (vincular? pasta + "Procurar…", branch padrão), padrões das tasks (provedor, esforço), permissões do agente (editar arquivos, rodar testes e build, instalar dependências, acessar a internet) |
 | `TaskDialog` | Título, descrição, prioridade, esforço, "Provedor · modelo" (ex.: Claude Code · Sonnet), permissões (herdar do projeto ou personalizar) |
-| `SubtarefaDialog` | Título, instrução, critério de aceite, requer verificação, depende de (lista das outras subtarefas) |
+| `SubtarefaDialog` | Título, instrução, critério de aceite, requer verificação (as dependências são feitas amarrando no cartão, não aqui) |
 | `ConfiguracoesDialog` | Navegação lateral: Geral, Agendamento, Provedores, Notificações, Projetos padrão, Avançado. **Agendamento:** horário de funcionamento (uma barra vertical larga por dia, 0h–24h, com 48 segmentos de 30 min; clicar e arrastar seleciona; verde = horário válido; + atalhos), reserva para você por provedor (controle deslizante), intervalo, tentativas, timeout. **Notificações:** modo silencioso (agora, faixa automática, falhas furam o silêncio), canais (Desktop, WhatsApp, Som), tipos de aviso |
 | `VerificacaoPanel` | Cartões com borda amarela, `Projeto › Task`, o motivo (`Verificação` ou `Direcionamento`); verificação: Ver log, Ver diff, Rejeitar, Aprovar; direcionamento: pergunta, resposta, Responder |
 
 ## A desenhar
 
+- **Ícone do app** (`.ico` e PNGs de 16 a 256 px) e **ícones da bandeja** por estado: normal, executando, precisa de você (D-43).
 - `ResumoAusenciaDialog`: pop-up ao voltar da bandeja, "Enquanto você estava fora" + período; blocos com borda de estado: precisa de você (com ação direta), falhas, concluídas (só contagem e lista curta); botão "Ver pendências".
 - Notificação do desktop (Windows): título curto + `Projeto › Task · motivo`; clique abre a pendência.
 - `NotificacoesPopup`: lista suspensa do sino, itens com borda de estado e texto mínimo (ex.: `Meu App · 1 verificação`).
 - `MergePanel`: revisão do diff de uma Task antes do merge.
 - `ConsumoPanel`: orçamento por provedor, com "Vou usar agora".
 - `ConfiguracoesDialog`: abas Geral, Provedores, Projetos padrão e Avançado.
-- Ajustar no Figma: campo "Provedor · modelo" no `TaskDialog` e "Depende de" no `SubtarefaDialog`.
+- Ajustar no Figma: campo "Provedor · modelo" no `TaskDialog`.

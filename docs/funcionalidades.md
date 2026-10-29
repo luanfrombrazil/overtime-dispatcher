@@ -21,7 +21,7 @@ Lista de funcionalidades por área. A coluna **Fase** remete ao [roadmap](roadma
 | F-03 | Adicionar, editar, remover e reordenar subtarefas (arrastar e soltar) | 1 |
 | F-04 | Definir instrução, critério de aceite e "requer verificação" por subtarefa | 1 |
 | F-05 | Tasks do projeto em cartões, ordenadas por prioridade, com estado por borda | 1 |
-| F-17 | Dependências entre subtarefas ("depende de"), com bloqueio de ciclos | 1 |
+| F-17 | Dependências entre subtarefas, criadas amarrando os círculos com um fio vermelho; bloqueio de ciclos | 1 |
 | F-18 | Escolher "Provedor · modelo" por Task, com padrão no projeto | 2 |
 | F-06 | Pausar e retomar uma Task | 3 |
 | F-07 | Cancelar e reabrir subtarefa | 2 |

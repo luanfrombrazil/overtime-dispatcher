@@ -39,6 +39,24 @@
 | Interface | Swing + **FlatLaf** (`FlatDarkLaf`) — D-13, D-25 |
 | Pacote raiz | `io.github.luanfrombrazil.overtimedispatcher` — D-37 |
 | Notificações com botões | biblioteca nativa de toast do Windows, a escolher (A-15) — D-41 |
+| Distribuição | `.exe` com Java embutido e reduzido (`jpackage` + `jlink`) — D-43 |
+
+## Build e distribuição
+
+| Uso | Comando | Resultado |
+|---|---|---|
+| Desenvolvimento | `mvn package` | `overtime-dispatcher.jar` (precisa de Java 25 instalado) |
+| Uso final | `mvn package -Pdistribuicao` | `OvertimeDispatcher.exe` numa pasta com um Java reduzido só aos módulos usados (sem precisar de Java instalado) |
+| Instalador (opcional) | mesmo perfil, com o WiX Toolset instalado | instalador que cria atalho no menu Iniciar, aparece em "Adicionar ou remover programas" e registra a identidade da app para as notificações com botões |
+
+**Ícone próprio** (nenhum símbolo do Java):
+
+| Onde | Como |
+|---|---|
+| `.exe` e atalhos | `.ico` passado ao `jpackage --icon` |
+| Janela e barra de tarefas | `setIconImages` com PNGs de 16, 32, 48 e 256 px |
+| Bandeja | `TrayIcon` com PNG de 16/32 px, uma variação por estado (normal, executando, precisa de você) |
+| Notificações | ícone do atalho registrado pelo instalador |
 
 ## Pacotes
 

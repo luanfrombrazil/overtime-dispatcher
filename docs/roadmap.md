@@ -38,6 +38,8 @@ Cada fase entrega algo utilizável. Os IDs remetem a [funcionalidades](funcional
 - Home: números, mapa de atividade, última sessão, precisa de você, últimas 14 noites.
 - F-06, F-25, F-26, F-40 a F-47, F-65A, F-66 a F-69, F-71, F-73 a F-75, F-85, F-90 a F-95.
 
+> A partir da fase 3, cada fase também gera o `.exe` com Java embutido (D-43), já com o ícone próprio, para uso no dia a dia.
+
 ## Fase 4 — Verificação manual e multiagente
 
 **Entrega:** subtarefas que exigem conferência param e esperam você na tela; Codex e Gemini entram como provedores.
