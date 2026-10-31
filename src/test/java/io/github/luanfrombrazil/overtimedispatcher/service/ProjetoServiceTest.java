@@ -145,8 +145,8 @@ class ProjetoServiceTest {
 
     @Test
     void estadoDoProjetoVemDasSubtarefas() {
-        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null);
-        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null);
+        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null, true, false);
+        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null, true, false);
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM).comSubtarefas(List.of(feita, verificar));
         Projeto projeto = Projeto.novo("P", "P", "", "", null, Provedor.AUTOMATICO, Esforco.MEDIUM, Permissoes.padrao())
                 .comTasks(List.of(task));
@@ -154,6 +154,29 @@ class ProjetoServiceTest {
         assertEquals(Estado.ATENCAO, projeto.estado());
         assertEquals("1 verificação", projeto.detalhe());
         assertEquals(Estado.PENDENTE, Task.nova("Vazia", "", Provedor.AUTOMATICO, Esforco.MEDIUM).estado());
+    }
+
+    @Test
+    void commitEPushDaSubtarefaSaoSalvos() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        projeto = servico.salvarSubtarefa(projeto, task, sub("Padrão"));
+        projeto = servico.salvarSubtarefa(projeto, task, sub("Com push").comGit(true, true));
+        projeto = servico.salvarSubtarefa(projeto, task, sub("Sem commit").comGit(false, true));
+
+        List<Subtarefa> relidas = new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id())
+                .orElseThrow().tasks().getFirst().subtarefas();
+
+        assertTrue(relidas.get(0).commit());
+        assertFalse(relidas.get(0).push());
+        assertTrue(relidas.get(1).push());
+        // Push sem commit não vale.
+        assertFalse(relidas.get(2).commit());
+        assertFalse(relidas.get(2).push());
+        // Arquivos de antes desses campos: commit ligado, push desligado.
+        Subtarefa antiga = new Subtarefa("1", "A", "", "", false, Estado.PENDENTE, List.of(), null, null, null);
+        assertTrue(antiga.commit());
+        assertFalse(antiga.push());
     }
 
     @Test

@@ -49,9 +49,18 @@ final class Prompt {
         p.append("- Ninguém vai responder perguntas durante a execução: decida com bom senso e registre as suposições no resumo.\n");
         permissoes(p, projeto.permissoes());
         if (projeto.usaGit()) {
-            p.append("- Você está num worktree separado, na branch `").append(branch).append("`. ")
-                    .append("Ao terminar, faça commit das suas mudanças nesta branch com uma mensagem clara. ")
-                    .append("Não troque de branch, não faça merge nem push.\n");
+            p.append("- Você está num worktree separado, na branch `").append(branch).append("`. ");
+            if (subtarefa.commit()) {
+                p.append("Ao terminar, faça commit das suas mudanças nesta branch com uma mensagem clara. ");
+            } else {
+                p.append("Não faça commit: deixe as mudanças no worktree. ");
+            }
+            if (subtarefa.push()) {
+                p.append("Depois do commit, faça push desta branch para o remoto. ")
+                        .append("Não troque de branch nem faça merge.\n");
+            } else {
+                p.append("Não troque de branch, não faça merge nem push.\n");
+            }
         }
         p.append("- Ao terminar, responda com um resumo curto do que fez e de como o critério de aceite foi atendido.\n");
         p.append("- Se não conseguir concluir, comece a resposta com \"").append(MARCA_DE_FALHA)

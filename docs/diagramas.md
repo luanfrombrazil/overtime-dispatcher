@@ -20,6 +20,8 @@ classDiagram
     }
     class Task {
         titulo
+        instrucao
+        criterioDeAceite
         esforco : Esforco
         modelo
         origem : Origem
@@ -28,6 +30,8 @@ classDiagram
         instrucao
         criterioDeAceite
         requerVerificacao : boolean
+        commit : boolean
+        push : boolean
     }
     class Protocolo {
         nome
@@ -71,6 +75,7 @@ classDiagram
     }
     class Agente {
         <<interface>>
+        executar(Task)
         executar(Subtarefa)
     }
     class ClaudeCode
@@ -99,7 +104,7 @@ classDiagram
 
     Projeto "1" *-- "0..*" Task : contém
     Projeto "1" o-- "0..1" Git : usa
-    Task "1" *-- "1..*" Subtarefa : dividida em
+    Task "1" *-- "0..*" Subtarefa : dividida em
     Subtarefa "0..*" --> "0..*" Subtarefa : depende de
     Task "0..*" --> "1" Agente : executada por
 
@@ -150,10 +155,10 @@ flowchart LR
         uc1(["Gerenciar projeto"])
         uc2(["Gerenciar tasks e subtarefas"])
         uc3(["Amarrar dependência"])
-        uc4(["Verificar subtarefa"])
+        uc4(["Verificar task ou subtarefa"])
         uc5(["Revisar e fazer merge"])
         uc6(["Responder orientação"])
-        uc7(["Executar subtarefa"])
+        uc7(["Executar task ou subtarefa"])
         uc8(["Respeitar horário e reserva"])
         uc9(["Pedir orientação"])
         uc10(["Chamar funções da app"])

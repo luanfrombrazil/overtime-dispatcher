@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação e dependências.
+ * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação, commit e push e dependências.
  */
 public class SubtarefaDialog extends Dialogo {
 
@@ -41,6 +41,8 @@ public class SubtarefaDialog extends Dialogo {
     private final JScrollPane instrucao;
     private final JScrollPane criterio;
     private final JCheckBox verificacao;
+    private final JCheckBox commit;
+    private final JCheckBox push;
     private final Map<String, JCheckBox> dependencias = new LinkedHashMap<>();
 
     /**
@@ -74,6 +76,17 @@ public class SubtarefaDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(10));
         verificacao = Formulario.caixa("Exige verificação manual", !nova && existente.requerVerificacao());
         corpo.add(Ui.cabecalho(verificacao, null));
+        commit = Formulario.caixa("Commit ao terminar", nova || existente.commit());
+        push = Formulario.caixa("Push depois do commit", !nova && existente.push());
+        // Push só faz sentido depois de um commit.
+        push.setEnabled(commit.isSelected());
+        commit.addItemListener(e -> {
+            push.setEnabled(commit.isSelected());
+            if (!commit.isSelected()) {
+                push.setSelected(false);
+            }
+        });
+        corpo.add(Ui.cabecalho(Ui.linha(16, commit, push), null));
 
         List<Subtarefa> anteriores = anteriores(task, existente);
         if (!anteriores.isEmpty()) {
@@ -175,10 +188,10 @@ public class SubtarefaDialog extends Dialogo {
                 .toList();
         if (existente == null) {
             return Subtarefa.nova(titulo.getText().strip(), Formulario.textoDa(instrucao), Formulario.textoDa(criterio),
-                    verificacao.isSelected(), escolhidas);
+                    verificacao.isSelected(), escolhidas).comGit(commit.isSelected(), push.isSelected());
         }
         return new Subtarefa(existente.id(), titulo.getText().strip(), Formulario.textoDa(instrucao),
                 Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), escolhidas,
-                existente.resultado());
+                existente.resultado(), commit.isSelected(), push.isSelected());
     }
 }

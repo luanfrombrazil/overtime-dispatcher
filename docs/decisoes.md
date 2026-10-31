@@ -24,6 +24,7 @@ Decisões técnicas e de arquitetura do projeto. Regras de funcionamento estão 
 | D-16 | A aplicação permanece em execução na bandeja do sistema quando a janela é fechada. | 28/10/2026 |
 | D-17 | As notificações do Windows possuem botões de ação. | 28/10/2026 |
 | D-18 | A integração com o WhatsApp reutiliza um projeto existente do autor. | 28/10/2026 |
+| D-19 | Subtarefas são opcionais: uma Task sem subtarefas é executada inteira, como uma única unidade, a partir da sua própria instrução. | 31/10/2026 |
 
 ## Pendentes
 
