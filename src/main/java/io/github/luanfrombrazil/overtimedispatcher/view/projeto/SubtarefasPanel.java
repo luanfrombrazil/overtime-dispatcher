@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.BorderFactory;
@@ -32,7 +33,8 @@ import java.util.function.Consumer;
 
 /**
  * Lista de subtarefas com o círculo de amarrar e o fio vermelho entre as dependentes.
- * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas).
+ * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas); arrastar
+ * pela alça de três barras, no fim da linha, muda a ordem.
  */
 class SubtarefasPanel extends JPanel {
 
@@ -41,15 +43,21 @@ class SubtarefasPanel extends JPanel {
     private final List<No> nos = new ArrayList<>();
     private final List<JPanel> linhas = new ArrayList<>();
     private final BiConsumer<Subtarefa, Subtarefa> aoAmarrar;
+    private final Reordenacao reordenacao;
 
     private int origemArrasto = -1;
     private Point ponteiro;
 
-    /** @param aoTentarDeNovo chamado pelo botão de seta circular das subtarefas que falharam */
-    SubtarefasPanel(List<Subtarefa> subtarefas, BiConsumer<Subtarefa, Subtarefa> aoAmarrar, Consumer<Subtarefa> aoClicar,
+    /**
+     * @param aoMover        recebe a subtarefa solta e quantas posições ela andou (negativo sobe)
+     * @param aoTentarDeNovo chamado pelo botão de seta circular das subtarefas que falharam
+     */
+    SubtarefasPanel(List<Subtarefa> subtarefas, BiConsumer<Subtarefa, Subtarefa> aoAmarrar,
+                    BiConsumer<Subtarefa, Integer> aoMover, Consumer<Subtarefa> aoClicar,
                     Consumer<Subtarefa> aoTentarDeNovo) {
         this.subtarefas = subtarefas;
         this.aoAmarrar = aoAmarrar;
+        this.reordenacao = new Reordenacao(this, (de, para) -> aoMover.accept(subtarefas.get(de), para - de));
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
@@ -79,8 +87,11 @@ class SubtarefasPanel extends JPanel {
                     aoClicar.accept(s);
                 }
             });
+            JComponent alca = reordenacao.alca("Arraste para mudar a ordem");
             if (s.estado() == Estado.ERRO) {
-                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)));
+                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)), alca);
+            } else {
+                item.comDireita(alca);
             }
             linha.add(item, BorderLayout.CENTER);
             linha.setMaximumSize(new Dimension(Integer.MAX_VALUE, linha.getPreferredSize().height));
@@ -168,6 +179,7 @@ class SubtarefasPanel extends JPanel {
             }
         }
         g2.dispose();
+        reordenacao.desenhar(g);
     }
 
     private Point centro(JComponent componente) {

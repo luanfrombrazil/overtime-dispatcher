@@ -88,6 +88,15 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
     }
 
     @Override
+    public void moverSubtarefa(Task task, Subtarefa subtarefa, int deslocamento) {
+        try {
+            alterado(servico.moverSubtarefa(projeto, task, subtarefa, deslocamento));
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Ordenar subtarefas", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    @Override
     public void novaSubtarefa(Task task) {
         new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
                 null).abrir();

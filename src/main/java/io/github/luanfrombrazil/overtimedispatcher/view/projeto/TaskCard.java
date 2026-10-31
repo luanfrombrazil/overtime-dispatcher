@@ -32,8 +32,12 @@ class TaskCard extends Cartao {
     private final Consumer<Boolean> aoExpandir;
     private boolean expandido;
 
-    /** @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão */
-    TaskCard(Task task, boolean expandido, Consumer<Boolean> aoExpandir, ProjetoPanel.Ouvinte ouvinte) {
+    /**
+     * @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão
+     * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem
+     */
+    TaskCard(Task task, boolean expandido, Consumer<Boolean> aoExpandir, ProjetoPanel.Ouvinte ouvinte,
+             JComponent alca) {
         super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
                 task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
         this.task = task;
@@ -48,7 +52,7 @@ class TaskCard extends Cartao {
         if (task.estado() == Estado.ORACULO) {
             JButton recusar = Ui.botaoOraculoSecundario("Recusar");
             JButton aceitar = Ui.botaoOraculo("Aceitar");
-            cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar);
+            cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar, alca);
             expandido = false;
         } else {
             long falhas = task.inteira()
@@ -57,9 +61,10 @@ class TaskCard extends Cartao {
             if (falhas > 0) {
                 cabecalho.comDireita(botaoTentarDeNovo(task.inteira() ? "Tentar de novo a task"
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
-                        : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)), seta);
+                        : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
+                        seta, alca);
             } else {
-                cabecalho.comDireita(seta);
+                cabecalho.comDireita(seta, alca);
             }
             cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             cabecalho.addMouseListener(new MouseAdapter() {
@@ -72,6 +77,7 @@ class TaskCard extends Cartao {
             if (!task.subtarefas().isEmpty()) {
                 corpo.add(new SubtarefasPanel(task.subtarefas(),
                         (uma, outra) -> ouvinte.amarrar(task, uma, outra),
+                        (s, deslocamento) -> ouvinte.moverSubtarefa(task, s, deslocamento),
                         s -> ouvinte.editarSubtarefa(task, s),
                         s -> ouvinte.tentarDeNovo(task, s)));
             }
@@ -80,37 +86,6 @@ class TaskCard extends Cartao {
         add(cabecalho);
         add(corpo);
         setExpandido(expandido);
-    }
-
-    /**
-     * Cartão fechado do modo de ordenação: a posição na fila e as setas para subir e descer. Uma ação nula
-     * desabilita a seta (Task já na ponta da lista).
-     */
-    static TaskCard ordenavel(Task task, int posicao, Runnable subir, Runnable descer) {
-        return new TaskCard(task, Ui.legenda(posicao + "º"),
-                botaoSeta("seta-cima", "Executar antes", subir),
-                botaoSeta("seta-baixo", "Executar depois", descer));
-    }
-
-    private TaskCard(Task task, JComponent... direita) {
-        super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
-                task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
-        this.task = task;
-        this.aoExpandir = aberta -> {
-        };
-        this.corpo = new JPanel();
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
-        add(new ItemStatus(task.estado(), task.titulo(), task.detalhe(), null).comDireita(direita));
-    }
-
-    private static BotaoIcone botaoSeta(String icone, String dica, Runnable acao) {
-        BotaoIcone botao = new BotaoIcone(Ui.icone(icone, 14, Tema.TEXTO), dica, 24);
-        botao.setEnabled(acao != null);
-        if (acao != null) {
-            botao.addActionListener(e -> acao.run());
-        }
-        return botao;
     }
 
     /** Botão pequeno com a seta circular, ao lado do que falhou. */

@@ -5,6 +5,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Console;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Etiqueta;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
@@ -17,6 +18,7 @@ import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Graphics;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,7 +27,7 @@ import java.util.Set;
  * Tela de um projeto: cabeçalho, as Tasks em cartões e o log do agente. Pode ser redesenhada com
  * {@link #mostrar} sem perder quais Tasks estão abertas nem a posição da rolagem.
  * <p>
- * As Tasks rodam na ordem em que aparecem; o botão "Ordenar" mostra setas para mudar essa ordem.
+ * As Tasks rodam na ordem em que aparecem; a alça de três barras no fim de cada uma muda essa ordem.
  */
 public class ProjetoPanel extends JPanel {
 
@@ -37,8 +39,11 @@ public class ProjetoPanel extends JPanel {
 
         void editarTask(Task task);
 
-        /** Move a Task {@code deslocamento} posições na ordem de execução (-1 sobe, +1 desce). */
+        /** Move a Task {@code deslocamento} posições na ordem de execução (negativo sobe). */
         void moverTask(Task task, int deslocamento);
+
+        /** Move a subtarefa {@code deslocamento} posições dentro da Task (negativo sobe). */
+        void moverSubtarefa(Task task, Subtarefa subtarefa, int deslocamento);
 
         void novaSubtarefa(Task task);
 
@@ -62,8 +67,7 @@ public class ProjetoPanel extends JPanel {
     private final Set<String> conhecidas = new HashSet<>();
     private String projetoId;
     private JScrollPane rolagem;
-    private List<Task> tasks = List.of();
-    private boolean ordenando;
+    private Reordenacao reordenacao;
 
     public ProjetoPanel(Ouvinte ouvinte) {
         super(new BorderLayout(0, 14));
@@ -86,7 +90,6 @@ public class ProjetoPanel extends JPanel {
         int posicao = outro || rolagem == null ? 0 : rolagem.getVerticalScrollBar().getValue();
         if (outro) {
             projetoId = projeto.id();
-            ordenando = false;
             expandidas.clear();
             conhecidas.clear();
             if (!projeto.tasks().isEmpty()) {
@@ -100,10 +103,9 @@ public class ProjetoPanel extends JPanel {
             }
         }
 
-        tasks = projeto.tasks();
         removeAll();
         add(cabecalho(projeto), BorderLayout.NORTH);
-        rolagem = tasks();
+        rolagem = tasks(projeto.tasks());
         add(rolagem, BorderLayout.CENTER);
         console = null;
         log.forEach(this::adicionarLog);
@@ -128,56 +130,39 @@ public class ProjetoPanel extends JPanel {
         editar.addActionListener(e -> ouvinte.editarProjeto());
         JButton novaTask = Ui.botaoPrimario("+ Nova Task");
         novaTask.addActionListener(e -> ouvinte.novaTask());
-        ordenando &= projeto.tasks().size() > 1;
-        JButton ordenar = Ui.botaoSecundario(ordenando ? "Concluir ordem" : "Ordenar");
-        ordenar.setToolTipText("Mudar a ordem de execução das Tasks");
-        ordenar.setEnabled(projeto.tasks().size() > 1);
-        ordenar.addActionListener(e -> {
-            ordenando = !ordenando;
-            ordenar.setText(ordenando ? "Concluir ordem" : "Ordenar");
-            remove(rolagem);
-            rolagem = tasks();
-            add(rolagem, BorderLayout.CENTER);
-            revalidate();
-            repaint();
-        });
         String local = projeto.usaGit() ? projeto.pasta() + " · " + projeto.branch() : projeto.pasta();
         return Ui.coluna(10,
                 Ui.cabecalho(Ui.titulo(projeto.nome()),
-                        Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), ordenar, editar,
-                                novaTask)),
+                        Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), editar, novaTask)),
                 Ui.legenda(local));
     }
 
-    private JScrollPane tasks() {
-        JPanel lista = new JPanel();
+    private JScrollPane tasks(List<Task> tasks) {
+        JPanel lista = new JPanel() {
+            @Override
+            protected void paintChildren(Graphics g) {
+                super.paintChildren(g);
+                reordenacao.desenhar(g);
+            }
+        };
+        reordenacao = new Reordenacao(lista, (de, para) -> ouvinte.moverTask(tasks.get(de), para - de));
         lista.setLayout(new BoxLayout(lista, BoxLayout.Y_AXIS));
         lista.setOpaque(false);
         if (tasks.isEmpty()) {
             lista.add(Ui.cabecalho(Ui.legenda("Nenhuma task."), null));
-        }
-        if (ordenando) {
-            lista.add(Ui.cabecalho(Ui.legenda("As Tasks rodam de cima para baixo. Use as setas para mudar a ordem."), null));
-            lista.add(Box.createVerticalStrut(10));
         }
         for (int i = 0; i < tasks.size(); i++) {
             if (i > 0) {
                 lista.add(Box.createVerticalStrut(10));
             }
             Task task = tasks.get(i);
-            if (ordenando) {
-                lista.add(TaskCard.ordenavel(task, i + 1,
-                        i > 0 ? () -> ouvinte.moverTask(task, -1) : null,
-                        i < tasks.size() - 1 ? () -> ouvinte.moverTask(task, 1) : null));
-                continue;
-            }
             lista.add(new TaskCard(task, expandidas.contains(task.id()), aberta -> {
                 if (aberta) {
                     expandidas.add(task.id());
                 } else {
                     expandidas.remove(task.id());
                 }
-            }, ouvinte));
+            }, ouvinte, reordenacao.alca("Arraste para mudar a ordem de execução")));
         }
         JPanel envoltorio = new JPanel(new BorderLayout());
         envoltorio.setOpaque(false);

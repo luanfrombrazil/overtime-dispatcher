@@ -199,6 +199,29 @@ class ProjetoServiceTest {
     }
 
     @Test
+    void moverSubtarefaMudaAOrdemSemPassarDaQueElaEspera() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        Subtarefa a = sub("A");
+        Subtarefa b = Subtarefa.nova("B", "", "", false, List.of(a.id()));
+        Subtarefa c = sub("C");
+        projeto = servico.salvarSubtarefa(projeto, task, a);
+        projeto = servico.salvarSubtarefa(projeto, task, b);
+        projeto = servico.salvarSubtarefa(projeto, task, c);
+
+        projeto = servico.moverSubtarefa(projeto, task, c, -2);
+        assertEquals(List.of("C", "A", "B"),
+                projeto.tasks().getFirst().subtarefas().stream().map(Subtarefa::titulo).toList());
+        assertEquals("C", servico.proxima().orElseThrow().subtarefa().titulo());
+
+        // B espera A: não pode subir acima dela.
+        Projeto atual = projeto;
+        assertThrows(IllegalArgumentException.class, () -> servico.moverSubtarefa(atual, task, b, -1));
+        assertEquals(List.of("C", "A", "B"), servico.buscar(projeto.id()).orElseThrow().tasks().getFirst()
+                .subtarefas().stream().map(Subtarefa::titulo).toList());
+    }
+
+    @Test
     void proximaSubtarefaRespeitaOrdemEDependencias() {
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
         Projeto projeto = servico.salvarTask(novoProjeto("P"), task);

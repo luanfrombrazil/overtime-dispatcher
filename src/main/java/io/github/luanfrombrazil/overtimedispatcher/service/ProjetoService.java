@@ -140,6 +140,34 @@ public class ProjetoService {
         return gravar(atual.comTasks(tasks));
     }
 
+    /**
+     * Move a subtarefa {@code deslocamento} posições dentro da Task, limitado às pontas da lista. Uma subtarefa
+     * precisa continuar abaixo das que ela espera.
+     */
+    public synchronized Projeto moverSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa, int deslocamento) {
+        return alterarSubtarefas(projeto, task, subtarefas -> {
+            List<Subtarefa> novas = new ArrayList<>(subtarefas);
+            int indice = indiceDaSubtarefa(novas, subtarefa.id());
+            if (indice < 0) {
+                throw new IllegalArgumentException("Subtarefa não encontrada.");
+            }
+            int destino = Math.max(0, Math.min(novas.size() - 1, indice + deslocamento));
+            novas.add(destino, novas.remove(indice));
+            Set<String> acima = new HashSet<>();
+            for (Subtarefa s : novas) {
+                for (String dependencia : s.dependeDe()) {
+                    if (!acima.contains(dependencia)) {
+                        String espera = novas.get(indiceDaSubtarefa(novas, dependencia)).titulo();
+                        throw new IllegalArgumentException("\"" + s.titulo() + "\" espera \"" + espera
+                                + "\" e precisa ficar abaixo dela. Solte o fio antes de mudar a ordem.");
+                    }
+                }
+                acima.add(s.id());
+            }
+            return novas;
+        });
+    }
+
     /** Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");
