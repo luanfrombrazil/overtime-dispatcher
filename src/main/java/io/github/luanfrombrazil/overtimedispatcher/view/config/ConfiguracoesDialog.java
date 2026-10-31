@@ -35,6 +35,10 @@ public class ConfiguracoesDialog extends Dialogo {
     private static final List<String> SECOES =
             List.of("Geral", "Agendamento", "Provedores", "Notificações", "Projetos padrão", "Avançado");
 
+    /** Valores iniciais da reserva de cada provedor: 0% para automação e 5% para o Oráculo. */
+    private static final int AUTOMACAO_PADRAO = 0;
+    private static final int ORACULO_PADRAO = 5;
+
     private final CardLayout cartoes = new CardLayout();
     private final JPanel paginas = new JPanel(cartoes);
     private final Map<String, JLabel> itensNavegacao = new LinkedHashMap<>();
@@ -165,11 +169,11 @@ public class ConfiguracoesDialog extends Dialogo {
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Reserva para você"), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(reserva("Claude Code", 45, 15));
+        pagina.add(reserva("Claude Code", AUTOMACAO_PADRAO, ORACULO_PADRAO));
         pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Codex", 55, 15));
+        pagina.add(reserva("Codex", AUTOMACAO_PADRAO, ORACULO_PADRAO));
         pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Gemini", 40, 10));
+        pagina.add(reserva("Gemini", AUTOMACAO_PADRAO, ORACULO_PADRAO));
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Execução"), null));
