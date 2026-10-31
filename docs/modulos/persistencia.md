@@ -27,4 +27,19 @@ worktrees/<id da task>/                                 worktree git da Task (pr
 - Cada arquivo é escrito num `.tmp` e depois trocado, para não ficar pela metade.
 - Excluir um projeto apaga só a pasta dele na pasta central; a pasta do projeto no sistema não é tocada.
 
-O formato dos demais dados (protocolos, consumo, configurações) ainda está em [ideias em aberto](../ideias-em-aberto.md).
+O formato dos demais dados (protocolos, consumo) ainda está em [ideias em aberto](../ideias-em-aberto.md).
+
+## Configurações
+
+Ficam em `configuracoes.json`, na pasta central. Sem o arquivo, ou com ele inválido, valem os padrões.
+
+O horário de funcionamento é gravado como faixas de 30 em 30 minutos por dia:
+
+```json
+{
+  "horarioFuncionamento": {
+    "seg": ["00:00-07:00", "22:00-24:00"],
+    "sab": ["00:00-24:00"]
+  }
+}
+```

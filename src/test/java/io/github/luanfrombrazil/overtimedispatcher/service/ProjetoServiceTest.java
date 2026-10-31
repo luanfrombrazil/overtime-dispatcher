@@ -157,6 +157,25 @@ class ProjetoServiceTest {
     }
 
     @Test
+    void moverTaskMudaAOrdemDeExecucaoESalva() {
+        Task a = Task.nova("A", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task b = Task.nova("B", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(servico.salvarTask(novoProjeto("P"), a), b);
+        projeto = servico.salvarSubtarefa(projeto, a, sub("da A"));
+        projeto = servico.salvarSubtarefa(projeto, b, sub("da B"));
+        assertEquals("da A", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+
+        projeto = servico.moverTask(projeto, b, -1);
+        // Mover além das pontas não faz nada.
+        projeto = servico.moverTask(projeto, b, -1);
+
+        assertEquals(List.of("B", "A"), projeto.tasks().stream().map(Task::titulo).toList());
+        assertEquals("da B", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        Projeto relido = new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id()).orElseThrow();
+        assertEquals(List.of("B", "A"), relido.tasks().stream().map(Task::titulo).toList());
+    }
+
+    @Test
     void proximaSubtarefaRespeitaOrdemEDependencias() {
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
         Projeto projeto = servico.salvarTask(novoProjeto("P"), task);

@@ -115,6 +115,25 @@ public class ProjetoService {
         return gravar(atual.comTasks(atual.tasks().stream().filter(t -> !t.id().equals(task.id())).toList()));
     }
 
+    /**
+     * Move a Task {@code deslocamento} posições (-1 sobe, +1 desce), limitado às pontas da lista. As Tasks rodam
+     * na ordem da lista, a mesma mostrada na tela.
+     */
+    public synchronized Projeto moverTask(Projeto projeto, Task task, int deslocamento) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        if (indice < 0) {
+            throw new IllegalArgumentException("Task não encontrada.");
+        }
+        int destino = Math.max(0, Math.min(tasks.size() - 1, indice + deslocamento));
+        if (destino == indice) {
+            return atual;
+        }
+        tasks.add(destino, tasks.remove(indice));
+        return gravar(atual.comTasks(tasks));
+    }
+
     /** Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");

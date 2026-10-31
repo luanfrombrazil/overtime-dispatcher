@@ -39,7 +39,12 @@ class ReservaSlider extends JComponent {
             public void mousePressed(MouseEvent e) {
                 int x1 = posicao(ReservaSlider.this.automacao);
                 int x2 = posicao(ReservaSlider.this.automacao + ReservaSlider.this.oraculo);
-                arrastando = Math.abs(e.getX() - x1) <= Math.abs(e.getX() - x2) ? 0 : 1;
+                if (x1 == x2) {
+                    // Alças sobrepostas: a direção do clique decide qual delas se move.
+                    arrastando = e.getX() < x1 ? 0 : 1;
+                } else {
+                    arrastando = Math.abs(e.getX() - x1) <= Math.abs(e.getX() - x2) ? 0 : 1;
+                }
                 mover(e.getX());
             }
 

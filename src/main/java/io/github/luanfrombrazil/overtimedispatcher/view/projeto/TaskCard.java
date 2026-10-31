@@ -80,6 +80,37 @@ class TaskCard extends Cartao {
         setExpandido(expandido);
     }
 
+    /**
+     * Cartão fechado do modo de ordenação: a posição na fila e as setas para subir e descer. Uma ação nula
+     * desabilita a seta (Task já na ponta da lista).
+     */
+    static TaskCard ordenavel(Task task, int posicao, Runnable subir, Runnable descer) {
+        return new TaskCard(task, Ui.legenda(posicao + "º"),
+                botaoSeta("seta-cima", "Executar antes", subir),
+                botaoSeta("seta-baixo", "Executar depois", descer));
+    }
+
+    private TaskCard(Task task, JComponent... direita) {
+        super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
+                task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
+        this.task = task;
+        this.aoExpandir = aberta -> {
+        };
+        this.corpo = new JPanel();
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
+        add(new ItemStatus(task.estado(), task.titulo(), task.detalhe(), null).comDireita(direita));
+    }
+
+    private static BotaoIcone botaoSeta(String icone, String dica, Runnable acao) {
+        BotaoIcone botao = new BotaoIcone(Ui.icone(icone, 14, Tema.TEXTO), dica, 24);
+        botao.setEnabled(acao != null);
+        if (acao != null) {
+            botao.addActionListener(e -> acao.run());
+        }
+        return botao;
+    }
+
     /** Botão pequeno com a seta circular, ao lado do que falhou. */
     static BotaoIcone botaoTentarDeNovo(String dica, Runnable acao) {
         BotaoIcone botao = new BotaoIcone(Ui.icone("tentar-de-novo", 14, Tema.TEXTO), dica, 24);

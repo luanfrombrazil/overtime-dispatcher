@@ -82,6 +82,11 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
     }
 
     @Override
+    public void moverTask(Task task, int deslocamento) {
+        alterado(servico.moverTask(projeto, task, deslocamento));
+    }
+
+    @Override
     public void novaSubtarefa(Task task) {
         new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
                 null).abrir();
