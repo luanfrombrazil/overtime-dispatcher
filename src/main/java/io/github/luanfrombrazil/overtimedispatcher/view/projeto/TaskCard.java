@@ -20,7 +20,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 /**
- * Cartão de uma Task. Expandido, mostra as subtarefas e as ações. Tasks do Oráculo aparecem em roxo.
+ * Cartão de uma Task. Expandido, mostra as subtarefas (se houver) e as ações. Tasks do Oráculo aparecem em roxo.
  */
 class TaskCard extends Cartao {
 
@@ -41,7 +41,7 @@ class TaskCard extends Cartao {
             JButton recusar = Ui.botaoOraculoSecundario("Recusar");
             JButton aceitar = Ui.botaoOraculo("Aceitar");
             cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar);
-        } else if (!task.subtarefas().isEmpty()) {
+        } else {
             cabecalho.comDireita(seta);
             cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             cabecalho.addMouseListener(new MouseAdapter() {
@@ -56,8 +56,10 @@ class TaskCard extends Cartao {
         corpo = new JPanel();
         corpo.setLayout(new BoxLayout(corpo, BoxLayout.Y_AXIS));
         corpo.setOpaque(false);
-        if (!task.subtarefas().isEmpty()) {
-            corpo.add(new SubtarefasPanel(task.subtarefas()));
+        if (task.estado() != Estado.ORACULO) {
+            if (!task.subtarefas().isEmpty()) {
+                corpo.add(new SubtarefasPanel(task.subtarefas()));
+            }
             corpo.add(acoes());
         }
         add(corpo);

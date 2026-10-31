@@ -1,7 +1,7 @@
 package io.github.luanfrombrazil.overtimedispatcher.model;
 
 /**
- * Passo pequeno de uma Task.
+ * Passo pequeno e opcional de uma Task.
  *
  * @param dependeDe índice da subtarefa da qual esta depende, ou -1
  */
