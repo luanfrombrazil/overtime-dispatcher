@@ -77,53 +77,43 @@ Ele não executa nada sozinho: tudo o que sugere chega para você **aceitar ou r
 ## Princípios
 
 - **Você tem prioridade** — a automação nunca consome os créditos reservados para o seu uso manual.
-- **Você decide o que entra** — cada projeto aponta para uma pasta no seu computador; se ela usa git, o agente trabalha numa cópia separada e nada chega à versão principal sem a sua revisão.
-- **Pergunta em vez de chutar** — quando falta informação, o agente pede orientação e segue para outra tarefa enquanto espera.
-- **Trabalha em segundo plano** — roda com a janela fechada e avisa só quando precisa de você.
-- **Vários agentes, uma fila** — Claude Code, Codex e Gemini usam os créditos de cada assinatura, sem mudar o jeito de trabalhar.
-- **Nada acontece sem rastro** — toda execução fica registrada, com o que foi feito e quanto custou.
+- **Você decide o que entra** — se o projeto usa git, o agente trabalha numa branch separada e nada chega à main sem a sua verificação.
+- **Não fica parado** — quando precisa de você, o agente segue para outra tarefa enquanto espera.
+- **Trabalha em segundo plano** — roda com a janela fechada e avisa quando precisa de você.
+- **Vários agentes, uma fila** — Claude Code, Codex e Gemini, cada um com os créditos da sua assinatura.
 
 ## Documentação
 
 | Documento | Conteúdo |
 |---|---|
-| [Arquitetura](docs/arquitetura.md) | Módulos, dependências, threads e regras gerais |
-| [Domínio](docs/dominio.md) | Entidades, status e máquina de estados |
-| [Funcionalidades](docs/funcionalidades.md) | Lista de funcionalidades agrupadas por módulo |
-| [Interfaces](docs/interfaces.md) | Telas e componentes a modelar no Figma |
-| [Roadmap](docs/roadmap.md) | Fases de entrega |
-| [Decisões](docs/decisoes.md) | Decisões tomadas e em aberto |
+| [Decisões](docs/decisoes.md) | Registro das decisões técnicas |
+| [Ideias em aberto](docs/ideias-em-aberto.md) | Propostas ainda não confirmadas |
+| [Arquitetura](docs/arquitetura.md) | MVC, módulos, tecnologia e distribuição |
+| [Domínio](docs/dominio.md) | Projetos, Tasks, subtarefas, Protocolos, Trilhas e Oráculo |
+| [Interfaces](docs/interfaces.md) | Figma e diretrizes visuais |
 
 ### Módulos
 
 | Módulo | Documento |
 |---|---|
-| Persistência | [docs/modulos/persistencia.md](docs/modulos/persistencia.md) |
-| Agentes (Claude Code, Codex, Gemini) | [docs/modulos/agente.md](docs/modulos/agente.md) |
-| Consumo (orçamento de uso) | [docs/modulos/consumo.md](docs/modulos/consumo.md) |
-| Agendador | [docs/modulos/agendador.md](docs/modulos/agendador.md) |
-| Comunicação (app, desktop, WhatsApp) | [docs/modulos/comunicacao.md](docs/modulos/comunicacao.md) |
-| Serviço | [docs/modulos/servico.md](docs/modulos/servico.md) |
-| Interface | [docs/modulos/ui.md](docs/modulos/ui.md) |
-| RPC (chamadas externas e dos agentes) | [docs/modulos/rpc.md](docs/modulos/rpc.md) |
-| Protocolos (rotinas contínuas) | [docs/modulos/protocolos.md](docs/modulos/protocolos.md) |
-| Oráculo (sugestões e roadmap) — em definição | [docs/modulos/oraculo.md](docs/modulos/oraculo.md) |
-| Trilhas (suas tarefas, no vault do Obsidian) | [docs/modulos/trilhas.md](docs/modulos/trilhas.md) |
+| Agentes (Claude Code, Codex, Gemini) | [agente.md](docs/modulos/agente.md) |
+| Agendador | [agendador.md](docs/modulos/agendador.md) |
+| Consumo (horário e reserva) | [consumo.md](docs/modulos/consumo.md) |
+| Comunicação (app, desktop, WhatsApp) | [comunicacao.md](docs/modulos/comunicacao.md) |
+| Persistência | [persistencia.md](docs/modulos/persistencia.md) |
+| RPC e MCP | [rpc.md](docs/modulos/rpc.md) |
+| Protocolos | [protocolos.md](docs/modulos/protocolos.md) |
+| Trilhas | [trilhas.md](docs/modulos/trilhas.md) |
+| Oráculo (em definição) | [oraculo.md](docs/modulos/oraculo.md) |
+| Interface | [ui.md](docs/modulos/ui.md) |
 
 ## Glossário
 
 | Termo | Significado |
 |---|---|
-| **Oráculo** | Observa os projetos e protocolos e sugere o que fazer: novas tasks, diagnósticos, roadmaps e estudos. |
-| **Trilha** | Conjunto de tarefas para você (estudo, trabalho, projeto pessoal), com tempo planejado em blocos que vão para a agenda; fica no seu vault do Obsidian. |
-| **Protocolo** | Rotina contínua: um passo a passo que o agente segue de tempos em tempos (ex.: ver tarefas no portal da faculdade, triar o e-mail, preencher o calendário). |
-| **Projeto** | Agrupa Tasks com o mesmo contexto; pode ter um repositório git. É o que aparece na barra da esquerda. |
-| **Task** | Unidade de trabalho com objetivo claro (equivale a uma história de usuário). |
-| **Subtarefa** | Passo pequeno e verificável de uma Task; é o que o agente executa por vez. |
-| **Agente / Provedor** | Ferramenta de IA que executa subtarefas (Claude Code, Codex, Gemini), cada uma com seus créditos. |
-| **Pasta do projeto** | Pasta no seu computador para onde o projeto aponta e onde o agente trabalha; pode usar git ou não. |
-| **Execução** | Uma chamada a um agente para uma subtarefa, com log e consumo. |
-| **Ocioso** | Estado em que nenhuma execução da app está em andamento naquele provedor. |
-| **Reserva** | Parte do limite de uso de cada provedor que a automação não pode consumir. |
-| **Verificação** | Etapa em que você aprova ou rejeita o resultado de uma subtarefa. |
-| **Canal** | Meio de comunicação entre a app e você (tela, WhatsApp). |
+| **Projeto** | Agrupa Tasks com o mesmo contexto e aponta para uma pasta do seu computador, com ou sem git. |
+| **Task** | Trabalho para um agente, dividido em subtarefas pequenas. |
+| **Protocolo** | Rotina que o agente segue de tempos em tempos (ex.: portal da faculdade, e-mail, agenda). |
+| **Trilha** | Conjunto de tarefas para você, com o tempo planejado em blocos; fica no seu vault do Obsidian. |
+| **Oráculo** | Observa tudo e sugere o que fazer: tasks, diagnósticos, roadmaps e estudos. |
+| **Reserva** | Parte dos créditos de cada assinatura que a automação não usa. |
