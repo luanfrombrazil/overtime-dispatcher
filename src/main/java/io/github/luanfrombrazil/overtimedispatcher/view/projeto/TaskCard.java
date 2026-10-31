@@ -2,6 +2,7 @@ package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.BotaoIcone;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Cartao;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
@@ -30,6 +31,20 @@ class TaskCard extends Cartao {
     private boolean expandido;
 
     TaskCard(Task task, boolean expandido) {
+        this(task, expandido, null, null);
+    }
+
+    /**
+     * Cartão em modo de ordenação: mostra a posição na fila e as setas para subir e descer.
+     * Uma ação nula desabilita a seta correspondente (Task já na ponta da lista).
+     */
+    static TaskCard ordenavel(Task task, int posicao, Runnable subir, Runnable descer) {
+        return new TaskCard(task, false, Ui.legenda(posicao + "º"), new JComponent[]{
+                seta("seta-cima", "Executar antes", subir),
+                seta("seta-baixo", "Executar depois", descer)});
+    }
+
+    private TaskCard(Task task, boolean expandido, JLabel posicao, JComponent[] setas) {
         super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
                 task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
         this.task = task;
@@ -37,7 +52,9 @@ class TaskCard extends Cartao {
         setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
 
         ItemStatus cabecalho = new ItemStatus(task.estado(), task.titulo(), task.detalhe(), null);
-        if (task.estado() == Estado.ORACULO) {
+        if (setas != null) {
+            cabecalho.comDireita(posicao, setas[0], setas[1]);
+        } else if (task.estado() == Estado.ORACULO) {
             JButton recusar = Ui.botaoOraculoSecundario("Recusar");
             JButton aceitar = Ui.botaoOraculo("Aceitar");
             cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar);
@@ -62,6 +79,15 @@ class TaskCard extends Cartao {
         }
         add(corpo);
         setExpandido(expandido);
+    }
+
+    private static BotaoIcone seta(String icone, String dica, Runnable acao) {
+        BotaoIcone botao = new BotaoIcone(Ui.icone(icone, 14, Tema.TEXTO), dica);
+        botao.setEnabled(acao != null);
+        if (acao != null) {
+            botao.addActionListener(e -> acao.run());
+        }
+        return botao;
     }
 
     private JComponent acoes() {

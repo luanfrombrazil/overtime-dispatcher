@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Protocolo;
 import io.github.luanfrombrazil.overtimedispatcher.model.Trilha;
 import io.github.luanfrombrazil.overtimedispatcher.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimedispatcher.service.prototipo.DadosPrototipo;
+import io.github.luanfrombrazil.overtimedispatcher.service.scheduler.FilaDeTasks;
 import io.github.luanfrombrazil.overtimedispatcher.view.BarraLateral;
 import io.github.luanfrombrazil.overtimedispatcher.view.BarraSuperior;
 import io.github.luanfrombrazil.overtimedispatcher.view.MainFrame;
@@ -63,7 +64,7 @@ public class MainController implements BarraLateral.Ouvinte {
     public void projeto(Projeto projeto) {
         abrirItem(projeto);
         frame.mostrar(new ProjetoPanel(projeto, this::novoProjeto, () -> {
-        }));
+        }, (indice, deslocamento) -> FilaDeTasks.mover(projeto.tasks(), indice, deslocamento)));
     }
 
     @Override

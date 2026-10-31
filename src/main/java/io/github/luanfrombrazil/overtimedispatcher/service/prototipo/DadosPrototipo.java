@@ -14,6 +14,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.TarefaPessoal;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
 import io.github.luanfrombrazil.overtimedispatcher.model.Trilha;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -37,7 +38,8 @@ public class DadosPrototipo {
     public List<Projeto> projetos() {
         Projeto meuApp = new Projeto("Meu App", "MA", "1 verificação", Estado.ATENCAO,
                 "C:\\code\\meu-app", "main", "Automático",
-                List.of(
+                // Lista mutável: a ordem das Tasks pode ser mudada na tela.
+                new ArrayList<>(List.of(
                         new Task("Corrigir login com e-mail em maiúsculas", "1 verificação", Estado.ATENCAO, List.of(
                                 new Subtarefa("Reproduzir o bug com um teste", null, Estado.CONCLUIDO, -1),
                                 new Subtarefa("Normalizar o e-mail no login", "Verificação", Estado.ATENCAO, -1),
@@ -46,7 +48,7 @@ public class DadosPrototipo {
                         new Task("Tela de recuperação de senha", null, Estado.EM_ANDAMENTO, List.of()),
                         new Task("Remover dependências antigas", "Merge", Estado.ATENCAO, List.of()),
                         new Task("Cobrir o fluxo de login com testes",
-                                "O login mudou 3 vezes este mês e não tem testes", Estado.ORACULO, List.of())),
+                                "O login mudou 3 vezes este mês e não tem testes", Estado.ORACULO, List.of()))),
                 List.of("16:40 Corrigir login › Normalizar o e-mail · Claude Code",
                         "> equalsIgnoreCase após trim()",
                         "> mvn test -Dtest=LoginServiceTest",
@@ -61,7 +63,7 @@ public class DadosPrototipo {
 
     private static Projeto vazio(String nome, String sigla, String detalhe, Estado estado) {
         return new Projeto(nome, sigla, detalhe, estado, "C:\\code\\" + nome.toLowerCase().replace(' ', '-'),
-                null, "Automático", List.of(), List.of());
+                null, "Automático", new ArrayList<>(), List.of());
     }
 
     public List<Protocolo> protocolos() {
