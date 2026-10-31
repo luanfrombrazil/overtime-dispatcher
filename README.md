@@ -4,7 +4,15 @@ Aplicação desktop que mantém uma **fila de tarefas** para agentes de IA — C
 
 Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escrita, organização de documentos, automações do dia a dia.
 
-> Status: **fase de documentação e design**. Ainda não há código; este repositório descreve módulos, funcionalidades e decisões.
+> Status: **início da implementação**. A estrutura do projeto está criada; a janela principal abre vazia.
+
+## Como rodar
+
+Requer JDK 25 e Maven. Abra a pasta no IntelliJ IDEA (projeto Maven) e execute `OvertimeDispatcher`, ou pelo terminal:
+
+```bash
+mvn package
+```
 
 ## Como funciona
 

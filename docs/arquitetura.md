@@ -26,6 +26,23 @@ Aplicação desktop em Java, simples e modular, com classes bem definidas, segui
 
 Detalhes de cada um em [`modulos/`](modulos/).
 
+## Estrutura do código
+
+```
+src/main/java/io/github/luanfrombrazil/overtimedispatcher/
+├─ OvertimeDispatcher.java   ponto de entrada
+├─ model/
+│  ├─ domain/
+│  ├─ persistence/
+│  ├─ agente/
+│  ├─ consumo/
+│  ├─ scheduler/
+│  ├─ comunicacao/
+│  └─ rpc/
+├─ controller/
+└─ view/
+```
+
 ## Tecnologia
 
 | Item | Escolha |
