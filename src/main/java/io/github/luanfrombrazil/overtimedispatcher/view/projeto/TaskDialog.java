@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Esforco;
+import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Projeto;
 import io.github.luanfrombrazil.overtimedispatcher.model.Provedor;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
@@ -33,8 +34,10 @@ public class TaskDialog extends Dialogo {
     /**
      * @param projeto   dá os padrões de provedor e esforço para uma Task nova
      * @param existente Task a editar, ou null para criar uma nova
+     * @param aoDecidir recebe o novo estado quando o usuário manda refazer a Task executada inteira
      */
-    public TaskDialog(JFrame dono, Projeto projeto, Task existente, Consumer<Task> aoSalvar, Runnable aoExcluir) {
+    public TaskDialog(JFrame dono, Projeto projeto, Task existente, Consumer<Task> aoSalvar, Runnable aoExcluir,
+                      Consumer<Estado> aoDecidir) {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
@@ -42,6 +45,10 @@ public class TaskDialog extends Dialogo {
         JPanel corpo = Formulario.corpo();
         corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova task" : "Editar task"), null));
         corpo.add(Box.createVerticalStrut(14));
+        if (!nova && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
+            corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(), aoDecidir));
+            corpo.add(Box.createVerticalStrut(14));
+        }
 
         titulo = Formulario.texto(nova ? "" : existente.titulo());
         corpo.add(Formulario.campo("Título", titulo));
@@ -72,6 +79,7 @@ public class TaskDialog extends Dialogo {
             return Task.nova(titulo.getText().strip(), Formulario.textoDa(descricao), p, e);
         }
         return new Task(existente.id(), titulo.getText().strip(), Formulario.textoDa(descricao), p, e,
-                existente.origem(), existente.subtarefas(), existente.sessao());
+                existente.origem(), existente.subtarefas(), existente.sessao(), existente.execucao(),
+                existente.resultado());
     }
 }

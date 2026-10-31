@@ -4,34 +4,54 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Trabalho para um agente, dividido em subtarefas.
+ * Trabalho para um agente. A Task traz as próprias instruções e pode ser executada inteira; as subtarefas são
+ * opcionais e quebram o trabalho em passos menores (D-19).
  *
- * @param sessao id da sessão do agente compartilhada pelas subtarefas, ou null antes da primeira execução
+ * @param subtarefas passos da Task, na ordem de execução; vazia quando a Task é executada inteira
+ * @param sessao     id da sessão do agente compartilhada pelas execuções, ou null antes da primeira
+ * @param execucao   estado da Task executada inteira; só vale enquanto ela não tem subtarefas
+ * @param resultado  resposta do agente na última execução da Task inteira, ou o motivo da falha
  */
 public record Task(String id, String titulo, String descricao, Provedor provedor, Esforco esforco,
-                   Origem origem, List<Subtarefa> subtarefas, String sessao) {
+                   Origem origem, List<Subtarefa> subtarefas, String sessao, Estado execucao, String resultado) {
 
     public Task {
         subtarefas = subtarefas == null ? List.of() : List.copyOf(subtarefas);
+        execucao = execucao == null ? Estado.PENDENTE : execucao;
     }
 
     public static Task nova(String titulo, String descricao, Provedor provedor, Esforco esforco) {
         return new Task(UUID.randomUUID().toString(), titulo, descricao, provedor, esforco, Origem.USUARIO,
-                List.of(), null);
+                List.of(), null, Estado.PENDENTE, null);
     }
 
     public Task comSubtarefas(List<Subtarefa> subtarefas) {
-        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao);
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
     }
 
     public Task comSessao(String sessao) {
-        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao);
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
     }
 
-    /** Tasks do Oráculo aparecem em roxo; as demais herdam o estado das subtarefas. */
+    public Task comExecucao(Estado execucao, String resultado) {
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
+    }
+
+    /** Se é executada inteira, sem subtarefas. */
+    public boolean inteira() {
+        return subtarefas.isEmpty();
+    }
+
+    /**
+     * Tasks do Oráculo aparecem em roxo; a Task executada inteira tem o próprio estado; as demais herdam o
+     * estado das subtarefas.
+     */
     public Estado estado() {
         if (origem == Origem.ORACULO) {
             return Estado.ORACULO;
+        }
+        if (inteira()) {
+            return execucao;
         }
         return Estado.resumir(subtarefas.stream().map(Subtarefa::estado).toList());
     }
@@ -42,12 +62,10 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
 
     /** Texto curto sob o título. */
     public String detalhe() {
-        if (subtarefas.isEmpty()) {
-            return "Sem subtarefas";
-        }
         return switch (estado()) {
             case ATENCAO -> Textos.verificacoes(verificacoes());
             case ERRO -> "Falhou";
+            case PENDENTE -> inteira() ? "Sem subtarefas: roda inteira" : null;
             default -> null;
         };
     }

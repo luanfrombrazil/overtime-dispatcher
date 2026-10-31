@@ -186,14 +186,14 @@ class ProjetoServiceTest {
         Projeto projeto = servico.salvarTask(servico.salvarTask(novoProjeto("P"), a), b);
         projeto = servico.salvarSubtarefa(projeto, a, sub("da A"));
         projeto = servico.salvarSubtarefa(projeto, b, sub("da B"));
-        assertEquals("da A", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        assertEquals("da A", servico.proxima().orElseThrow().subtarefa().titulo());
 
         projeto = servico.moverTask(projeto, b, -1);
         // Mover além das pontas não faz nada.
         projeto = servico.moverTask(projeto, b, -1);
 
         assertEquals(List.of("B", "A"), projeto.tasks().stream().map(Task::titulo).toList());
-        assertEquals("da B", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        assertEquals("da B", servico.proxima().orElseThrow().subtarefa().titulo());
         Projeto relido = new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id()).orElseThrow();
         assertEquals(List.of("B", "A"), relido.tasks().stream().map(Task::titulo).toList());
     }
@@ -209,14 +209,14 @@ class ProjetoServiceTest {
         projeto = servico.salvarSubtarefa(projeto, task, b);
         projeto = servico.salvarSubtarefa(projeto, task, c);
 
-        assertEquals("A", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        assertEquals("A", servico.proxima().orElseThrow().subtarefa().titulo());
         servico.marcar(projeto.id(), task.id(), a.id(), Estado.EM_ANDAMENTO, null);
         // B espera A; C não depende de ninguém.
-        assertEquals("C", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        assertEquals("C", servico.proxima().orElseThrow().subtarefa().titulo());
         servico.marcar(projeto.id(), task.id(), c.id(), Estado.CONCLUIDO, "ok");
-        assertTrue(servico.proximaSubtarefa().isEmpty());
+        assertTrue(servico.proxima().isEmpty());
         servico.marcar(projeto.id(), task.id(), a.id(), Estado.CONCLUIDO, "ok");
-        assertEquals("B", servico.proximaSubtarefa().orElseThrow().subtarefa().titulo());
+        assertEquals("B", servico.proxima().orElseThrow().subtarefa().titulo());
     }
 
     @Test
@@ -269,5 +269,52 @@ class ProjetoServiceTest {
 
         assertEquals(Estado.PENDENTE, reaberto.tasks().getFirst().subtarefas().getFirst().estado());
         assertEquals("sessao-1", reaberto.tasks().getFirst().sessao());
+    }
+
+    @Test
+    void taskSemSubtarefasEntraNaFilaInteira() {
+        Task inteira = Task.nova("Inteira", "Faça tudo", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task dividida = Task.nova("Dividida", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(servico.salvarTask(novoProjeto("P"), inteira), dividida);
+        projeto = servico.salvarSubtarefa(projeto, dividida, sub("A"));
+
+        ProjetoService.Proxima proxima = servico.proxima().orElseThrow();
+        assertEquals("Inteira", proxima.task().titulo());
+        assertEquals(null, proxima.subtarefa());
+
+        servico.marcar(projeto.id(), inteira.id(), null, Estado.EM_ANDAMENTO, null);
+        assertEquals("A", servico.proxima().orElseThrow().subtarefa().titulo());
+        // Não dá para quebrar a Task enquanto o agente a executa inteira.
+        Projeto atual = projeto;
+        assertThrows(IllegalArgumentException.class, () -> servico.salvarSubtarefa(atual, inteira, sub("B")));
+
+        projeto = servico.marcar(projeto.id(), inteira.id(), null, Estado.CONCLUIDO, "Feito").orElseThrow();
+        Task concluida = projeto.tasks().getFirst();
+        assertEquals(Estado.CONCLUIDO, concluida.estado());
+        assertEquals("Feito", concluida.resultado());
+        // Editar a Task não apaga o resultado.
+        projeto = servico.salvarTask(projeto, new Task(inteira.id(), "Renomeada", "", Provedor.AUTOMATICO,
+                Esforco.MEDIUM, inteira.origem(), List.of(), null, null, null));
+        assertEquals(Estado.CONCLUIDO, projeto.tasks().getFirst().estado());
+        assertEquals("Feito", projeto.tasks().getFirst().resultado());
+    }
+
+    @Test
+    void taskInteiraFalhaVoltaParaAFilaERecuperaAoAbrir() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        servico.marcar(projeto.id(), task.id(), null, Estado.ERRO, "FALHOU: x");
+
+        projeto = servico.tentarDeNovo(projeto, task);
+        assertEquals(Estado.PENDENTE, projeto.tasks().getFirst().estado());
+
+        servico.marcar(projeto.id(), task.id(), null, Estado.EM_ANDAMENTO, null);
+        Projeto reaberto = new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id()).orElseThrow();
+        assertEquals(Estado.PENDENTE, reaberto.tasks().getFirst().estado());
+
+        projeto = servico.marcar(projeto.id(), task.id(), null, Estado.CONCLUIDO, "ok").orElseThrow();
+        projeto = servico.definirEstado(projeto, task, Estado.PENDENTE);
+        assertEquals(Estado.PENDENTE, projeto.tasks().getFirst().estado());
+        assertEquals("ok", projeto.tasks().getFirst().resultado());
     }
 }

@@ -61,7 +61,7 @@ public class SubtarefaDialog extends Dialogo {
         corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
         corpo.add(Box.createVerticalStrut(14));
         if (!nova && existente.estado() != Estado.PENDENTE) {
-            corpo.add(situacao(existente, aoDecidir));
+            corpo.add(situacao(this, existente.estado(), existente.resultado(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
 
@@ -119,9 +119,11 @@ public class SubtarefaDialog extends Dialogo {
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
     }
 
-    /** Como a última execução terminou, com a resposta do agente e as decisões possíveis. */
-    private JComponent situacao(Subtarefa subtarefa, Consumer<Estado> aoDecidir) {
-        Estado estado = subtarefa.estado();
+    /**
+     * Como a última execução (da subtarefa ou da Task inteira) terminou, com a resposta do agente e as decisões
+     * possíveis. Decidir fecha o {@code dialogo}.
+     */
+    static JComponent situacao(Dialogo dialogo, Estado estado, String resultado, Consumer<Estado> aoDecidir) {
         String titulo = switch (estado) {
             case ATENCAO -> "Aguardando sua verificação";
             case ERRO -> "Falhou";
@@ -131,18 +133,18 @@ public class SubtarefaDialog extends Dialogo {
         };
         List<JButton> botoes = new ArrayList<>();
         if (estado == Estado.ATENCAO) {
-            botoes.add(decisao(Ui.botaoSecundario("Refazer"), Estado.PENDENTE, aoDecidir));
-            botoes.add(decisao(Ui.botaoPrimario("Aprovar"), Estado.CONCLUIDO, aoDecidir));
+            botoes.add(decisao(dialogo, Ui.botaoSecundario("Refazer"), Estado.PENDENTE, aoDecidir));
+            botoes.add(decisao(dialogo, Ui.botaoPrimario("Aprovar"), Estado.CONCLUIDO, aoDecidir));
         } else if (estado == Estado.ERRO) {
-            botoes.add(decisao(Ui.botaoPrimario("Tentar de novo"), Estado.PENDENTE, aoDecidir));
+            botoes.add(decisao(dialogo, Ui.botaoPrimario("Tentar de novo"), Estado.PENDENTE, aoDecidir));
         } else if (estado == Estado.CONCLUIDO) {
-            botoes.add(decisao(Ui.botaoSecundario("Refazer"), Estado.PENDENTE, aoDecidir));
+            botoes.add(decisao(dialogo, Ui.botaoSecundario("Refazer"), Estado.PENDENTE, aoDecidir));
         }
 
         Cartao cartao = new Cartao(Tema.SUTIL, Tema.cor(estado), new BorderLayout(0, 8));
         cartao.add(Ui.cabecalho(Ui.secao(titulo), Ui.linha(8, botoes.toArray(new JButton[0]))), BorderLayout.NORTH);
-        if (subtarefa.resultado() != null && !subtarefa.resultado().isBlank()) {
-            JTextArea resposta = new JTextArea(subtarefa.resultado().strip(), 5, 20);
+        if (resultado != null && !resultado.isBlank()) {
+            JTextArea resposta = new JTextArea(resultado.strip(), 5, 20);
             resposta.setEditable(false);
             resposta.setLineWrap(true);
             resposta.setWrapStyleWord(true);
@@ -155,13 +157,13 @@ public class SubtarefaDialog extends Dialogo {
         return Ui.largo(cartao);
     }
 
-    private JButton decisao(JButton botao, Estado novo, Consumer<Estado> aoDecidir) {
+    private static JButton decisao(Dialogo dialogo, JButton botao, Estado novo, Consumer<Estado> aoDecidir) {
         botao.addActionListener(e -> {
             try {
                 aoDecidir.accept(novo);
-                fechar();
+                dialogo.fechar();
             } catch (IllegalArgumentException erro) {
-                JOptionPane.showMessageDialog(this, erro.getMessage(), botao.getText(), JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(dialogo, erro.getMessage(), botao.getText(), JOptionPane.WARNING_MESSAGE);
             }
         });
         return botao;

@@ -10,17 +10,20 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Monta o pedido de uma subtarefa para o agente e interpreta a resposta.
+ * Monta o pedido de uma subtarefa, ou da Task inteira, para o agente e interpreta a resposta.
  */
 final class Prompt {
 
-    /** O agente começa a resposta com isto quando não consegue concluir a subtarefa. */
+    /** O agente começa a resposta com isto quando não consegue concluir o trabalho. */
     static final String MARCA_DE_FALHA = "FALHOU:";
 
     private Prompt() {
     }
 
-    /** @param branch branch do worktree, usada só quando o projeto usa git */
+    /**
+     * @param subtarefa subtarefa a executar, ou null para executar a Task inteira (a descrição dela é a instrução)
+     * @param branch    branch do worktree, usada só quando o projeto usa git
+     */
     static String montar(Projeto projeto, Task task, Subtarefa subtarefa, String branch) {
         StringBuilder p = new StringBuilder();
         p.append("Você é um agente executando trabalho automatizado no projeto \"").append(projeto.nome()).append("\".\n");
@@ -28,41 +31,50 @@ final class Prompt {
 
         p.append("\n## Task: ").append(task.titulo()).append('\n');
         paragrafo(p, task.descricao());
-        List<Subtarefa> concluidas = task.subtarefas().stream()
-                .filter(s -> s.estado() == Estado.CONCLUIDO && !s.id().equals(subtarefa.id()))
-                .toList();
-        if (!concluidas.isEmpty()) {
-            p.append("\nJá concluído nesta task:\n");
-            concluidas.forEach(s -> p.append("- ").append(s.titulo()).append('\n'));
-        }
+        if (subtarefa != null) {
+            List<Subtarefa> concluidas = task.subtarefas().stream()
+                    .filter(s -> s.estado() == Estado.CONCLUIDO && !s.id().equals(subtarefa.id()))
+                    .toList();
+            if (!concluidas.isEmpty()) {
+                p.append("\nJá concluído nesta task:\n");
+                concluidas.forEach(s -> p.append("- ").append(s.titulo()).append('\n'));
+            }
 
-        p.append("\n## Subtarefa atual: ").append(subtarefa.titulo()).append('\n');
-        if (temTexto(subtarefa.instrucao())) {
-            p.append("\nInstrução:\n").append(subtarefa.instrucao().strip()).append('\n');
-        }
-        if (temTexto(subtarefa.criterioDeAceite())) {
-            p.append("\nCritério de aceite:\n").append(subtarefa.criterioDeAceite().strip()).append('\n');
+            p.append("\n## Subtarefa atual: ").append(subtarefa.titulo()).append('\n');
+            if (temTexto(subtarefa.instrucao())) {
+                p.append("\nInstrução:\n").append(subtarefa.instrucao().strip()).append('\n');
+            }
+            if (temTexto(subtarefa.criterioDeAceite())) {
+                p.append("\nCritério de aceite:\n").append(subtarefa.criterioDeAceite().strip()).append('\n');
+            }
         }
 
         p.append("\n## Regras\n");
-        p.append("- Faça só esta subtarefa; as próximas chegarão em mensagens seguintes desta mesma conversa.\n");
+        p.append(subtarefa == null
+                ? "- Faça a task inteira: o título e a descrição acima são a instrução.\n"
+                : "- Faça só esta subtarefa; as próximas chegarão em mensagens seguintes desta mesma conversa.\n");
         p.append("- Ninguém vai responder perguntas durante a execução: decida com bom senso e registre as suposições no resumo.\n");
         permissoes(p, projeto.permissoes());
         if (projeto.usaGit()) {
+            // A Task inteira segue os padrões da subtarefa: commit sim, push não.
+            boolean commit = subtarefa == null || subtarefa.commit();
+            boolean push = subtarefa != null && subtarefa.push();
             p.append("- Você está num worktree separado, na branch `").append(branch).append("`. ");
-            if (subtarefa.commit()) {
+            if (commit) {
                 p.append("Ao terminar, faça commit das suas mudanças nesta branch com uma mensagem clara. ");
             } else {
                 p.append("Não faça commit: deixe as mudanças no worktree. ");
             }
-            if (subtarefa.push()) {
+            if (push) {
                 p.append("Depois do commit, faça push desta branch para o remoto. ")
                         .append("Não troque de branch nem faça merge.\n");
             } else {
                 p.append("Não troque de branch, não faça merge nem push.\n");
             }
         }
-        p.append("- Ao terminar, responda com um resumo curto do que fez e de como o critério de aceite foi atendido.\n");
+        p.append(subtarefa != null && temTexto(subtarefa.criterioDeAceite())
+                ? "- Ao terminar, responda com um resumo curto do que fez e de como o critério de aceite foi atendido.\n"
+                : "- Ao terminar, responda com um resumo curto do que fez.\n");
         p.append("- Se não conseguir concluir, comece a resposta com \"").append(MARCA_DE_FALHA)
                 .append("\" e explique o motivo.\n");
         return p.toString();

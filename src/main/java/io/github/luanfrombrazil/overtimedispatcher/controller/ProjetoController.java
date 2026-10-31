@@ -72,13 +72,14 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
 
     @Override
     public void novaTask() {
-        new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null).abrir();
+        new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null, null).abrir();
     }
 
     @Override
     public void editarTask(Task task) {
         new TaskDialog(frame, projeto, task, t -> alterado(servico.salvarTask(projeto, t)),
-                () -> alterado(servico.excluirTask(projeto, task))).abrir();
+                () -> alterado(servico.excluirTask(projeto, task)),
+                estado -> alterado(servico.definirEstado(projeto, task, estado))).abrir();
     }
 
     @Override

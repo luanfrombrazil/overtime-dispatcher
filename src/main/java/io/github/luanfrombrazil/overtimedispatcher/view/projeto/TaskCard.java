@@ -51,10 +51,12 @@ class TaskCard extends Cartao {
             cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar);
             expandido = false;
         } else {
-            long falhas = task.subtarefas().stream().filter(s -> s.estado() == Estado.ERRO).count();
+            long falhas = task.inteira()
+                    ? (task.execucao() == Estado.ERRO ? 1 : 0)
+                    : task.subtarefas().stream().filter(s -> s.estado() == Estado.ERRO).count();
             if (falhas > 0) {
-                cabecalho.comDireita(botaoTentarDeNovo(falhas == 1
-                        ? "Tentar de novo a subtarefa que falhou"
+                cabecalho.comDireita(botaoTentarDeNovo(task.inteira() ? "Tentar de novo a task"
+                        : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
                         : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)), seta);
             } else {
                 cabecalho.comDireita(seta);

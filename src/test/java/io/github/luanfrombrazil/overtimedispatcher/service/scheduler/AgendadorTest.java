@@ -91,7 +91,7 @@ class AgendadorTest {
 
     private void esperarFilaVazia() throws InterruptedException {
         long limite = System.currentTimeMillis() + 5000;
-        while ((projetos.proximaSubtarefa().isPresent() || agendador.situacao().texto().contains(" em "))
+        while ((projetos.proxima().isPresent() || agendador.situacao().texto().contains(" em "))
                 && System.currentTimeMillis() < limite) {
             Thread.sleep(20);
         }
@@ -164,6 +164,29 @@ class AgendadorTest {
         assertEquals(Estado.ERRO, subtarefa(projeto, codex, 0).estado());
         assertTrue(subtarefa(projeto, codex, 0).resultado().contains("Codex"));
         assertEquals(Estado.CONCLUIDO, subtarefa(projeto, claude, 0).estado());
+    }
+
+    @Test
+    void taskSemSubtarefasRodaInteira() throws InterruptedException {
+        Projeto projeto = projeto();
+        Task pronta = Task.nova("Atualizar README", "Explique a instalação", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task quebrada = Task.nova("Quebrada", "Esta deve falhar", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        projeto = projetos.salvarTask(projeto, pronta);
+        projetos.salvarTask(projeto, quebrada);
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        assertEquals(2, agente.execucoes.size());
+        String prompt = agente.execucoes.getFirst().prompt();
+        assertTrue(prompt.contains("Explique a instalação"));
+        assertTrue(prompt.contains("Faça a task inteira"));
+        assertFalse(prompt.contains("Subtarefa atual"));
+        List<Task> tasks = projetos.buscar(projeto.id()).orElseThrow().tasks();
+        assertEquals(Estado.CONCLUIDO, tasks.get(0).estado());
+        assertEquals("Pronto", tasks.get(0).resultado());
+        assertEquals(Estado.ERRO, tasks.get(1).estado());
+        assertEquals("FALHOU: não deu", tasks.get(1).resultado());
     }
 
     @Test

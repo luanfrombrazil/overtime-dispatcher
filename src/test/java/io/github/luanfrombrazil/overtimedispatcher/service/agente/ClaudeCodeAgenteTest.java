@@ -79,7 +79,7 @@ class ClaudeCodeAgenteTest {
     @Test
     void branchDaTaskSemAcentosComIdCurto() {
         Task task = new Task("1a2b3c4d-0000-0000-0000-000000000000", "Corrigir Ação de LOGIN!", "", Provedor.AUTOMATICO,
-                Esforco.MEDIUM, null, List.of(), null);
+                Esforco.MEDIUM, null, List.of(), null, null, null);
 
         assertEquals("overtime/corrigir-acao-de-login-1a2b3c4d", AreaDeTrabalho.branch(task));
     }

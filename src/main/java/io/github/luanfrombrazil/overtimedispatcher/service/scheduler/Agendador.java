@@ -31,10 +31,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Entrega as subtarefas da fila aos agentes, uma de cada vez.
+ * Entrega o trabalho da fila aos agentes, um de cada vez: subtarefas ou, quando não há subtarefas, a Task inteira.
  * <p>
  * Enquanto está rodando, faz um ciclo a cada {@link #INTERVALO} (e também logo depois de {@link #agora()}):
- * pega a próxima subtarefa liberada, executa no agente da Task e repete até a fila esvaziar. Pausar não
+ * pega o próximo trabalho liberado, executa no agente da Task e repete até a fila esvaziar. Pausar não
  * interrompe a execução em andamento; só impede que a próxima comece.
  * <p>
  * Ainda não respeita o horário de funcionamento nem a reserva (módulo de consumo).
@@ -140,11 +140,11 @@ public class Agendador {
         return new Situacao(true, "Rodando · fila vazia" + (proximo == null ? "" : " · próximo ciclo às " + proximo.format(HORA)));
     }
 
-    /** Executa as subtarefas liberadas até a fila esvaziar ou o agendador ser pausado. */
+    /** Executa o trabalho liberado até a fila esvaziar ou o agendador ser pausado. */
     void ciclo() {
         try {
             while (rodando) {
-                Optional<ProjetoService.Proxima> proxima = projetos.proximaSubtarefa();
+                Optional<ProjetoService.Proxima> proxima = projetos.proxima();
                 if (proxima.isEmpty()) {
                     break;
                 }
@@ -165,7 +165,10 @@ public class Agendador {
     private void executar(ProjetoService.Proxima proxima) throws InterruptedException {
         Projeto projeto = proxima.projeto();
         Task task = proxima.task();
+        // Sem subtarefa, a Task roda inteira.
         Subtarefa subtarefa = proxima.subtarefa();
+        String subtarefaId = subtarefa == null ? null : subtarefa.id();
+        String nome = subtarefa == null ? task.titulo() : task.titulo() + " › " + subtarefa.titulo();
         String projetoId = projeto.id();
         String taskId = task.id();
 
@@ -174,17 +177,16 @@ public class Agendador {
             String motivo = task.provedor() == null || task.provedor() == Provedor.AUTOMATICO
                     ? "Nenhum agente disponível: instale o Claude Code."
                     : task.provedor() + " ainda não é suportado ou não está instalado.";
-            registrar(projetoId, taskId, hora() + " " + task.titulo() + " › " + subtarefa.titulo() + " · " + motivo);
-            projetos.marcar(projetoId, taskId, subtarefa.id(), Estado.ERRO, motivo);
+            registrar(projetoId, taskId, hora() + " " + nome + " · " + motivo);
+            projetos.marcar(projetoId, taskId, subtarefaId, Estado.ERRO, motivo);
             return;
         }
-        if (projetos.marcar(projetoId, taskId, subtarefa.id(), Estado.EM_ANDAMENTO, null).isEmpty()) {
+        if (projetos.marcar(projetoId, taskId, subtarefaId, Estado.EM_ANDAMENTO, null).isEmpty()) {
             return;
         }
-        emExecucao = agente.get().provedor() + " em " + subtarefa.titulo();
+        emExecucao = agente.get().provedor() + " em " + (subtarefa == null ? task.titulo() : subtarefa.titulo());
         avisarSituacao();
-        registrar(projetoId, taskId,
-                hora() + " " + task.titulo() + " › " + subtarefa.titulo() + " · " + agente.get().provedor());
+        registrar(projetoId, taskId, hora() + " " + nome + " · " + agente.get().provedor());
 
         ResultadoExecucao resultado;
         boolean sessaoNova = task.sessao() == null;
@@ -208,13 +210,14 @@ public class Agendador {
         }
 
         boolean sucesso = resultado.sucesso() && !Prompt.falhou(resultado.resposta());
-        Estado estado = !sucesso ? Estado.ERRO : subtarefa.requerVerificacao() ? Estado.ATENCAO : Estado.CONCLUIDO;
+        boolean verificar = subtarefa != null && subtarefa.requerVerificacao();
+        Estado estado = !sucesso ? Estado.ERRO : verificar ? Estado.ATENCAO : Estado.CONCLUIDO;
         registrar(projetoId, taskId, hora() + " " + switch (estado) {
             case CONCLUIDO -> "Concluída";
             case ATENCAO -> "Aguardando verificação";
             default -> "Falhou: " + primeiraLinha(resultado.resposta());
         });
-        projetos.marcar(projetoId, taskId, subtarefa.id(), estado, resultado.resposta());
+        projetos.marcar(projetoId, taskId, subtarefaId, estado, resultado.resposta());
     }
 
     private void registrar(String projetoId, String taskId, String linha) {

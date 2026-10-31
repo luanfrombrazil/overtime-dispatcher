@@ -34,7 +34,9 @@ import java.util.function.UnaryOperator;
  */
 public class ProjetoService {
 
-    /** Subtarefa pronta para ir a um agente, com a Task e o projeto dela. */
+    /**
+     * Trabalho pronto para ir a um agente: uma subtarefa ou, quando {@code subtarefa} é null, a Task inteira.
+     */
     public record Proxima(Projeto projeto, Task task, Subtarefa subtarefa) {
     }
 
@@ -42,13 +44,16 @@ public class ProjetoService {
     private final Map<String, Projeto> projetos = new HashMap<>();
     private final List<Consumer<Projeto>> ouvintes = new CopyOnWriteArrayList<>();
 
-    /** Carrega os projetos. Subtarefas que estavam em andamento quando a app fechou voltam para a fila. */
+    /** Carrega os projetos. O que estava em andamento quando a app fechou volta para a fila. */
     public ProjetoService(RepositorioProjetos repositorio) {
         this.repositorio = repositorio;
         for (Projeto p : repositorio.carregar()) {
-            Projeto recuperado = p.comTasks(p.tasks().stream().map(t -> t.comSubtarefas(t.subtarefas().stream()
-                    .map(s -> s.estado() == Estado.EM_ANDAMENTO ? s.comEstado(Estado.PENDENTE, s.resultado()) : s)
-                    .toList())).toList());
+            Projeto recuperado = p.comTasks(p.tasks().stream()
+                    .map(t -> t.execucao() == Estado.EM_ANDAMENTO ? t.comExecucao(Estado.PENDENTE, t.resultado()) : t)
+                    .map(t -> t.comSubtarefas(t.subtarefas().stream()
+                            .map(s -> s.estado() == Estado.EM_ANDAMENTO ? s.comEstado(Estado.PENDENTE, s.resultado()) : s)
+                            .toList()))
+                    .toList());
             projetos.put(p.id(), p);
             if (!recuperado.equals(p)) {
                 gravar(recuperado);
@@ -105,7 +110,8 @@ public class ProjetoService {
             tasks.add(task);
         } else {
             Task antiga = tasks.get(indice);
-            tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao()));
+            tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
+                    .comExecucao(antiga.execucao(), antiga.resultado()));
         }
         return gravar(atual.comTasks(tasks));
     }
@@ -137,6 +143,10 @@ public class ProjetoService {
     /** Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");
+        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
+        if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
+        }
         return alterarSubtarefas(projeto, task, subtarefas -> {
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
             int indice = indiceDaSubtarefa(novas, subtarefa.id());
@@ -166,21 +176,48 @@ public class ProjetoService {
         }).toList());
     }
 
-    /** Devolve à fila todas as subtarefas da Task que falharam. */
+    /** Decisão do usuário sobre a Task executada inteira, como em {@link #definirEstado(Projeto, Task, Subtarefa, Estado)}. */
+    public synchronized Projeto definirEstado(Projeto projeto, Task task, Estado estado) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        if (indice < 0) {
+            throw new IllegalArgumentException("Task não encontrada.");
+        }
+        Task antiga = tasks.get(indice);
+        if (antiga.execucao() == Estado.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
+        }
+        tasks.set(indice, antiga.comExecucao(estado, antiga.resultado()));
+        return gravar(atual.comTasks(tasks));
+    }
+
+    /** Devolve à fila todas as subtarefas da Task que falharam, ou a própria Task, se ela roda inteira. */
     public synchronized Projeto tentarDeNovo(Projeto projeto, Task task) {
+        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
+        if (atual.inteira()) {
+            return atual.execucao() == Estado.ERRO ? definirEstado(projeto, task, Estado.PENDENTE) : atual(projeto);
+        }
         return alterarSubtarefas(projeto, task, subtarefas -> subtarefas.stream()
                 .map(s -> s.estado() == Estado.ERRO ? s.comEstado(Estado.PENDENTE, s.resultado()) : s)
                 .toList());
     }
 
     /**
-     * Primeira subtarefa na fila cujas dependências já foram concluídas, seguindo a ordem dos projetos,
-     * das Tasks e das subtarefas. Tasks do Oráculo esperam ser aceitas.
+     * Próximo trabalho na fila, seguindo a ordem dos projetos, das Tasks e das subtarefas: a primeira subtarefa
+     * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo
+     * esperam ser aceitas.
      */
-    public synchronized Optional<Proxima> proximaSubtarefa() {
+    public synchronized Optional<Proxima> proxima() {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
                 if (task.origem() == Origem.ORACULO) {
+                    continue;
+                }
+                if (task.inteira()) {
+                    if (task.execucao() == Estado.PENDENTE) {
+                        return Optional.of(new Proxima(projeto, task, null));
+                    }
                     continue;
                 }
                 Set<String> concluidas = new HashSet<>();
@@ -196,11 +233,14 @@ public class ProjetoService {
     }
 
     /**
-     * Registra o estado vindo de uma execução. Devolve vazio se, nesse meio-tempo, o usuário excluiu a
-     * subtarefa, a Task ou o projeto.
+     * Registra o estado vindo de uma execução, da subtarefa ou, com {@code subtarefaId} null, da Task inteira.
+     * Devolve vazio se, nesse meio-tempo, o usuário excluiu a subtarefa, a Task ou o projeto.
      */
     public synchronized Optional<Projeto> marcar(String projetoId, String taskId, String subtarefaId,
                                                  Estado estado, String resultado) {
+        if (subtarefaId == null) {
+            return alterarSePossivel(projetoId, taskId, task -> task.comExecucao(estado, resultado));
+        }
         return alterarSePossivel(projetoId, taskId, task -> task.comSubtarefas(task.subtarefas().stream()
                 .map(s -> s.id().equals(subtarefaId) ? s.comEstado(estado, resultado) : s)
                 .toList()));
