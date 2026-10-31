@@ -1,8 +1,10 @@
 package io.github.luanfrombrazil.overtimedispatcher.controller;
 
+import io.github.luanfrombrazil.overtimedispatcher.model.Configuracoes;
 import io.github.luanfrombrazil.overtimedispatcher.model.Projeto;
 import io.github.luanfrombrazil.overtimedispatcher.model.Protocolo;
 import io.github.luanfrombrazil.overtimedispatcher.model.Trilha;
+import io.github.luanfrombrazil.overtimedispatcher.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimedispatcher.service.prototipo.DadosPrototipo;
 import io.github.luanfrombrazil.overtimedispatcher.view.BarraLateral;
 import io.github.luanfrombrazil.overtimedispatcher.view.BarraSuperior;
@@ -16,12 +18,16 @@ import io.github.luanfrombrazil.overtimedispatcher.view.protocolo.NovoProtocoloD
 import io.github.luanfrombrazil.overtimedispatcher.view.protocolo.ProtocoloPanel;
 import io.github.luanfrombrazil.overtimedispatcher.view.trilha.TrilhaPanel;
 
+import javax.swing.JOptionPane;
+import java.io.UncheckedIOException;
+
 /**
  * Liga as ações da janela principal: navegação entre telas e abertura dos pop-ups.
  */
 public class MainController implements BarraLateral.Ouvinte {
 
     private final DadosPrototipo dados;
+    private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
     private final BarraLateral barraLateral;
     private final MainFrame frame;
@@ -35,7 +41,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
         barraSuperior.aoClicarHome(this::home);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
-        barraSuperior.aoClicarNotificacoes(() -> new ConfiguracoesDialog(frame).naSecao("Notificações").abrir());
+        barraSuperior.aoClicarNotificacoes(() -> configuracoes("Notificações"));
     }
 
     public void iniciar() {
@@ -93,7 +99,21 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     public void configuracoes() {
-        new ConfiguracoesDialog(frame).abrir();
+        configuracoes("Agendamento");
+    }
+
+    private void configuracoes(String secao) {
+        new ConfiguracoesDialog(frame, repositorioConfiguracoes.carregar(), this::salvarConfiguracoes)
+                .naSecao(secao)
+                .abrir();
+    }
+
+    private void salvarConfiguracoes(Configuracoes configuracoes) {
+        try {
+            repositorioConfiguracoes.salvar(configuracoes);
+        } catch (UncheckedIOException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Configurações", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void abrirItem(Object item) {

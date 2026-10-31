@@ -1,5 +1,7 @@
 package io.github.luanfrombrazil.overtimedispatcher.view.config;
 
+import io.github.luanfrombrazil.overtimedispatcher.model.Configuracoes;
+import io.github.luanfrombrazil.overtimedispatcher.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Chip;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Dialogo;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Interruptor;
@@ -26,6 +28,7 @@ import java.awt.event.MouseEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Configurações, com navegação lateral. Agendamento e Notificações já prototipadas.
@@ -42,9 +45,15 @@ public class ConfiguracoesDialog extends Dialogo {
     private final CardLayout cartoes = new CardLayout();
     private final JPanel paginas = new JPanel(cartoes);
     private final Map<String, JLabel> itensNavegacao = new LinkedHashMap<>();
+    private final Configuracoes configuracoes;
+    private final Consumer<Configuracoes> aoSalvar;
+    private BarrasHorario barras;
 
-    public ConfiguracoesDialog(JFrame dono) {
+    /** Mostra as configurações recebidas; "Salvar" entrega a versão editada para {@code aoSalvar}. */
+    public ConfiguracoesDialog(JFrame dono, Configuracoes configuracoes, Consumer<Configuracoes> aoSalvar) {
         super(dono, Tema.BORDA);
+        this.configuracoes = configuracoes;
+        this.aoSalvar = aoSalvar;
         JPanel raiz = (JPanel) getContentPane();
         raiz.setPreferredSize(new Dimension(820, 740));
 
@@ -118,7 +127,10 @@ public class ConfiguracoesDialog extends Dialogo {
         JButton cancelar = Ui.botaoSecundario("Cancelar");
         JButton salvar = Ui.botaoPrimario("Salvar");
         cancelar.addActionListener(e -> fechar());
-        salvar.addActionListener(e -> fechar());
+        salvar.addActionListener(e -> {
+            aoSalvar.accept(new Configuracoes(barras.horario()));
+            fechar();
+        });
         JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rodape.setOpaque(false);
         rodape.setBorder(BorderFactory.createCompoundBorder(
@@ -136,32 +148,23 @@ public class ConfiguracoesDialog extends Dialogo {
 
         pagina.add(Ui.cabecalho(Ui.secao("Horário de funcionamento"), null));
         pagina.add(Box.createVerticalStrut(10));
-        BarrasHorario barras = new BarrasHorario();
-        Chip sempre = new Chip("Sempre", false);
-        Chip noites = new Chip("Noites e fins de semana", false);
-        Chip personalizado = new Chip("Personalizado", true);
+        HorarioFuncionamento atual = configuracoes.horarioFuncionamento();
+        barras = new BarrasHorario(atual);
+        Chip sempre = new Chip("Sempre", atual.equals(HorarioFuncionamento.sempre()));
+        Chip noites = new Chip("Noites e fins de semana", atual.equals(HorarioFuncionamento.noitesEFinsDeSemana()));
+        Chip personalizado = new Chip("Personalizado", !sempre.isSelecionado() && !noites.isSelecionado());
         List<Chip> presets = List.of(sempre, noites, personalizado);
         Runnable selecionarPersonalizado = () -> presets.forEach(c -> c.setSelecionado(c == personalizado));
         sempre.aoClicar(() -> {
-            barras.limpar();
-            for (int d = 0; d < 7; d++) {
-                barras.definir(d, 0, 24);
-            }
+            barras.mostrar(HorarioFuncionamento.sempre());
             presets.forEach(c -> c.setSelecionado(c == sempre));
         });
         noites.aoClicar(() -> {
-            barras.limpar();
-            for (int d = 0; d < 5; d++) {
-                barras.definir(d, 0, 7);
-                barras.definir(d, 22, 24);
-            }
-            barras.definir(5, 0, 24);
-            barras.definir(6, 0, 24);
+            barras.mostrar(HorarioFuncionamento.noitesEFinsDeSemana());
             presets.forEach(c -> c.setSelecionado(c == noites));
         });
         personalizado.aoClicar(selecionarPersonalizado);
         barras.aoEditar(selecionarPersonalizado);
-        exemploDeHorario(barras);
         pagina.add(Ui.cabecalho(Ui.linha(8, sempre, noites, personalizado), null));
         pagina.add(Box.createVerticalStrut(12));
         pagina.add(Ui.cabecalho(barras, null));
@@ -187,16 +190,6 @@ public class ConfiguracoesDialog extends Dialogo {
                 campo("Tentativas", tentativas),
                 campo("Timeout", timeout)), null));
         return pagina;
-    }
-
-    private static void exemploDeHorario(BarrasHorario barras) {
-        int[] inicioDaNoite = {22, 22, 19, 22, 20};
-        for (int d = 0; d < 5; d++) {
-            barras.definir(d, 0, 7);
-            barras.definir(d, inicioDaNoite[d], 24);
-        }
-        barras.definir(5, 0, 24);
-        barras.definir(6, 0, 18);
     }
 
     private static JComponent reserva(String provedor, int automacao, int oraculo) {

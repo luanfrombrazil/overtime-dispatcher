@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimedispatcher.view.config;
 
+import io.github.luanfrombrazil.overtimedispatcher.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.JComponent;
@@ -19,7 +20,7 @@ import java.awt.event.MouseEvent;
 class BarrasHorario extends JComponent {
 
     static final String[] DIAS = {"Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"};
-    private static final int SEGMENTOS = 48;
+    private static final int SEGMENTOS = HorarioFuncionamento.SEGMENTOS;
     private static final int ALTURA_SEGMENTO = 4;
     private static final int ESPACO_SEGMENTO = 1;
     private static final int LARGURA_DIA = 64;
@@ -27,12 +28,14 @@ class BarrasHorario extends JComponent {
     private static final int EIXO = 34;
     private static final int TOPO = 24;
 
-    private final boolean[][] selecionados = new boolean[DIAS.length][SEGMENTOS];
+    private HorarioFuncionamento horario;
     private boolean modoArraste;
     private Runnable aoEditar = () -> {
     };
 
-    BarrasHorario() {
+    /** Edita uma cópia do horário recebido; o resultado sai por {@link #horario()}. */
+    BarrasHorario(HorarioFuncionamento horario) {
+        this.horario = horario.copia();
         int largura = EIXO + DIAS.length * (LARGURA_DIA + ESPACO_DIA);
         int altura = TOPO + SEGMENTOS * (ALTURA_SEGMENTO + ESPACO_SEGMENTO) + 10;
         setPreferredSize(new Dimension(largura, altura));
@@ -44,7 +47,7 @@ class BarrasHorario extends JComponent {
             public void mousePressed(MouseEvent e) {
                 int[] celula = celula(e.getX(), e.getY());
                 if (celula != null) {
-                    modoArraste = !selecionados[celula[0]][celula[1]];
+                    modoArraste = !horario.liberado(celula[0], celula[1]);
                     marcar(celula);
                 }
             }
@@ -65,23 +68,18 @@ class BarrasHorario extends JComponent {
         this.aoEditar = acao;
     }
 
-    /** Marca as faixas [início, fim) em horas, iguais para os dias indicados. */
-    void definir(int dia, int horaInicio, int horaFim) {
-        for (int s = horaInicio * 2; s < horaFim * 2; s++) {
-            selecionados[dia][s] = true;
-        }
-        repaint();
+    HorarioFuncionamento horario() {
+        return horario.copia();
     }
 
-    void limpar() {
-        for (boolean[] dia : selecionados) {
-            java.util.Arrays.fill(dia, false);
-        }
+    /** Troca todo o horário mostrado (usado pelos presets). */
+    void mostrar(HorarioFuncionamento horario) {
+        this.horario = horario.copia();
         repaint();
     }
 
     private void marcar(int[] celula) {
-        selecionados[celula[0]][celula[1]] = modoArraste;
+        horario.definir(celula[0], celula[1], modoArraste);
         aoEditar.run();
         repaint();
     }
@@ -117,7 +115,7 @@ class BarrasHorario extends JComponent {
             g2.setColor(Tema.TEXTO);
             g2.drawString(DIAS[d], x + (LARGURA_DIA - fmDia.stringWidth(DIAS[d])) / 2, fmDia.getAscent());
             for (int s = 0; s < SEGMENTOS; s++) {
-                g2.setColor(selecionados[d][s] ? Tema.ATIVIDADE[3] : Tema.ATIVIDADE[0]);
+                g2.setColor(horario.liberado(d, s) ? Tema.ATIVIDADE[3] : Tema.ATIVIDADE[0]);
                 g2.fillRoundRect(x, TOPO + s * (ALTURA_SEGMENTO + ESPACO_SEGMENTO), LARGURA_DIA, ALTURA_SEGMENTO, 3, 3);
             }
         }
