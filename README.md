@@ -4,11 +4,13 @@ Aplicação desktop que mantém uma **fila de tarefas** para agentes de IA — C
 
 Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escrita, organização de documentos, automações do dia a dia.
 
-> Status: **início da implementação**. A estrutura do projeto está criada; a janela principal abre vazia.
+> Status: **protótipo das telas** (branch `dev`), com dados de exemplo.
 
 ## Como rodar
 
-Requer JDK 25 e Maven. Abra a pasta no IntelliJ IDEA (projeto Maven) e execute `OvertimeDispatcher`, ou pelo terminal:
+Requer JDK 25 e Maven. Abra a pasta no IntelliJ IDEA (projeto Maven) e execute `OvertimeDispatcher`. Para evitar o aviso de acesso nativo do FlatLaf, adicione `--enable-native-access=ALL-UNNAMED` às opções da VM na configuração de execução.
+
+Para compilar pelo terminal:
 
 ```bash
 mvn package

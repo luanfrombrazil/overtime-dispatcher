@@ -1,7 +1,8 @@
 package io.github.luanfrombrazil.overtimedispatcher;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import io.github.luanfrombrazil.overtimedispatcher.view.MainFrame;
+import io.github.luanfrombrazil.overtimedispatcher.controller.MainController;
+import io.github.luanfrombrazil.overtimedispatcher.service.prototipo.DadosPrototipo;
+import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.SwingUtilities;
 
@@ -14,7 +15,7 @@ public final class OvertimeDispatcher {
     }
 
     public static void main(String[] args) {
-        FlatDarkLaf.setup();
-        SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
+        Tema.instalar();
+        SwingUtilities.invokeLater(() -> new MainController(new DadosPrototipo()).iniciar());
     }
 }
