@@ -11,6 +11,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +19,8 @@ import java.util.List;
  * Barra do topo: Home, agendador, consumo por provedor, notificações e configurações.
  */
 public class BarraSuperior extends JPanel {
+
+    private static final DateTimeFormatter FORMATO_RESET = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
 
     private final BotaoIcone home = new BotaoIcone(Ui.icone("home", 18, Tema.TEXTO), "Home");
     private final BotaoIcone notificacoes = new BotaoIcone(Ui.icone("sino", 18, Tema.TEXTO), "Notificações");
@@ -36,12 +39,27 @@ public class BarraSuperior extends JPanel {
 
         List<javax.swing.JComponent> direita = new ArrayList<>();
         for (Consumo c : consumo) {
-            direita.add(Ui.linha(6, Ui.legenda(c.provedor()), new BarraProgresso(c.porcentagem(), Tema.ACENTO, 80),
-                    Ui.legenda(c.porcentagem() + "%")));
+            JLabel nome = Ui.legenda(c.provedor());
+            BarraProgresso barra = new BarraProgresso(c.porcentagem(), Tema.ACENTO, 80);
+            JLabel porcentagem = Ui.legenda(c.porcentagem() + "%");
+            JPanel linha = Ui.linha(6, nome, barra, porcentagem);
+            String dica = dicaDeReset(c);
+            for (javax.swing.JComponent parte : new javax.swing.JComponent[]{linha, nome, barra, porcentagem}) {
+                parte.setToolTipText(dica);
+            }
+            direita.add(linha);
         }
         notificacoes.setContador(naoLidas);
         direita.add(Ui.linha(8, notificacoes, configuracoes));
         add(Ui.linha(16, direita.toArray(new javax.swing.JComponent[0])), BorderLayout.EAST);
+    }
+
+    /** Texto mostrado ao passar o mouse sobre a barra de uso: quando os créditos do provedor voltam. */
+    private static String dicaDeReset(Consumo c) {
+        if (c.reset() == null) {
+            return c.provedor() + " · data de reset ainda desconhecida";
+        }
+        return c.provedor() + " · créditos resetam em " + FORMATO_RESET.format(c.reset());
     }
 
     public void aoClicarHome(Runnable acao) {
