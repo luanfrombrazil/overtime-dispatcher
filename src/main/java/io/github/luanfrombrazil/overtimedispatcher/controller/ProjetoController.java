@@ -1,0 +1,120 @@
+package io.github.luanfrombrazil.overtimedispatcher.controller;
+
+import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
+import io.github.luanfrombrazil.overtimedispatcher.model.Projeto;
+import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
+import io.github.luanfrombrazil.overtimedispatcher.model.Task;
+import io.github.luanfrombrazil.overtimedispatcher.service.Git;
+import io.github.luanfrombrazil.overtimedispatcher.service.ProjetoService;
+import io.github.luanfrombrazil.overtimedispatcher.view.projeto.ProjetoDialog;
+import io.github.luanfrombrazil.overtimedispatcher.view.projeto.ProjetoPanel;
+import io.github.luanfrombrazil.overtimedispatcher.view.projeto.SubtarefaDialog;
+import io.github.luanfrombrazil.overtimedispatcher.view.projeto.TaskDialog;
+
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+/**
+ * Liga a tela de projeto e os pop-ups de projeto, Task e subtarefa ao {@link ProjetoService}.
+ */
+public class ProjetoController implements ProjetoPanel.Ouvinte {
+
+    private final JFrame frame;
+    private final ProjetoService servico;
+    private final Function<String, List<String>> logDe;
+    private final Consumer<Projeto> aoAlterar;
+    private final Runnable aoExcluir;
+    private final ProjetoPanel painel = new ProjetoPanel(this);
+    private Projeto projeto;
+
+    /**
+     * @param logDe     log do agente de um projeto, pelo id
+     * @param aoAlterar chamado com o projeto depois de criado ou alterado, para atualizar a janela
+     * @param aoExcluir chamado depois que o projeto aberto é excluído
+     */
+    public ProjetoController(JFrame frame, ProjetoService servico, Function<String, List<String>> logDe,
+                             Consumer<Projeto> aoAlterar, Runnable aoExcluir) {
+        this.frame = frame;
+        this.servico = servico;
+        this.logDe = logDe;
+        this.aoAlterar = aoAlterar;
+        this.aoExcluir = aoExcluir;
+    }
+
+    /** Mostra o projeto no painel e devolve o painel. */
+    public ProjetoPanel abrir(Projeto projeto) {
+        this.projeto = projeto;
+        painel.mostrar(projeto, logDe.apply(projeto.id()));
+        return painel;
+    }
+
+    /** Leva uma linha nova do log ao console, se o projeto dela estiver no painel. */
+    public void adicionarLog(String projetoId, String linha) {
+        if (projeto != null && projeto.id().equals(projetoId)) {
+            painel.adicionarLog(linha);
+        }
+    }
+
+    public void novoProjeto() {
+        new ProjetoDialog(frame, null, p -> aoAlterar.accept(servico.salvar(p)), null, Git::branches).abrir();
+    }
+
+    @Override
+    public void editarProjeto() {
+        new ProjetoDialog(frame, projeto, p -> aoAlterar.accept(servico.salvar(p)), () -> {
+            servico.excluir(projeto);
+            aoExcluir.run();
+        }, Git::branches).abrir();
+    }
+
+    @Override
+    public void novaTask() {
+        new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null).abrir();
+    }
+
+    @Override
+    public void editarTask(Task task) {
+        new TaskDialog(frame, projeto, task, t -> alterado(servico.salvarTask(projeto, t)),
+                () -> alterado(servico.excluirTask(projeto, task))).abrir();
+    }
+
+    @Override
+    public void novaSubtarefa(Task task) {
+        new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
+                null).abrir();
+    }
+
+    @Override
+    public void editarSubtarefa(Task task, Subtarefa subtarefa) {
+        new SubtarefaDialog(frame, task, subtarefa, s -> alterado(servico.salvarSubtarefa(projeto, task, s)),
+                () -> alterado(servico.excluirSubtarefa(projeto, task, subtarefa)),
+                estado -> alterado(servico.definirEstado(projeto, task, subtarefa, estado))).abrir();
+    }
+
+    @Override
+    public void amarrar(Task task, Subtarefa uma, Subtarefa outra) {
+        try {
+            alterado(servico.alternarDependencia(projeto, task, uma, outra));
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Amarrar subtarefas", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    @Override
+    public void tentarDeNovo(Task task, Subtarefa subtarefa) {
+        alterado(servico.definirEstado(projeto, task, subtarefa, Estado.PENDENTE));
+    }
+
+    @Override
+    public void tentarDeNovo(Task task) {
+        alterado(servico.tentarDeNovo(projeto, task));
+    }
+
+    private void alterado(Projeto atualizado) {
+        projeto = atualizado;
+        aoAlterar.accept(atualizado);
+    }
+}

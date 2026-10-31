@@ -20,10 +20,15 @@ public class BotaoIcone extends JButton {
     private boolean ativo;
 
     public BotaoIcone(Icon icone, String dica) {
+        this(icone, dica, 32);
+    }
+
+    /** @param tamanho lado do botão, em pixels */
+    public BotaoIcone(Icon icone, String dica, int tamanho) {
         super(icone);
         setToolTipText(dica);
         setFocusable(false);
-        Dimension d = new Dimension(32, 32);
+        Dimension d = new Dimension(tamanho, tamanho);
         setPreferredSize(d);
         setMinimumSize(d);
         setMaximumSize(d);

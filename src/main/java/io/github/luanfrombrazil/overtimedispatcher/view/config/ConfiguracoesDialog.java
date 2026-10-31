@@ -135,7 +135,7 @@ public class ConfiguracoesDialog extends Dialogo {
         BarrasHorario barras = new BarrasHorario();
         Chip sempre = new Chip("Sempre", false);
         Chip noites = new Chip("Noites e fins de semana", false);
-        Chip personalizado = new Chip("Personalizado", true);
+        Chip personalizado = new Chip("Personalizado", false);
         List<Chip> presets = List.of(sempre, noites, personalizado);
         Runnable selecionarPersonalizado = () -> presets.forEach(c -> c.setSelecionado(c == personalizado));
         sempre.aoClicar(() -> {
@@ -157,7 +157,6 @@ public class ConfiguracoesDialog extends Dialogo {
         });
         personalizado.aoClicar(selecionarPersonalizado);
         barras.aoEditar(selecionarPersonalizado);
-        exemploDeHorario(barras);
         pagina.add(Ui.cabecalho(Ui.linha(8, sempre, noites, personalizado), null));
         pagina.add(Box.createVerticalStrut(12));
         pagina.add(Ui.cabecalho(barras, null));
@@ -165,11 +164,11 @@ public class ConfiguracoesDialog extends Dialogo {
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Reserva para você"), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(reserva("Claude Code", 45, 15));
+        pagina.add(reserva("Claude Code", 0, 0));
         pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Codex", 55, 15));
+        pagina.add(reserva("Codex", 0, 0));
         pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Gemini", 40, 10));
+        pagina.add(reserva("Gemini", 0, 0));
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Execução"), null));
@@ -183,16 +182,6 @@ public class ConfiguracoesDialog extends Dialogo {
                 campo("Tentativas", tentativas),
                 campo("Timeout", timeout)), null));
         return pagina;
-    }
-
-    private static void exemploDeHorario(BarrasHorario barras) {
-        int[] inicioDaNoite = {22, 22, 19, 22, 20};
-        for (int d = 0; d < 5; d++) {
-            barras.definir(d, 0, 7);
-            barras.definir(d, inicioDaNoite[d], 24);
-        }
-        barras.definir(5, 0, 24);
-        barras.definir(6, 0, 18);
     }
 
     private static JComponent reserva(String provedor, int automacao, int oraculo) {

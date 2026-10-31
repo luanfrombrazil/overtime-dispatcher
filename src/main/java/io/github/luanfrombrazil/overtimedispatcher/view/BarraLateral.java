@@ -49,27 +49,16 @@ public class BarraLateral extends JScrollPane {
     }
 
     private final Map<Object, LinhaLateral> linhas = new HashMap<>();
+    private final JPanel conteudo = new JPanel();
+    private final Ouvinte ouvinte;
+    private Object selecionado;
 
     public BarraLateral(List<Projeto> projetos, List<Protocolo> protocolos, List<Trilha> trilhas,
                         int sugestoes, Ouvinte ouvinte) {
-        JPanel conteudo = new JPanel();
+        this.ouvinte = ouvinte;
         conteudo.setLayout(new BoxLayout(conteudo, BoxLayout.Y_AXIS));
         conteudo.setBackground(Tema.PAINEL);
-
-        conteudo.add(new BotaoOraculo(sugestoes, ouvinte::oraculo));
-
-        conteudo.add(cabecalho("Projetos", "+ Projeto", ouvinte::novoProjeto));
-        for (Projeto p : projetos) {
-            adicionar(conteudo, p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.projeto(p)));
-        }
-        conteudo.add(cabecalho("Protocolos", "+ Protocolo", ouvinte::novoProtocolo));
-        for (Protocolo p : protocolos) {
-            adicionar(conteudo, p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.protocolo(p)));
-        }
-        conteudo.add(cabecalho("Trilhas", "+ Trilha", ouvinte::novaTrilha));
-        for (Trilha t : trilhas) {
-            adicionar(conteudo, t, new LinhaLateral(t.estado(), t.nome(), t.sigla(), t.detalhe(), () -> ouvinte.trilha(t)));
-        }
+        atualizar(projetos, protocolos, trilhas, sugestoes);
 
         JPanel envoltorio = new JPanel(new BorderLayout());
         envoltorio.setBackground(Tema.PAINEL);
@@ -82,14 +71,44 @@ public class BarraLateral extends JScrollPane {
         setPreferredSize(new Dimension(LARGURA, 100));
     }
 
-    private void adicionar(JPanel conteudo, Object item, LinhaLateral linha) {
-        linhas.put(item, linha);
+    /** Refaz as listas, mantendo o item selecionado. */
+    public void atualizar(List<Projeto> projetos, List<Protocolo> protocolos, List<Trilha> trilhas, int sugestoes) {
+        conteudo.removeAll();
+        linhas.clear();
+        conteudo.add(new BotaoOraculo(sugestoes, ouvinte::oraculo));
+
+        conteudo.add(cabecalho("Projetos", "+ Projeto", ouvinte::novoProjeto));
+        for (Projeto p : projetos) {
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.projeto(p)));
+        }
+        conteudo.add(cabecalho("Protocolos", "+ Protocolo", ouvinte::novoProtocolo));
+        for (Protocolo p : protocolos) {
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.protocolo(p)));
+        }
+        conteudo.add(cabecalho("Trilhas", "+ Trilha", ouvinte::novaTrilha));
+        for (Trilha t : trilhas) {
+            adicionar(t, new LinhaLateral(t.estado(), t.nome(), t.sigla(), t.detalhe(), () -> ouvinte.trilha(t)));
+        }
+        selecionar(selecionado);
+        conteudo.revalidate();
+        conteudo.repaint();
+    }
+
+    private void adicionar(Object item, LinhaLateral linha) {
+        linhas.put(chave(item), linha);
         conteudo.add(linha);
     }
 
     /** Destaca o item aberto; null limpa a seleção. */
     public void selecionar(Object item) {
-        linhas.forEach((chave, linha) -> linha.setSelecionada(chave.equals(item)));
+        selecionado = item;
+        Object procurada = chave(item);
+        linhas.forEach((chave, linha) -> linha.setSelecionada(chave.equals(procurada)));
+    }
+
+    /** Projetos são identificados pelo id, porque cada alteração gera um registro novo. */
+    private static Object chave(Object item) {
+        return item instanceof Projeto p ? p.id() : item;
     }
 
     private static JPanel cabecalho(String titulo, String rotuloBotao, Runnable acao) {
@@ -112,8 +131,10 @@ public class BarraLateral extends JScrollPane {
             setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 12));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             add(new JLabel(Ui.iconeOraculo(false, 28)), BorderLayout.WEST);
-            JPanel textos = Ui.coluna(1, Ui.secao("Oráculo"),
-                    Ui.texto(sugestoes + " sugestões", Tema.legenda(), Tema.ROXO_CLARO));
+            JPanel textos = sugestoes == 0
+                    ? Ui.coluna(0, Ui.secao("Oráculo"))
+                    : Ui.coluna(1, Ui.secao("Oráculo"), Ui.texto(sugestoes + (sugestoes == 1 ? " sugestão" : " sugestões"),
+                    Tema.legenda(), Tema.ROXO_CLARO));
             JPanel centro = new JPanel(new java.awt.GridBagLayout());
             centro.setOpaque(false);
             java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();

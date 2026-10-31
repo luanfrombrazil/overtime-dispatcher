@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
+import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
@@ -12,33 +13,55 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.CubicCurve2D;
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Lista de subtarefas com o círculo de amarrar e o fio vermelho entre as dependentes.
+ * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas).
  */
 class SubtarefasPanel extends JPanel {
 
     private final List<Subtarefa> subtarefas;
+    private final Map<String, Integer> indices = new HashMap<>();
     private final List<No> nos = new ArrayList<>();
+    private final List<JPanel> linhas = new ArrayList<>();
+    private final BiConsumer<Subtarefa, Subtarefa> aoAmarrar;
 
-    SubtarefasPanel(List<Subtarefa> subtarefas) {
+    private int origemArrasto = -1;
+    private Point ponteiro;
+
+    /** @param aoTentarDeNovo chamado pelo botão de seta circular das subtarefas que falharam */
+    SubtarefasPanel(List<Subtarefa> subtarefas, BiConsumer<Subtarefa, Subtarefa> aoAmarrar, Consumer<Subtarefa> aoClicar,
+                    Consumer<Subtarefa> aoTentarDeNovo) {
         this.subtarefas = subtarefas;
+        this.aoAmarrar = aoAmarrar;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
+        for (int i = 0; i < subtarefas.size(); i++) {
+            indices.put(subtarefas.get(i).id(), i);
+        }
 
         for (int i = 0; i < subtarefas.size(); i++) {
             Subtarefa s = subtarefas.get(i);
-            boolean amarrada = s.dependeDe() >= 0 || dependentes(i);
+            boolean amarrada = !s.dependeDe().isEmpty() || temDependentes(s);
             No no = new No(amarrada);
+            arrastavel(no, i);
             nos.add(no);
 
             JPanel linha = new JPanel(new BorderLayout(10, 0));
@@ -47,17 +70,71 @@ class SubtarefasPanel extends JPanel {
             envoltorioNo.setOpaque(false);
             envoltorioNo.add(no);
             linha.add(envoltorioNo, BorderLayout.WEST);
-            linha.add(new ItemStatus(s.estado(), s.titulo(), s.detalhe(), Tema.SUTIL), BorderLayout.CENTER);
+            ItemStatus item = new ItemStatus(s.estado(), s.titulo(), s.detalhe(), Tema.SUTIL);
+            item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            item.setToolTipText("Clique para editar");
+            item.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    aoClicar.accept(s);
+                }
+            });
+            if (s.estado() == Estado.ERRO) {
+                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)));
+            }
+            linha.add(item, BorderLayout.CENTER);
             linha.setMaximumSize(new Dimension(Integer.MAX_VALUE, linha.getPreferredSize().height));
             if (i > 0) {
                 add(Box.createVerticalStrut(4));
             }
+            linhas.add(linha);
             add(linha);
         }
     }
 
-    private boolean dependentes(int indice) {
-        return subtarefas.stream().anyMatch(s -> s.dependeDe() == indice);
+    private boolean temDependentes(Subtarefa subtarefa) {
+        return subtarefas.stream().anyMatch(s -> s.dependeDe().contains(subtarefa.id()));
+    }
+
+    private void arrastavel(No no, int indice) {
+        MouseAdapter arrasto = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                origemArrasto = indice;
+                ponteiro = SwingUtilities.convertPoint(no, e.getPoint(), SubtarefasPanel.this);
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                ponteiro = SwingUtilities.convertPoint(no, e.getPoint(), SubtarefasPanel.this);
+                repaint();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                int origem = origemArrasto;
+                int alvo = linhaEm(SwingUtilities.convertPoint(no, e.getPoint(), SubtarefasPanel.this));
+                origemArrasto = -1;
+                ponteiro = null;
+                repaint();
+                if (origem >= 0 && alvo >= 0 && alvo != origem) {
+                    aoAmarrar.accept(subtarefas.get(origem), subtarefas.get(alvo));
+                }
+            }
+        };
+        no.addMouseListener(arrasto);
+        no.addMouseMotionListener(arrasto);
+    }
+
+    /** Índice da subtarefa cuja linha está sob o ponto, ou -1. */
+    private int linhaEm(Point p) {
+        for (int i = 0; i < linhas.size(); i++) {
+            JPanel linha = linhas.get(i);
+            if (p.y >= linha.getY() && p.y < linha.getY() + linha.getHeight()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     @Override
@@ -68,27 +145,29 @@ class SubtarefasPanel extends JPanel {
         g2.setColor(Tema.FIO);
         g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (int i = 0; i < subtarefas.size(); i++) {
-            int origem = subtarefas.get(i).dependeDe();
-            if (origem < 0) {
-                continue;
+            for (String dependencia : subtarefas.get(i).dependeDe()) {
+                Integer origem = indices.get(dependencia);
+                if (origem == null) {
+                    continue;
+                }
+                Point a = centro(nos.get(origem));
+                Point b = centro(nos.get(i));
+                double curva = 12 + Math.abs(b.y - a.y) * 0.08;
+                g2.draw(new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
+                        b.x - curva, a.y + (b.y - a.y) * 0.65, b.x, b.y));
             }
-            Point a = centro(nos.get(origem));
-            Point b = centro(nos.get(i));
-            double curva = 12 + Math.abs(b.y - a.y) * 0.08;
-            g2.draw(new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
-                    b.x - curva, a.y + (b.y - a.y) * 0.65, b.x, b.y));
+        }
+        if (origemArrasto >= 0 && ponteiro != null) {
+            Point a = centro(nos.get(origemArrasto));
+            g2.draw(new Line2D.Double(a.x, a.y, ponteiro.x, ponteiro.y));
+        }
+        for (No no : nos) {
+            if (no.amarrado || (origemArrasto >= 0 && no == nos.get(origemArrasto))) {
+                Point p = centro(no);
+                g2.fillOval(p.x - 7, p.y - 7, 14, 14);
+            }
         }
         g2.dispose();
-        for (No no : nos) {
-            if (no.amarrado) {
-                Point p = centro(no);
-                Graphics2D gn = (Graphics2D) g.create();
-                gn.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                gn.setColor(Tema.FIO);
-                gn.fillOval(p.x - 7, p.y - 7, 14, 14);
-                gn.dispose();
-            }
-        }
     }
 
     private Point centro(JComponent componente) {
@@ -105,7 +184,10 @@ class SubtarefasPanel extends JPanel {
             Dimension d = new Dimension(14, 14);
             setPreferredSize(d);
             setMinimumSize(d);
-            setToolTipText("Arraste até outra subtarefa para amarrar");
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            setToolTipText(amarrado
+                    ? "Arraste até outra subtarefa para amarrar; até uma já amarrada, para soltar"
+                    : "Arraste até outra subtarefa para amarrar");
         }
 
         @Override

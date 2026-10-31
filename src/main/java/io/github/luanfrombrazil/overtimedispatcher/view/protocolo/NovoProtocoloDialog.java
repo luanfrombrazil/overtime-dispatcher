@@ -44,9 +44,7 @@ public class NovoProtocoloDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(8));
         JPanel horarios = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         horarios.setOpaque(false);
-        horarios.add(new Chip("07:00  ×", true));
-        horarios.add(new Chip("13:00  ×", true));
-        horarios.add(new Chip("+", false));
+        horarios.add(new Chip("+ Horário", false));
         corpo.add(Ui.largo(horarios));
 
         Formulario.secao(corpo, "Acessos");
@@ -72,8 +70,7 @@ public class NovoProtocoloDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(6));
         JPanel origens = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         origens.setOpaque(false);
-        origens.add(new Chip("Nenhum", false));
-        origens.add(new Chip("+", false));
+        origens.add(new Chip("+ Origem", false));
         corpo.add(Ui.largo(origens));
 
         JPanel raiz = (JPanel) getContentPane();

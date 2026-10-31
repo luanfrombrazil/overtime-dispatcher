@@ -24,7 +24,6 @@ public class BarraSuperior extends JPanel {
     private final BotaoIcone configuracoes = new BotaoIcone(Ui.icone("engrenagem", 18, Tema.TEXTO), "Configurações");
     private final JButton agendador = Ui.comIcone(Ui.botaoPrimario("Iniciar agendador"), "play");
     private final JLabel estado = Ui.texto("Pausado · intervalo 5 min", Tema.corpo(), Tema.TEXTO_SECUNDARIO);
-    private boolean rodando;
 
     public BarraSuperior(List<Consumo> consumo, int naoLidas) {
         super(new BorderLayout());
@@ -33,7 +32,6 @@ public class BarraSuperior extends JPanel {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.BORDA),
                 BorderFactory.createEmptyBorder(10, 16, 10, 16)));
 
-        agendador.addActionListener(e -> alternarAgendador());
         add(Ui.linha(12, home, agendador, estado), BorderLayout.WEST);
 
         List<javax.swing.JComponent> direita = new ArrayList<>();
@@ -62,12 +60,18 @@ public class BarraSuperior extends JPanel {
         home.setAtivo(ativo);
     }
 
-    private void alternarAgendador() {
-        rodando = !rodando;
+    public void aoClicarAgendador(Runnable acao) {
+        agendador.addActionListener(e -> acao.run());
+    }
+
+    /** Mostra se o agendador está rodando e o que ele está fazendo. */
+    public void setAgendador(boolean rodando, String situacao) {
         agendador.setText(rodando ? "Pausar agendador" : "Iniciar agendador");
         agendador.setIcon(Ui.icone(rodando ? "pausa" : "play", 12, Tema.TEXTO));
-        estado.setText(rodando ? "Rodando · próximo ciclo em 5 min" : "Pausado · intervalo 5 min");
         agendador.setMaximumSize(agendador.getPreferredSize());
+        estado.setText(situacao.length() > 70 ? situacao.substring(0, 69) + "…" : situacao);
+        estado.setToolTipText(situacao);
         revalidate();
+        repaint();
     }
 }

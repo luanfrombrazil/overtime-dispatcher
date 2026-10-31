@@ -4,7 +4,7 @@ Aplicação desktop que mantém uma **fila de tarefas** para agentes de IA — C
 
 Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escrita, organização de documentos, automações do dia a dia.
 
-> Status: **protótipo das telas** (branch `dev`), com dados de exemplo.
+> Status: **em desenvolvimento** (branch `dev`). Projetos, Tasks e subtarefas já são criados e salvos, e o agendador as executa no Claude Code (CLI). Horário, reserva, Codex, Gemini e as demais telas ainda são protótipo.
 
 ## Como rodar
 

@@ -9,15 +9,17 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 
 /**
- * Peças comuns dos formulários (novo projeto, novo protocolo).
+ * Peças comuns dos formulários (projeto, task, subtarefa, protocolo).
  */
 public final class Formulario {
 
@@ -49,8 +51,11 @@ public final class Formulario {
 
     /** Campo "Nome" com o ícone de iniciais ao lado, atualizado conforme o nome é digitado. */
     public static JComponent identidade() {
-        JTextField nome = texto("");
-        Iniciais iniciais = new Iniciais("", 36);
+        return identidade(texto(""));
+    }
+
+    public static JComponent identidade(JTextField nome) {
+        Iniciais iniciais = new Iniciais(Iniciais.de(nome.getText()), 36);
         nome.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
@@ -92,8 +97,17 @@ public final class Formulario {
         return Ui.largo(rolagem);
     }
 
+    /** Texto digitado numa área criada por {@link #area}. */
+    public static String textoDa(JScrollPane area) {
+        return ((JTextArea) area.getViewport().getView()).getText().strip();
+    }
+
     public static JComboBox<String> lista(int largura, String... opcoes) {
-        JComboBox<String> lista = new JComboBox<>(opcoes);
+        return opcoes(largura, opcoes);
+    }
+
+    public static <T> JComboBox<T> opcoes(int largura, T[] opcoes) {
+        JComboBox<T> lista = new JComboBox<>(opcoes);
         lista.setFont(Tema.corpo());
         lista.setPreferredSize(new Dimension(largura, 30));
         lista.setMaximumSize(lista.getPreferredSize());
@@ -109,10 +123,50 @@ public final class Formulario {
 
     /** Rodapé com Cancelar e o botão de confirmação, alinhados à direita. */
     public static JPanel rodape(Dialogo dialogo, String confirmar) {
+        return botoes(dialogo, confirmar, dialogo::fechar);
+    }
+
+    /**
+     * Rodapé que executa {@code aoConfirmar} e só fecha se der certo: uma {@link IllegalArgumentException}
+     * vira um aviso e o diálogo continua aberto. Com {@code aoExcluir}, mostra "Excluir" à esquerda,
+     * que pede confirmação antes de agir.
+     */
+    public static JPanel rodape(Dialogo dialogo, String confirmar, Runnable aoConfirmar,
+                                Runnable aoExcluir, String confirmarExclusao) {
+        JPanel rodape = new JPanel(new BorderLayout());
+        rodape.setOpaque(false);
+        rodape.add(botoes(dialogo, confirmar, () -> {
+            try {
+                aoConfirmar.run();
+                dialogo.fechar();
+            } catch (IllegalArgumentException erro) {
+                JOptionPane.showMessageDialog(dialogo, erro.getMessage(), confirmar, JOptionPane.WARNING_MESSAGE);
+            }
+        }), BorderLayout.EAST);
+        if (aoExcluir != null) {
+            JButton excluir = Ui.botaoPerigo("Excluir");
+            excluir.addActionListener(e -> {
+                if (JOptionPane.showConfirmDialog(dialogo, confirmarExclusao, "Excluir",
+                        JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION) {
+                    aoExcluir.run();
+                    dialogo.fechar();
+                }
+            });
+            JPanel esquerda = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            esquerda.setOpaque(false);
+            esquerda.setBorder(BorderFactory.createEmptyBorder(0, 24, 20, 0));
+            esquerda.add(excluir);
+            rodape.add(esquerda, BorderLayout.WEST);
+        }
+        return rodape;
+    }
+
+    private static JPanel botoes(Dialogo dialogo, String confirmar, Runnable aoConfirmar) {
         JButton cancelar = Ui.botaoSecundario("Cancelar");
         JButton ok = Ui.botaoPrimario(confirmar);
         cancelar.addActionListener(e -> dialogo.fechar());
-        ok.addActionListener(e -> dialogo.fechar());
+        ok.addActionListener(e -> aoConfirmar.run());
+        dialogo.getRootPane().setDefaultButton(ok);
         JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rodape.setOpaque(false);
         rodape.setBorder(BorderFactory.createEmptyBorder(0, 24, 20, 16));

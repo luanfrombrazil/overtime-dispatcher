@@ -22,6 +22,10 @@ Cada Task escolhe **provedor · modelo** (ex.: "Claude Code · Sonnet") e o **es
 | Modelo e esforço | `--model`, `--effort` (low, medium, high, xhigh, max) |
 | Funções da app (MCP) | `--mcp-config` |
 
+Na app: `claude -p --output-format stream-json --verbose --permission-mode dontAsk --effort <esforço>`, com o prompt pela entrada padrão. As permissões do projeto viram `--allowedTools` (leitura sempre; `Edit`/`Write` se pode editar; `Bash`/`PowerShell` se pode rodar testes, senão só `git` em projeto com git; `WebFetch`/`WebSearch` se pode acessar a internet). "Instalar dependências" é pedido no prompt, porque não dá para separar de outros comandos.
+
+Codex e Gemini ainda não estão integrados: as Tasks com esses provedores falham com um aviso. "Automático" usa o Claude Code.
+
 ## Onde o agente trabalha
-- Projeto com git: numa branch `overtime/…` separada.
+- Projeto com git: num worktree em `<pasta da app>/worktrees/<id da task>`, na branch `overtime/<título>-<id>` criada a partir da branch padrão. A pasta do projeto e a branch principal não são tocadas; o agente faz commit na branch da Task, sem merge nem push.
 - Projeto sem git: direto na pasta do projeto.

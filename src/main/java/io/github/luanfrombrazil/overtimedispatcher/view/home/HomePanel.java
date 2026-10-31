@@ -4,7 +4,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.BlocoAgendado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Consumo;
 import io.github.luanfrombrazil.overtimedispatcher.model.Estatistica;
 import io.github.luanfrombrazil.overtimedispatcher.model.ItemResumo;
-import io.github.luanfrombrazil.overtimedispatcher.service.prototipo.DadosPrototipo;
+import io.github.luanfrombrazil.overtimedispatcher.service.DadosService;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.BarraProgresso;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Cartao;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.GraficoLinha;
@@ -33,7 +33,7 @@ public class HomePanel extends JPanel {
 
     private static final int LARGURA_COLUNA_DIREITA = 320;
 
-    public HomePanel(DadosPrototipo dados) {
+    public HomePanel(DadosService dados) {
         super(new GridBagLayout());
         setBackground(Tema.APP);
         setBorder(BorderFactory.createEmptyBorder(16, 24, 16, 24));
@@ -60,10 +60,10 @@ public class HomePanel extends JPanel {
         for (Estatistica e : estatisticas) {
             Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, new BorderLayout(0, 8));
             cartao.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
-            JLabel numero = Ui.texto(e.valor(), Tema.numero(),
-                    e.cor() == io.github.luanfrombrazil.overtimedispatcher.model.Estado.EM_ANDAMENTO
-                            || e.cor() == io.github.luanfrombrazil.overtimedispatcher.model.Estado.CONCLUIDO
-                            ? Tema.TEXTO : Tema.cor(e.cor()));
+            boolean alerta = (e.cor() == io.github.luanfrombrazil.overtimedispatcher.model.Estado.ATENCAO
+                    || e.cor() == io.github.luanfrombrazil.overtimedispatcher.model.Estado.ERRO)
+                    && !e.valor().startsWith("0");
+            JLabel numero = Ui.texto(e.valor(), Tema.numero(), alerta ? Tema.cor(e.cor()) : Tema.TEXTO);
             cartao.add(Ui.coluna(0, numero, Ui.legenda(e.rotulo())), BorderLayout.NORTH);
             cartao.add(new GraficoLinha(e.serie(), Tema.cor(e.cor()), 34), BorderLayout.CENTER);
             linha.add(cartao);
@@ -71,7 +71,7 @@ public class HomePanel extends JPanel {
         return linha;
     }
 
-    private static JPanel mapa(DadosPrototipo dados) {
+    private static JPanel mapa(DadosService dados) {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, new BorderLayout(0, 10));
         cartao.add(Ui.cabecalho(Ui.secao(dados.resumoAtividade()),
                 Ui.linha(16, Ui.legenda(dados.horasDeOvertime()), MapaAtividade.legenda())), BorderLayout.NORTH);
@@ -82,7 +82,7 @@ public class HomePanel extends JPanel {
         return cartao;
     }
 
-    private static JPanel rodape(DadosPrototipo dados) {
+    private static JPanel rodape(DadosService dados) {
         JPanel rodape = new JPanel(new BorderLayout(16, 0));
         rodape.setOpaque(false);
 
@@ -109,9 +109,15 @@ public class HomePanel extends JPanel {
         return rodape;
     }
 
-    private static JPanel ultimaSessao(DadosPrototipo dados) {
+    private static JPanel ultimaSessao(DadosService dados) {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, null);
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
+        if (dados.horarioUltimaSessao() == null) {
+            cartao.add(Ui.cabecalho(Ui.secao("Última sessão"), null));
+            cartao.add(javax.swing.Box.createVerticalStrut(8));
+            cartao.add(Ui.cabecalho(Ui.legenda("Nenhuma sessão de overtime ainda."), null));
+            return cartao;
+        }
         cartao.add(Ui.cabecalho(Ui.secao("Última sessão"), Ui.legenda(dados.horarioUltimaSessao())));
         cartao.add(javax.swing.Box.createVerticalStrut(8));
         List<JComponent> consumo = new ArrayList<>();
@@ -133,6 +139,10 @@ public class HomePanel extends JPanel {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, null);
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
         cartao.add(Ui.cabecalho(Ui.secao("Precisa de você"), null));
+        if (itens.isEmpty()) {
+            cartao.add(javax.swing.Box.createVerticalStrut(8));
+            cartao.add(Ui.cabecalho(Ui.legenda("Nada por enquanto."), null));
+        }
         for (ItemResumo item : itens) {
             cartao.add(javax.swing.Box.createVerticalStrut(8));
             cartao.add(new ItemStatus(item.estado(), item.titulo(), item.detalhe(), Tema.SUTIL));
@@ -144,6 +154,10 @@ public class HomePanel extends JPanel {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, null);
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
         cartao.add(Ui.cabecalho(Ui.secao("Hoje"), Ui.legenda("Trilhas")));
+        if (blocos.isEmpty()) {
+            cartao.add(javax.swing.Box.createVerticalStrut(8));
+            cartao.add(Ui.cabecalho(Ui.legenda("Nada marcado para hoje."), null));
+        }
         for (BlocoAgendado bloco : blocos) {
             cartao.add(javax.swing.Box.createVerticalStrut(8));
             JPanel linha = new JPanel(new BorderLayout(10, 0)) {
@@ -160,6 +174,9 @@ public class HomePanel extends JPanel {
             linha.add(Ui.secao(bloco.hora()), BorderLayout.WEST);
             linha.add(Ui.corpo(bloco.titulo()), BorderLayout.CENTER);
             cartao.add(Ui.largo(linha));
+        }
+        if (prazos.isEmpty()) {
+            return Ui.largo(cartao);
         }
         List<JComponent> rotulos = new ArrayList<>();
         rotulos.add(Ui.legenda("Prazos:"));

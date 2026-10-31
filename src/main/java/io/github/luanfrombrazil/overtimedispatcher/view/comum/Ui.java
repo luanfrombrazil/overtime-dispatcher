@@ -121,6 +121,10 @@ public final class Ui {
         return botao(texto, "background:#2B2D30; foreground:#DFE1E5; borderColor:#43454A; borderWidth:1");
     }
 
+    public static JButton botaoPerigo(String texto) {
+        return botao(texto, "background:#2B2D30; foreground:#C94F4F; borderColor:#C94F4F; borderWidth:1");
+    }
+
     public static JButton botaoOraculo(String texto) {
         return botao(texto, "background:#8B5CF6; foreground:#FFFFFF");
     }

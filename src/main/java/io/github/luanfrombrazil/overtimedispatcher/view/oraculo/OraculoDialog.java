@@ -65,7 +65,9 @@ public class OraculoDialog extends Dialogo {
         };
         cabecalho.setBorder(BorderFactory.createEmptyBorder(16, 22, 16, 16));
         cabecalho.add(new JLabel(Ui.iconeOraculo(true, 48)), BorderLayout.WEST);
-        cabecalho.add(Ui.coluna(2, Ui.titulo("Oráculo"), Ui.texto(leitura, Tema.legenda(), Tema.ROXO_CLARO)),
+        cabecalho.add(leitura == null
+                        ? Ui.coluna(0, Ui.titulo("Oráculo"))
+                        : Ui.coluna(2, Ui.titulo("Oráculo"), Ui.texto(leitura, Tema.legenda(), Tema.ROXO_CLARO)),
                 BorderLayout.CENTER);
 
         List<java.awt.Component> direita = new ArrayList<>();
@@ -97,6 +99,9 @@ public class OraculoDialog extends Dialogo {
             }
             feed.add(item(s));
             primeiro = false;
+        }
+        if (primeiro) {
+            feed.add(Ui.cabecalho(Ui.legenda("Nenhuma sugestão por enquanto."), null));
         }
         feed.revalidate();
         feed.repaint();
