@@ -2,46 +2,33 @@
 
 Aplicação desktop em Java, simples e modular, com classes bem definidas, seguindo **MVC** (Model, View, Controller).
 
-## MVC
+## Camadas
 
 | Camada | O que contém |
 |---|---|
-| **Model** | Projetos, Tasks, subtarefas, Protocolos, Trilhas, as regras entre eles e a persistência |
+| **Model** | Os dados: as entidades (Projeto, Task, Subtarefa, Protocolo, Trilha, Oráculo) e as suas regras |
+| **Service** | A lógica que opera sobre o Model: agentes, agendamento, consumo, notificações, RPC e persistência |
+| **Controller** | Liga as ações da tela ao Model e aos serviços, e atualiza a View quando algo muda |
 | **View** | Telas em Swing |
-| **Controller** | Liga as ações da tela ao Model e atualiza a View quando o Model muda |
-
-## Módulos
-
-| Módulo | Camada | Responsabilidade |
-|---|---|---|
-| `domain` | Model | Entidades e regras |
-| `persistence` | Model | Guardar e carregar os dados |
-| `agente` | Model | Executar os agentes (Claude Code, Codex, Gemini) |
-| `consumo` | Model | Reserva de uso e horário de funcionamento |
-| `scheduler` | Model | Pegar a próxima tarefa quando um agente fica ocioso |
-| `comunicacao` | Model | Notificações na app, no desktop e no WhatsApp |
-| `rpc` | Model | Funções da app que os agentes podem chamar (RPC e MCP) |
-| `controller` | Controller | Controladores de cada tela |
-| `ui` | View | Telas em Swing |
-
-Detalhes de cada um em [`modulos/`](modulos/).
 
 ## Estrutura do código
 
 ```
 src/main/java/io/github/luanfrombrazil/overtimedispatcher/
 ├─ OvertimeDispatcher.java   ponto de entrada
-├─ model/
-│  ├─ domain/
-│  ├─ persistence/
-│  ├─ agente/
-│  ├─ consumo/
-│  ├─ scheduler/
-│  ├─ comunicacao/
-│  └─ rpc/
-├─ controller/
-└─ view/
+├─ model/                    entidades
+├─ service/
+│  ├─ agente/                executar os agentes (Claude Code, Codex, Gemini)
+│  ├─ scheduler/             entregar a próxima tarefa a um agente ocioso
+│  ├─ consumo/               horário de funcionamento e reserva
+│  ├─ comunicacao/           notificações (app, desktop, WhatsApp)
+│  ├─ rpc/                   funções expostas aos agentes (RPC e MCP)
+│  └─ persistence/           ler e salvar os dados em JSON
+├─ controller/               controladores das telas
+└─ view/                     telas em Swing
 ```
+
+Detalhes de cada serviço em [`modulos/`](modulos/).
 
 ## Tecnologia
 

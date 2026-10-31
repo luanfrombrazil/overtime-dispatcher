@@ -1,4 +1,4 @@
 /**
  * Execução dos agentes de IA (Claude Code, Codex, Gemini).
  */
-package io.github.luanfrombrazil.overtimedispatcher.model.agente;
+package io.github.luanfrombrazil.overtimedispatcher.service.agente;

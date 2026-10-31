@@ -7,7 +7,7 @@ Decisões técnicas e de arquitetura do projeto. Regras de funcionamento estão 
 | Código | Decisão | Data |
 |---|---|---|
 | D-01 | A aplicação é desktop, para Windows, desenvolvida em Java. | 28/10/2026 |
-| D-02 | A arquitetura segue o padrão MVC (Model, View, Controller). | 31/10/2026 |
+| D-02 | A arquitetura segue o padrão MVC (Model, View, Controller), com uma camada de serviços: `model` contém apenas as entidades e `service`, a lógica que opera sobre elas. | 31/10/2026 |
 | D-03 | A interface é construída em Swing com o look and feel FlatLaf, exclusivamente no tema escuro. | 28/10/2026 |
 | D-04 | O desenho das telas é feito no Figma antes da implementação. | 28/10/2026 |
 | D-05 | Versão da linguagem: Java 25 (LTS). Ferramenta de build: Maven. | 28/10/2026 |
