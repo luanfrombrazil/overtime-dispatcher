@@ -90,6 +90,7 @@ Ele não executa nada sozinho: tudo o que sugere chega para você **aceitar ou r
 | [Ideias em aberto](docs/ideias-em-aberto.md) | Propostas ainda não confirmadas |
 | [Arquitetura](docs/arquitetura.md) | MVC, módulos, tecnologia e distribuição |
 | [Domínio](docs/dominio.md) | Projetos, Tasks, subtarefas, Protocolos, Trilhas e Oráculo |
+| [Diagramas](docs/diagramas.md) | Diagrama de classes e diagramas de casos de uso (UML) |
 | [Interfaces](docs/interfaces.md) | Figma e diretrizes visuais |
 
 ### Módulos
