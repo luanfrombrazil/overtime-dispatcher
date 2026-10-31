@@ -1,12 +1,15 @@
 package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Formulario;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -15,6 +18,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridBagLayout;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.geom.CubicCurve2D;
@@ -22,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lista de subtarefas com o círculo de amarrar e o fio vermelho entre as dependentes.
+ * Lista de subtarefas com o círculo de amarrar, o fio vermelho entre as dependentes e as caixas de commit e push.
  */
 class SubtarefasPanel extends JPanel {
 
@@ -43,17 +47,37 @@ class SubtarefasPanel extends JPanel {
 
             JPanel linha = new JPanel(new BorderLayout(10, 0));
             linha.setOpaque(false);
-            JPanel envoltorioNo = new JPanel(new java.awt.GridBagLayout());
+            JPanel envoltorioNo = new JPanel(new GridBagLayout());
             envoltorioNo.setOpaque(false);
             envoltorioNo.add(no);
             linha.add(envoltorioNo, BorderLayout.WEST);
             linha.add(new ItemStatus(s.estado(), s.titulo(), s.detalhe(), Tema.SUTIL), BorderLayout.CENTER);
+            linha.add(git(s), BorderLayout.EAST);
             linha.setMaximumSize(new Dimension(Integer.MAX_VALUE, linha.getPreferredSize().height));
             if (i > 0) {
                 add(Box.createVerticalStrut(4));
             }
             add(linha);
         }
+    }
+
+    /** Caixas que dizem ao agente se deve fazer commit e push ao terminar a subtarefa. Push exige commit. */
+    private static JComponent git(Subtarefa s) {
+        JCheckBox commit = Formulario.caixa("Commit", s.commit());
+        commit.setToolTipText("Fazer commit ao terminar esta subtarefa");
+        JCheckBox push = Formulario.caixa("Push", s.push());
+        push.setToolTipText("Fazer push depois do commit");
+        push.setEnabled(commit.isSelected());
+        commit.addItemListener(e -> {
+            push.setEnabled(commit.isSelected());
+            if (!commit.isSelected()) {
+                push.setSelected(false);
+            }
+        });
+        JPanel envoltorio = new JPanel(new GridBagLayout());
+        envoltorio.setOpaque(false);
+        envoltorio.add(Ui.linha(8, commit, push));
+        return envoltorio;
     }
 
     private boolean dependentes(int indice) {

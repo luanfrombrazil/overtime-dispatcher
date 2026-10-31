@@ -30,6 +30,8 @@ classDiagram
         instrucao
         criterioDeAceite
         requerVerificacao : boolean
+        commit : boolean
+        push : boolean
     }
     class Protocolo {
         nome

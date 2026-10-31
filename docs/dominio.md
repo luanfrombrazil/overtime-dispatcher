@@ -24,6 +24,7 @@ Oráculo (observa tudo e sugere)
 - Passo pequeno e **opcional** de uma Task, com instrução e critério de aceite.
 - Pode **depender** de outras subtarefas.
 - Pode exigir **verificação manual**.
+- Diz ao agente se deve fazer **commit** ao terminar (marcado por padrão) e **push** depois do commit (desmarcado por padrão; só vale com commit).
 - O agente pode **pedir orientação** no meio do trabalho; enquanto espera, segue para outra Task.
 
 ## Protocolo
