@@ -19,6 +19,10 @@ import java.util.List;
  */
 public class BarraSuperior extends JPanel {
 
+    /** Barra de consumo 50% maior que a padrão (80 × 6). */
+    private static final int LARGURA_CONSUMO = 120;
+    private static final int ALTURA_CONSUMO = 9;
+
     private final BotaoIcone home = new BotaoIcone(Ui.icone("home", 18, Tema.TEXTO), "Home");
     private final BotaoIcone notificacoes = new BotaoIcone(Ui.icone("sino", 18, Tema.TEXTO), "Notificações");
     private final BotaoIcone configuracoes = new BotaoIcone(Ui.icone("engrenagem", 18, Tema.TEXTO), "Configurações");
@@ -36,8 +40,15 @@ public class BarraSuperior extends JPanel {
 
         List<javax.swing.JComponent> direita = new ArrayList<>();
         for (Consumo c : consumo) {
-            direita.add(Ui.linha(6, Ui.legenda(c.provedor()), new BarraProgresso(c.porcentagem(), Tema.ACENTO, 80),
-                    Ui.legenda(c.porcentagem() + "%")));
+            // Uso da sessão (acento) sobreposto ao uso semanal (tom claro) na mesma barra.
+            BarraProgresso barra = new BarraProgresso(c.sessao(), Tema.ACENTO, c.semanal(), Tema.ACENTO_CLARO,
+                    LARGURA_CONSUMO, ALTURA_CONSUMO);
+            javax.swing.JComponent item = Ui.linha(6, Ui.legenda(c.provedor()), barra,
+                    Ui.legenda(c.sessao() + "% · " + c.semanal() + "%"));
+            String dica = c.provedor() + " · sessão " + c.sessao() + "% · semana " + c.semanal() + "%";
+            item.setToolTipText(dica);
+            barra.setToolTipText(dica);
+            direita.add(item);
         }
         notificacoes.setContador(naoLidas);
         direita.add(Ui.linha(8, notificacoes, configuracoes));

@@ -20,7 +20,7 @@ public class DadosService {
     private static final int SEMANAS_NO_ANO = 53;
 
     public List<Consumo> consumo() {
-        return List.of(new Consumo("Claude", 0), new Consumo("Codex", 0), new Consumo("Gemini", 0));
+        return List.of(new Consumo("Claude", 0, 0), new Consumo("Codex", 0, 0), new Consumo("Gemini", 0, 0));
     }
 
     public int notificacoesNaoLidas() {

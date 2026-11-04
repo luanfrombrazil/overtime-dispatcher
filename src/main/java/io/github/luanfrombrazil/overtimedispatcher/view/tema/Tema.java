@@ -25,6 +25,8 @@ public final class Tema {
     public static final Color TEXTO_SECUNDARIO = new Color(0x9DA0A8);
     public static final Color TEXTO_LOG = new Color(0xBCBEC4);
     public static final Color ACENTO = new Color(0x3574F0);
+    /** Tom claro do acento, para distinguir uma segunda medida na mesma barra (ex.: uso semanal). */
+    public static final Color ACENTO_CLARO = new Color(0x9BBAF7);
 
     public static final Color VERDE = new Color(0x3A8F5C);
     public static final Color AMARELO = new Color(0xB07D12);
