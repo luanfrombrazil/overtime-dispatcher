@@ -139,14 +139,16 @@ public class ConfiguracoesRepositorio {
         Execucao padrao = Execucao.padrao();
         return new Execucao(no.path("intervaloMinutos").asInt(padrao.intervaloMinutos()),
                 no.path("tentativas").asInt(padrao.tentativas()),
-                no.path("timeoutMinutos").asInt(padrao.timeoutMinutos()));
+                no.path("timeoutMinutos").asInt(padrao.timeoutMinutos()),
+                no.path("maximoPorIntervalo").asInt(padrao.maximoPorIntervalo()));
     }
 
     private ObjectNode escreverExecucao(Execucao execucao) {
         return json.createObjectNode()
                 .put("intervaloMinutos", execucao.intervaloMinutos())
                 .put("tentativas", execucao.tentativas())
-                .put("timeoutMinutos", execucao.timeoutMinutos());
+                .put("timeoutMinutos", execucao.timeoutMinutos())
+                .put("maximoPorIntervalo", execucao.maximoPorIntervalo());
     }
 
     private static Notificacoes lerNotificacoes(JsonNode no) {

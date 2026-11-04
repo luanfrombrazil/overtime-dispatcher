@@ -23,6 +23,8 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Cursor;
@@ -30,6 +32,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.text.ParseException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
@@ -60,6 +63,7 @@ public class ConfiguracoesDialog extends Dialogo {
     private BarrasHorario barras;
     private final Map<Provedor, ReservaSlider> sliders = new EnumMap<>(Provedor.class);
     private JComboBox<String> intervalo;
+    private JSpinner maximoPorIntervalo;
     private JComboBox<String> tentativas;
     private JComboBox<String> timeout;
     private Interruptor silenciarAgora;
@@ -168,7 +172,14 @@ public class ConfiguracoesDialog extends Dialogo {
     private Configuracoes editadas() {
         Map<Provedor, Reserva> reservas = new EnumMap<>(Provedor.class);
         sliders.forEach((provedor, slider) -> reservas.put(provedor, new Reserva(slider.automacao(), slider.oraculo())));
-        Execucao execucao = new Execucao(numero(intervalo), numero(tentativas), numero(timeout));
+        try {
+            // Um número digitado sem Enter ainda não foi para o modelo.
+            maximoPorIntervalo.commitEdit();
+        } catch (ParseException e) {
+            // Texto inválido: fica o último valor aceito.
+        }
+        Execucao execucao = new Execucao(numero(intervalo), numero(tentativas), numero(timeout),
+                (Integer) maximoPorIntervalo.getValue());
         Set<Aviso> marcados = EnumSet.noneOf(Aviso.class);
         avisos.forEach((aviso, caixa) -> {
             if (caixa.isSelected()) {
@@ -227,13 +238,21 @@ public class ConfiguracoesDialog extends Dialogo {
         pagina.add(Ui.cabecalho(Ui.secao("Execução"), null));
         pagina.add(Box.createVerticalStrut(8));
         Execucao execucao = configuracoes.execucao();
-        intervalo = lista(execucao.intervaloMinutos() + " min", "5 min", "10 min", "15 min", "30 min");
+        intervalo = lista(execucao.intervaloMinutos() + " min", "5 min", "10 min", "15 min", "30 min", "60 min");
+        maximoPorIntervalo = new JSpinner(new SpinnerNumberModel(execucao.maximoPorIntervalo(), 0, 999, 1));
+        maximoPorIntervalo.setFont(Tema.corpo());
+        maximoPorIntervalo.setPreferredSize(new Dimension(110, 30));
+        maximoPorIntervalo.setMaximumSize(maximoPorIntervalo.getPreferredSize());
         tentativas = lista(String.valueOf(execucao.tentativas()), "1", "2", "3", "5");
         timeout = lista(execucao.timeoutMinutos() + " min", "15 min", "30 min", "60 min");
         pagina.add(Ui.cabecalho(Ui.linha(24,
                 campo("Intervalo", intervalo),
+                campo("Máx. por intervalo", maximoPorIntervalo),
                 campo("Tentativas", tentativas),
                 campo("Timeout", timeout)), null));
+        pagina.add(Box.createVerticalStrut(6));
+        pagina.add(Ui.cabecalho(Ui.legenda("Máximo de execuções que o agendador começa em cada intervalo; "
+                + "0 para não limitar."), null));
         return pagina;
     }
 

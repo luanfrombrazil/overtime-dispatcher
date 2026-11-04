@@ -44,7 +44,7 @@ Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "S
     "CODEX": { "automacao": 0, "oraculo": 5 },
     "GEMINI": { "automacao": 0, "oraculo": 5 }
   },
-  "execucao": { "intervaloMinutos": 5, "tentativas": 3, "timeoutMinutos": 30 },
+  "execucao": { "intervaloMinutos": 5, "tentativas": 3, "timeoutMinutos": 30, "maximoPorIntervalo": 0 },
   "notificacoes": {
     "silenciarAgora": false,
     "silenciarAutomaticamente": true,

@@ -29,7 +29,7 @@ public final class Overtimer {
         PastaDados.migrarDoNomeAntigo(pastaDados);
         ProjetoService projetos = new ProjetoService(new RepositorioProjetos(pastaDados));
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
-        agendador.usarHorario(new ConfiguracoesRepositorio(pastaDados).carregar().horarioFuncionamento());
+        agendador.aplicar(new ConfiguracoesRepositorio(pastaDados).carregar());
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
         ConsumoService consumo = ConsumoService.padrao(agendador::executando);

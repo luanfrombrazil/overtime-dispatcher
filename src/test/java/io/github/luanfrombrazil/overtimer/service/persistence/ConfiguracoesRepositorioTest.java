@@ -71,7 +71,7 @@ class ConfiguracoesRepositorioTest {
         horario.definirHoras(3, 8, 18);
         Configuracoes configuracoes = new Configuracoes(horario,
                 Map.of(Provedor.CLAUDE_CODE, new Reserva(60, 10), Provedor.GEMINI, new Reserva(0, 0)),
-                new Execucao(15, 2, 60),
+                new Execucao(15, 2, 60, 4),
                 new Notificacoes(true, false, LocalTime.of(22, 0), LocalTime.of(6, 30), false, false, true, true,
                         EnumSet.of(Aviso.MERGE, Aviso.SESSAO_CONCLUIDA)));
 

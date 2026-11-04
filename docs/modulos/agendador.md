@@ -11,8 +11,9 @@ De tempos em tempos, verifica se há um agente ocioso e, se houver, entrega a pr
 - Projetos contínuos com poucas Tasks acionam o [Oráculo](oraculo.md).
 
 ## Como está implementado
-- O botão da barra superior inicia e pausa. Rodando, faz um ciclo a cada 5 minutos e também logo depois de uma mudança sua (subtarefa nova, verificação aprovada, "Refazer").
+- O botão da barra superior inicia e pausa. Rodando, faz um ciclo a cada **intervalo** (Configurações › Geral › Execução; padrão 5 minutos, contado do fim do ciclo anterior) e também logo depois de uma mudança sua (subtarefa nova, verificação aprovada, "Refazer").
 - Cada ciclo executa, **uma de cada vez**, a próxima subtarefa na fila cujas dependências estão concluídas (ordem: projetos, Tasks, subtarefas), até a fila esvaziar.
+- **Máximo por intervalo:** quantas execuções (subtarefas ou Tasks inteiras) podem começar entre um ciclo do intervalo e o seguinte, contando também os ciclos disparados por mudanças suas. Chegou ao máximo, o restante espera o próximo ciclo. 0 não limita (padrão).
 - Pausar não interrompe a execução em andamento; fechar a app interrompe, e a subtarefa volta à fila na próxima abertura.
 - Terminou bem: concluída, ou **aguardando verificação** se a subtarefa exige verificação manual. O agente responde com `FALHOU:` quando não consegue concluir, e a subtarefa fica vermelha; "Tentar de novo" a devolve à fila.
 - Limite de 60 minutos por execução.

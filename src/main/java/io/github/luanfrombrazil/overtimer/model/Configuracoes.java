@@ -62,18 +62,23 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
         }
     }
 
-    /** Parâmetros de execução do agendador, em minutos onde for tempo. */
-    public record Execucao(int intervaloMinutos, int tentativas, int timeoutMinutos) {
+    /**
+     * Parâmetros de execução do agendador, em minutos onde for tempo. {@code maximoPorIntervalo} é quantas
+     * execuções podem começar em cada intervalo; {@link #SEM_LIMITE} não limita.
+     */
+    public record Execucao(int intervaloMinutos, int tentativas, int timeoutMinutos, int maximoPorIntervalo) {
+
+        public static final int SEM_LIMITE = 0;
 
         public Execucao {
-            if (intervaloMinutos <= 0 || tentativas <= 0 || timeoutMinutos <= 0) {
+            if (intervaloMinutos <= 0 || tentativas <= 0 || timeoutMinutos <= 0 || maximoPorIntervalo < 0) {
                 throw new IllegalArgumentException("execução inválida: " + intervaloMinutos + " min, "
-                        + tentativas + " tentativas, " + timeoutMinutos + " min");
+                        + tentativas + " tentativas, " + timeoutMinutos + " min, máximo " + maximoPorIntervalo);
             }
         }
 
         public static Execucao padrao() {
-            return new Execucao(5, 3, 30);
+            return new Execucao(5, 3, 30, SEM_LIMITE);
         }
     }
 

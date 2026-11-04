@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
+import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
@@ -40,9 +41,13 @@ import java.util.concurrent.TimeUnit;
 /**
  * Entrega o trabalho da fila aos agentes, um de cada vez: subtarefas ou, quando não há subtarefas, a Task inteira.
  * <p>
- * Enquanto está rodando, faz um ciclo a cada {@link #INTERVALO} (e também logo depois de {@link #agora()}):
- * pega o próximo trabalho liberado, executa no agente da Task e repete até a fila esvaziar. Pausar não
- * interrompe a execução em andamento; só impede que a próxima comece.
+ * Enquanto está rodando, faz um ciclo a cada {@linkplain #usarIntervalo intervalo} (contado do fim do ciclo
+ * anterior; padrão {@link #INTERVALO_PADRAO}) e também logo depois de {@link #agora()}: pega o próximo trabalho
+ * liberado, executa no agente da Task e repete até a fila esvaziar ou chegar ao máximo de execuções por intervalo.
+ * Pausar não interrompe a execução em andamento; só impede que a próxima comece.
+ * <p>
+ * O máximo conta as execuções que começaram desde o último ciclo do intervalo, inclusive as dos ciclos de
+ * {@link #agora()}; o contador zera a cada ciclo do intervalo.
  * <p>
  * Uma Task criada com o agendador rodando só é executada a partir do próximo ciclo do intervalo (os de
  * {@link #agora()} não contam), para dar tempo de criar as subtarefas dela. Se esse ciclo está a menos de meio
@@ -56,7 +61,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class Agendador {
 
-    public static final Duration INTERVALO = Duration.ofMinutes(5);
+    public static final Duration INTERVALO_PADRAO = Duration.ofMinutes(5);
+    /** Valor de {@link #usarIntervalo} para não limitar as execuções por intervalo. */
+    public static final int SEM_LIMITE = 0;
     public static final Duration LIMITE_DA_EXECUCAO = Duration.ofMinutes(60);
     private static final int LINHAS_EM_MEMORIA = 300;
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
@@ -103,6 +110,11 @@ public class Agendador {
     private volatile HorarioFuncionamento horario = HorarioFuncionamento.sempre();
     /** Ciclo marcado para quando o horário de funcionamento abrir; null se não há nenhum. */
     private ScheduledFuture<?> abertura;
+    private volatile Duration intervalo = INTERVALO_PADRAO;
+    /** Máximo de execuções que podem começar em cada intervalo; {@link #SEM_LIMITE} para não limitar. */
+    private volatile int maximoPorIntervalo = SEM_LIMITE;
+    /** Execuções que começaram desde o último ciclo do intervalo. */
+    private volatile int execucoesNoIntervalo;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
@@ -127,9 +139,55 @@ public class Agendador {
         // Ligar o agendador é uma decisão do usuário: o que estava retido entra já no primeiro ciclo.
         retidas.clear();
         proximoCiclo = Instant.now();
-        ciclos = executor.scheduleWithFixedDelay(this::cicloDoIntervalo, 0, INTERVALO.toMillis(),
+        ciclos = executor.scheduleWithFixedDelay(this::cicloDoIntervalo, 0, intervalo.toMillis(),
                 TimeUnit.MILLISECONDS);
         avisarSituacao();
+    }
+
+    /**
+     * Troca o intervalo entre os ciclos e o máximo de execuções por intervalo (ao abrir a app e ao salvar as
+     * configurações). Esperando o próximo ciclo, ele passa a ser contado com o intervalo novo a partir do fim do
+     * último.
+     */
+    public synchronized void usarIntervalo(Duration novo, int maximo) {
+        if (novo.isNegative() || novo.isZero() || maximo < 0) {
+            throw new IllegalArgumentException("intervalo inválido: " + novo + ", máximo " + maximo);
+        }
+        Duration antigo = intervalo;
+        intervalo = novo;
+        maximoPorIntervalo = maximo;
+        if (rodando && !novo.equals(antigo) && !executor.isShutdown()) {
+            ciclos.cancel(false);
+            Instant proximo = proximoCiclo;
+            long espera = novo.toMillis();
+            if (proximo != null) {
+                Instant fimDoUltimo = proximo.minus(antigo);
+                espera = Math.max(0, Duration.between(Instant.now(), fimDoUltimo.plus(novo)).toMillis());
+                proximoCiclo = Instant.now().plusMillis(espera);
+            }
+            // Com um ciclo em andamento, o fim dele marca o próximo já com o intervalo novo.
+            ciclos = executor.scheduleWithFixedDelay(this::cicloDoIntervalo, espera, novo.toMillis(),
+                    TimeUnit.MILLISECONDS);
+        }
+        avisarSituacao();
+        // Um máximo maior pode liberar o que estava esperando.
+        agora();
+    }
+
+    /** Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo e máximo. */
+    public void aplicar(Configuracoes configuracoes) {
+        usarHorario(configuracoes.horarioFuncionamento());
+        Configuracoes.Execucao execucao = configuracoes.execucao();
+        usarIntervalo(Duration.ofMinutes(execucao.intervaloMinutos()), execucao.maximoPorIntervalo());
+    }
+
+    public Duration intervalo() {
+        return intervalo;
+    }
+
+    private boolean limiteAtingido() {
+        int maximo = maximoPorIntervalo;
+        return maximo != SEM_LIMITE && execucoesNoIntervalo >= maximo;
     }
 
     public synchronized void pausar() {
@@ -209,7 +267,8 @@ public class Agendador {
 
     public Situacao situacao() {
         if (!rodando) {
-            return new Situacao(false, "Pausado · intervalo " + INTERVALO.toMinutes() + " min");
+            return new Situacao(false, "Pausado · intervalo " + intervalo.toMinutes() + " min"
+                    + (maximoPorIntervalo == SEM_LIMITE ? "" : " · até " + maximoPorIntervalo));
         }
         String atual = emExecucao;
         if (atual != null) {
@@ -222,7 +281,8 @@ public class Agendador {
                     .orElse(" · nenhum horário liberado"));
         }
         Instant proximo = proximoCiclo;
-        return new Situacao(true, "Rodando · fila vazia" + (proximo == null ? ""
+        String motivo = limiteAtingido() ? "limite de " + maximoPorIntervalo + " por intervalo" : "fila vazia";
+        return new Situacao(true, "Rodando · " + motivo + (proximo == null ? ""
                 : " · próximo ciclo às " + LocalTime.ofInstant(proximo, ZoneId.systemDefault()).format(HORA)));
     }
 
@@ -238,7 +298,7 @@ public class Agendador {
         long atual = ciclosDoIntervalo;
         Instant proximo = proximoCiclo;
         boolean imediato = proximo != null
-                && Duration.between(Instant.now(), proximo).compareTo(INTERVALO.dividedBy(2)) < 0;
+                && Duration.between(Instant.now(), proximo).compareTo(intervalo.dividedBy(2)) < 0;
         retidas.put(task.id(), atual + (imediato ? 2 : 1));
     }
 
@@ -254,22 +314,26 @@ public class Agendador {
         return false;
     }
 
-    /** Ciclo do intervalo: libera as Tasks retidas que chegaram a vez e marca quando será o próximo. */
+    /**
+     * Ciclo do intervalo: zera o contador de execuções, libera as Tasks retidas que chegaram a vez e marca quando
+     * será o próximo.
+     */
     private void cicloDoIntervalo() {
         ciclosDoIntervalo++;
+        execucoesNoIntervalo = 0;
         proximoCiclo = null;
         try {
             ciclo();
         } finally {
-            proximoCiclo = Instant.now().plus(INTERVALO);
+            proximoCiclo = Instant.now().plus(intervalo);
             avisarSituacao();
         }
     }
 
-    /** Executa o trabalho liberado até a fila esvaziar ou o agendador ser pausado. */
+    /** Executa o trabalho liberado até a fila esvaziar, o máximo do intervalo ou o agendador ser pausado. */
     void ciclo() {
         try {
-            while (rodando && dentroDoHorario()) {
+            while (rodando && dentroDoHorario() && !limiteAtingido()) {
                 Optional<ProjetoService.Proxima> proxima = projetos.proxima(this::liberada);
                 if (proxima.isEmpty()) {
                     break;
@@ -313,6 +377,8 @@ public class Agendador {
         if (projetos.marcar(projetoId, taskId, subtarefaId, Estado.EM_ANDAMENTO, null).isEmpty()) {
             return;
         }
+        // Só conta o que chegou a ir para um agente; a falta de agente acima não gasta o intervalo.
+        execucoesNoIntervalo++;
         emExecucao = agente.get().provedor() + " em " + (subtarefa == null ? task.titulo() : subtarefa.titulo());
         avisarSituacao();
         if (!taskId.equals(ultimaTaskIniciada)) {
