@@ -59,7 +59,11 @@ public class MainController implements BarraLateral.Ouvinte {
             @Override
             public void situacao(Agendador.Situacao situacao) {
                 SwingUtilities.invokeLater(() -> barraSuperior.setAgendador(situacao.rodando(), situacao.texto()));
-                // Começo e fim de uma execução mexem no uso do provedor: mede de novo sem esperar o intervalo.
+            }
+
+            @Override
+            public void taskIniciada(String projetoId, String taskId) {
+                // Uma Task vai gastar do provedor: mede agora para a barra mostrar o ponto de partida.
                 consumo.atualizar();
             }
 

@@ -61,6 +61,12 @@ public class Agendador {
         void situacao(Situacao situacao);
 
         void log(String projetoId, String linha);
+
+        /**
+         * Uma Task começou a ser executada. As subtarefas seguidas da mesma Task avisam uma vez só, na primeira.
+         */
+        default void taskIniciada(String projetoId, String taskId) {
+        }
     }
 
     private final ProjetoService projetos;
@@ -75,6 +81,8 @@ public class Agendador {
     private final List<Ouvinte> ouvintes = new CopyOnWriteArrayList<>();
     private volatile boolean rodando;
     private volatile String emExecucao;
+    /** Id da última Task que começou a rodar, para avisar {@link Ouvinte#taskIniciada} só quando ela muda. */
+    private volatile String ultimaTaskIniciada;
     /** Quando começa o próximo ciclo do intervalo; null enquanto um deles está em andamento. */
     private volatile Instant proximoCiclo;
     /** Quantos ciclos do intervalo já começaram. */
@@ -142,6 +150,11 @@ public class Agendador {
         synchronized (linhas) {
             return List.copyOf(linhas);
         }
+    }
+
+    /** Se um agente está rodando agora. */
+    public boolean executando() {
+        return emExecucao != null;
     }
 
     public Situacao situacao() {
@@ -214,6 +227,8 @@ public class Agendador {
             System.err.println("Agendador: " + e);
         } finally {
             emExecucao = null;
+            // Fila vazia: a próxima execução, mesmo que da mesma Task, conta como um começo novo.
+            ultimaTaskIniciada = null;
             avisarSituacao();
         }
     }
@@ -242,6 +257,10 @@ public class Agendador {
         }
         emExecucao = agente.get().provedor() + " em " + (subtarefa == null ? task.titulo() : subtarefa.titulo());
         avisarSituacao();
+        if (!taskId.equals(ultimaTaskIniciada)) {
+            ultimaTaskIniciada = taskId;
+            ouvintes.forEach(o -> o.taskIniciada(projetoId, taskId));
+        }
         registrar(projetoId, taskId, hora() + " " + nome + " · " + agente.get().provedor());
 
         ResultadoExecucao resultado;

@@ -2,7 +2,9 @@ package io.github.luanfrombrazil.overtimedispatcher.service.consumo;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Consumo;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -10,17 +12,26 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Mede o uso de cada provedor a cada {@link #INTERVALO} (e logo depois de {@link #atualizar()}) e avisa quem
- * mostra as barras de consumo.
+ * Mede o uso de cada provedor e avisa quem mostra as barras de consumo.
+ * <p>
+ * Mede só em três momentos, para não estourar o limite de consultas do provedor: ao abrir o programa
+ * ({@link #iniciar()}), quando uma Task começa ({@link #atualizar()}) e quando o programa fica
+ * {@link #OCIOSO} sem nenhum agente rodando nem nenhuma medição.
  */
 public class ConsumoService {
 
-    public static final Duration INTERVALO = Duration.ofMinutes(2);
+    /** Tempo sem Tasks e sem medições depois do qual o uso é medido de novo. */
+    public static final Duration OCIOSO = Duration.ofMinutes(30);
+    /** De quanto em quanto tempo verifica se o programa está ocioso (não mede, só olha o relógio). */
+    static final Duration VERIFICACAO = Duration.ofMinutes(1);
 
     private final List<Medidor> medidores;
+    private final BooleanSupplier ocupado;
+    private final Clock relogio;
     private final List<Consumer<List<Consumo>>> ouvintes = new CopyOnWriteArrayList<>();
     private final AtomicBoolean pendente = new AtomicBoolean();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(tarefa -> {
@@ -29,16 +40,22 @@ public class ConsumoService {
         return thread;
     });
     private volatile List<Consumo> atual;
+    /** Última medição ou último momento em que um agente estava rodando, o que for mais recente. */
+    private volatile Instant ultimaAtividade;
 
-    public ConsumoService(List<Medidor> medidores) {
+    /** @param ocupado se um agente está rodando agora; enquanto estiver, o programa não conta como ocioso */
+    public ConsumoService(List<Medidor> medidores, BooleanSupplier ocupado, Clock relogio) {
         this.medidores = List.copyOf(medidores);
+        this.ocupado = ocupado;
+        this.relogio = relogio;
         this.atual = medidores.stream().map(m -> Consumo.desconhecido(m.provedor(), "Medindo…")).toList();
+        this.ultimaAtividade = relogio.instant();
     }
 
     /** Claude, Codex e Gemini (este ainda sem leitura). */
-    public static ConsumoService padrao() {
+    public static ConsumoService padrao(BooleanSupplier ocupado) {
         return new ConsumoService(List.of(new MedidorClaude(), new MedidorCodex(),
-                Medidor.semLeitura("Gemini", "O uso do Gemini ainda não é medido.")));
+                Medidor.semLeitura("Gemini", "O uso do Gemini ainda não é medido.")), ocupado, Clock.systemDefaultZone());
     }
 
     /** Avisado na thread do consumo; quem atualiza a tela deve passar para a thread do Swing. */
@@ -51,11 +68,14 @@ public class ConsumoService {
         return atual;
     }
 
+    /** Mede já (abertura do programa) e passa a medir de novo quando ficar ocioso. */
     public void iniciar() {
-        executor.scheduleWithFixedDelay(this::medir, 0, INTERVALO.toMillis(), TimeUnit.MILLISECONDS);
+        atualizar();
+        executor.scheduleWithFixedDelay(this::verificarOciosidade, VERIFICACAO.toMillis(), VERIFICACAO.toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
-    /** Mede de novo já (ex.: um agente acabou de rodar). Pedidos seguidos viram uma medição só. */
+    /** Mede de novo já (ex.: uma Task começou). Pedidos seguidos viram uma medição só. */
     public void atualizar() {
         if (pendente.compareAndSet(false, true)) {
             executor.execute(this::medir);
@@ -66,8 +86,21 @@ public class ConsumoService {
         executor.shutdownNow();
     }
 
+    /** Mede se já se passou {@link #OCIOSO} desde a última atividade sem nenhum agente rodando. */
+    void verificarOciosidade() {
+        Instant agora = relogio.instant();
+        if (ocupado.getAsBoolean()) {
+            ultimaAtividade = agora;
+            return;
+        }
+        if (Duration.between(ultimaAtividade, agora).compareTo(OCIOSO) >= 0) {
+            medir();
+        }
+    }
+
     void medir() {
         pendente.set(false);
+        ultimaAtividade = relogio.instant();
         List<Consumo> medido = new ArrayList<>();
         for (Medidor medidor : medidores) {
             try {

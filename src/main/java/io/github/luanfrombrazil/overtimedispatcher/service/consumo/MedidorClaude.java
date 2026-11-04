@@ -12,7 +12,11 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +35,12 @@ public class MedidorClaude implements Medidor {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Path credenciais;
+    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
+
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(TEMPO_LIMITE).build();
+    /** Última medição com porcentagem, devolvida quando o provedor recusa por excesso de consultas. */
+    private volatile Consumo ultimo;
+    private volatile Instant medidoEm;
 
     public MedidorClaude() {
         this(pastaPadrao().resolve(".credentials.json"));
@@ -70,16 +79,43 @@ public class MedidorClaude implements Medidor {
             if (resposta.statusCode() == 401) {
                 return Consumo.desconhecido(provedor(), "Login do Claude Code expirado: abra o Claude Code para renovar.");
             }
+            if (resposta.statusCode() == 429) {
+                return limiteAtingido();
+            }
             if (resposta.statusCode() != 200) {
                 return Consumo.desconhecido(provedor(), "Uso indisponível (HTTP " + resposta.statusCode() + ").");
             }
-            return interpretar(provedor(), JSON.readTree(resposta.body()));
+            Consumo medido = interpretar(provedor(), JSON.readTree(resposta.body()));
+            if (medido.conhecido()) {
+                lembrar(medido, Instant.now());
+            }
+            return medido;
         } catch (IOException | RuntimeException e) {
             return Consumo.desconhecido(provedor(), "Sem conexão com a Anthropic.");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return Consumo.desconhecido(provedor(), "Leitura interrompida.");
         }
+    }
+
+    void lembrar(Consumo medido, Instant quando) {
+        ultimo = medido;
+        medidoEm = quando;
+    }
+
+    /**
+     * Resposta ao HTTP 429 (consultas demais): mantém a última medição boa, avisando na dica de quando ela é. Sem
+     * medição anterior, fica sem porcentagem.
+     */
+    Consumo limiteAtingido() {
+        Consumo anterior = ultimo;
+        if (anterior == null) {
+            return Consumo.desconhecido(provedor(), "Limite de consultas do Claude atingido; o uso aparece na próxima medição.");
+        }
+        String quando = LocalTime.ofInstant(medidoEm, ZoneId.systemDefault()).format(HORA);
+        String aviso = "medido às " + quando + " (limite de consultas atingido)";
+        String detalhe = anterior.detalhe() == null ? aviso : anterior.detalhe() + " · " + aviso;
+        return new Consumo(anterior.provedor(), anterior.sessao(), anterior.semanal(), detalhe);
     }
 
     /** Transforma a resposta do endpoint ({@code five_hour}/{@code seven_day} com {@code utilization} de 0 a 100). */

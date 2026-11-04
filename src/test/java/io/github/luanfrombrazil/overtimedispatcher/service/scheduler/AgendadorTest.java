@@ -190,6 +190,39 @@ class AgendadorTest {
     }
 
     @Test
+    void avisaOComecoDeCadaTaskUmaVezSo() throws InterruptedException {
+        Projeto projeto = projeto();
+        Task comSubtarefas = Task.nova("Com subtarefas", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task inteira = Task.nova("Inteira", "Faça", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        projeto = projetos.salvarTask(projeto, comSubtarefas);
+        projeto = projetos.salvarTask(projeto, inteira);
+        projetos.salvarSubtarefa(projeto, comSubtarefas, Subtarefa.nova("A", "", "", false, List.of()));
+        projetos.salvarSubtarefa(projeto, comSubtarefas, Subtarefa.nova("B", "", "", false, List.of()));
+        List<String> iniciadas = new CopyOnWriteArrayList<>();
+        agendador.aoMudar(new Agendador.Ouvinte() {
+            @Override
+            public void situacao(Agendador.Situacao situacao) {
+            }
+
+            @Override
+            public void log(String projetoId, String linha) {
+            }
+
+            @Override
+            public void taskIniciada(String projetoId, String taskId) {
+                iniciadas.add(taskId);
+            }
+        });
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        assertEquals(3, agente.execucoes.size());
+        assertEquals(List.of(comSubtarefas.id(), inteira.id()), iniciadas);
+        assertFalse(agendador.executando());
+    }
+
+    @Test
     void pausadoNaoExecuta() throws InterruptedException {
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
         Projeto projeto = projetos.salvarTask(projeto(), task);

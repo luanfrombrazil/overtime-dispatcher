@@ -29,7 +29,7 @@ public final class OvertimeDispatcher {
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
-        ConsumoService consumo = ConsumoService.padrao();
+        ConsumoService consumo = ConsumoService.padrao(agendador::executando);
         SwingUtilities.invokeLater(() -> {
             new MainController(new DadosService(), projetos, agendador, consumo).iniciar();
             // Só depois da tela existir, para a primeira medição já chegar ao ouvinte da barra superior.
