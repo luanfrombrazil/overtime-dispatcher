@@ -68,6 +68,14 @@ class ReservaSlider extends JComponent {
         ouvinte.accept(oraculo, voce());
     }
 
+    int automacao() {
+        return automacao;
+    }
+
+    int oraculo() {
+        return oraculo;
+    }
+
     int voce() {
         return 100 - automacao - oraculo;
     }
