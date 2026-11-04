@@ -6,7 +6,6 @@ import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 import io.github.luanfrombrazil.overtimer.view.comum.AnelGiratorio;
 import io.github.luanfrombrazil.overtimer.view.comum.BotaoIcone;
-import io.github.luanfrombrazil.overtimer.view.comum.IndicadorAgendador;
 import io.github.luanfrombrazil.overtimer.view.comum.LinhaLateral;
 import io.github.luanfrombrazil.overtimer.view.comum.Ui;
 import io.github.luanfrombrazil.overtimer.view.tema.Tema;
@@ -19,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.ToolTipManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -65,8 +65,6 @@ public class BarraLateral extends JPanel {
     private final JButton agendador = Ui.botaoPrimario(null);
     /** Borda do botão do agendador, que gira enquanto ele roda. */
     private final AnelGiratorio anelAgendador = new AnelGiratorio(agendador, 8);
-    /** Símbolo de pausa, só visível com o agendador parado. */
-    private final IndicadorAgendador estado = new IndicadorAgendador();
     private final BotaoIcone recolher = new BotaoIcone(Ui.icone("recolher", 18, Tema.TEXTO), "Recolher barra lateral");
     private final JPanel topo = new JPanel(new BorderLayout()) {
         /** Fica da altura da barra superior, para as bordas de baixo se alinharem. */
@@ -109,6 +107,22 @@ public class BarraLateral extends JPanel {
 
         topo.setOpaque(false);
         mostrarBotaoAgendador(false);
+        agendador.setToolTipText("Iniciar agendador");
+        // Como o antigo indicador de pausa, a dica do agendador aparece na hora, sem a espera habitual.
+        agendador.addMouseListener(new MouseAdapter() {
+            private int esperaPadrao;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                esperaPadrao = ToolTipManager.sharedInstance().getInitialDelay();
+                ToolTipManager.sharedInstance().setInitialDelay(0);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                ToolTipManager.sharedInstance().setInitialDelay(esperaPadrao);
+            }
+        });
         recolher.addActionListener(e -> setRecolhida(!recolhida));
         add(topo, BorderLayout.NORTH);
         add(rolagem, BorderLayout.CENTER);
@@ -146,7 +160,7 @@ public class BarraLateral extends JPanel {
                     // folga, o anel do agendador (mais alto que os botões) seria cortado.
                     BorderFactory.createEmptyBorder(0, 16, 0, 12)));
             // O anel já soma alguns pixels de folga em volta do botão, por isso o espaço menor.
-            topo.add(Ui.linha(8, home, anelAgendador, estado), BorderLayout.WEST);
+            topo.add(Ui.linha(8, home, anelAgendador), BorderLayout.WEST);
             topo.add(Ui.linha(0, recolher), BorderLayout.EAST);
             setPreferredSize(new Dimension(LARGURA, 100));
         }
@@ -177,17 +191,15 @@ public class BarraLateral extends JPanel {
     }
 
     /**
-     * Mostra se o agendador está rodando: parado, o símbolo de pausa ao lado do botão; rodando, a borda do botão
-     * gira. O que ele está fazendo só aparece ao passar o mouse.
+     * Mostra se o agendador está rodando: o botão alterna entre play e parar e, rodando, a sua borda gira. O que ele
+     * está fazendo aparece ao passar o mouse no botão.
      */
     public void setAgendador(boolean rodando, String situacao) {
         mostrarBotaoAgendador(rodando);
         anelAgendador.setGirando(rodando);
-        estado.setVisible(!rodando);
-        estado.setSituacao(situacao);
-        // Sem o símbolo de pausa ao lado, a situação vai para a dica do próprio botão.
+        // A dica junta a ação do botão com a situação ("Pausado", "Rodando · Task"...).
         agendador.setToolTipText((rodando ? "Parar agendador" : "Iniciar agendador")
-                + (rodando && situacao != null ? " · " + situacao : ""));
+                + (situacao == null || situacao.isBlank() ? "" : " · " + situacao));
         revalidate();
         repaint();
     }
@@ -197,7 +209,6 @@ public class BarraLateral extends JPanel {
      */
     private void mostrarBotaoAgendador(boolean rodando) {
         agendador.setIcon(Ui.icone(rodando ? "parar" : "play", 14, Color.WHITE));
-        agendador.setToolTipText(rodando ? "Parar agendador" : "Iniciar agendador");
         agendador.putClientProperty(FlatClientProperties.STYLE,
                 "arc:8; margin:7,7,7,7; focusWidth:0; innerFocusWidth:0; borderWidth:0; foreground:#FFFFFF; "
                         + "background:" + (rodando ? "#C94F4F" : "#3574F0"));
