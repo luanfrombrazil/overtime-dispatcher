@@ -11,6 +11,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 
 /**
  * Item com borda colorida à esquerda indicando o estado, título e detalhe opcional.
@@ -33,7 +35,15 @@ public class ItemStatus extends JPanel {
         JPanel textos = detalhe == null || detalhe.isBlank()
                 ? Ui.coluna(0, rotulo)
                 : Ui.coluna(2, rotulo, Ui.texto(detalhe, Tema.legenda(), Tema.corDetalhe(estado)));
-        add(textos, BorderLayout.CENTER);
+        // Os botões à direita deixam a linha mais alta que o texto; o GridBag centraliza o texto na altura.
+        JPanel centro = new JPanel(new GridBagLayout());
+        centro.setOpaque(false);
+        GridBagConstraints restricoes = new GridBagConstraints();
+        restricoes.weightx = 1;
+        restricoes.fill = GridBagConstraints.HORIZONTAL;
+        restricoes.anchor = GridBagConstraints.WEST;
+        centro.add(textos, restricoes);
+        add(centro, BorderLayout.CENTER);
     }
 
     /** Coloca componentes à direita do item (botões, indicadores). */
