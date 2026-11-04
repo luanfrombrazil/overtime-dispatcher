@@ -13,7 +13,8 @@ import java.time.Duration;
  * @param sessao     id da sessão a usar
  * @param sessaoNova true na primeira execução da sessão; false para continuar uma sessão existente
  * @param usaGit     se a pasta é um worktree git, para liberar os comandos git ao agente
+ * @param push       se o agente pode fazer push da branch da Task
  */
 public record Execucao(Path pasta, String prompt, String sessao, boolean sessaoNova,
-                       Esforco esforco, Permissoes permissoes, boolean usaGit, Duration limite) {
+                       Esforco esforco, Permissoes permissoes, boolean usaGit, boolean push, Duration limite) {
 }
