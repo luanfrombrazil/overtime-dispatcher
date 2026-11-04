@@ -28,6 +28,8 @@ public class BarraSuperior extends JPanel {
     /** Barra de consumo 50% maior que a padrão (80 × 6). */
     private static final int LARGURA_CONSUMO = 120;
     private static final int ALTURA_CONSUMO = 9;
+    /** Espaço em branco entre as barras de cada provedor. */
+    private static final int ESPACO_CONSUMO = 28;
 
     private final BotaoIcone home = new BotaoIcone(Ui.icone("home", 18, Tema.TEXTO), "Home");
     private final BotaoIcone notificacoes = new BotaoIcone(Ui.icone("sino", 18, Tema.TEXTO), "Notificações");
@@ -56,6 +58,8 @@ public class BarraSuperior extends JPanel {
         void mostrar(Consumo c) {
             barra.setPorcentagens(Math.max(0, c.sessao()), Math.max(0, c.semanal()));
             porcentagem.setText(c.rotulo());
+            // Sem medida, o "—" pareceria um separador entre as barras; o motivo continua na dica.
+            porcentagem.setVisible(c.conhecido());
             String dica = c.detalhe() == null
                     ? c.provedor() + " · sessão " + texto(c.sessao()) + " · semana " + texto(c.semanal())
                     : c.provedor() + " · " + c.detalhe();
@@ -103,7 +107,7 @@ public class BarraSuperior extends JPanel {
             for (Medida medida : medidas.values()) {
                 linhas.add(medida.linha);
             }
-            this.consumo.add(Ui.linha(16, linhas.toArray(new JComponent[0])));
+            this.consumo.add(Ui.linha(ESPACO_CONSUMO, linhas.toArray(new JComponent[0])));
         }
         revalidate();
         repaint();
