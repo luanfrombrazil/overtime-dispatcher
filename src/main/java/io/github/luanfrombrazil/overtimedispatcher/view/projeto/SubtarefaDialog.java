@@ -49,21 +49,24 @@ public class SubtarefaDialog extends Dialogo {
     /**
      * @param task      Task da subtarefa; as subtarefas acima desta podem ser escolhidas como dependência
      * @param existente subtarefa a editar, ou null para criar uma nova no fim da Task
-     * @param aoDecidir recebe o novo estado quando o usuário aprova a verificação ou manda refazer
+     * @param aoDecidir  recebe o novo estado quando o usuário aprova a verificação ou manda refazer
+     * @param aoRascunho recebe a subtarefa como está quando o usuário clica fora do pop-up de uma subtarefa nova ou
+     *                   de um rascunho, que então fecha; null mantém o pop-up aberto
      */
     public SubtarefaDialog(JFrame dono, Task task, Subtarefa existente, Consumer<Subtarefa> aoSalvar, Runnable aoExcluir,
-                           Consumer<Estado> aoDecidir) {
+                           Consumer<Estado> aoDecidir, Consumer<Subtarefa> aoRascunho) {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
+        boolean rascunho = !nova && existente.rascunho();
         boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : travada ? "Subtarefa finalizada" : "Editar subtarefa"),
-                null));
+        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : rascunho ? "Rascunho de subtarefa"
+                : travada ? "Subtarefa finalizada" : "Editar subtarefa"), null));
         corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
         corpo.add(Box.createVerticalStrut(14));
-        if (!nova && existente.estado() != Estado.PENDENTE) {
+        if (!nova && !rascunho && existente.estado() != Estado.PENDENTE) {
             corpo.add(situacao(this, existente.estado(), existente.resultado(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
@@ -123,10 +126,34 @@ public class SubtarefaDialog extends Dialogo {
             Formulario.travar(dependencias.values().toArray(new JComponent[0]));
             raiz.add(Formulario.rodapeSomenteLeitura(this, null, null), BorderLayout.SOUTH);
         } else {
-            raiz.add(Formulario.rodape(this, nova ? "Criar subtarefa" : "Salvar", () -> aoSalvar.accept(subtarefa()),
-                    nova ? null : aoExcluir, "Excluir a subtarefa?"), BorderLayout.SOUTH);
+            raiz.add(Formulario.rodape(this, nova || rascunho ? "Criar subtarefa" : "Salvar",
+                    () -> aoSalvar.accept(subtarefa()), nova ? null : aoExcluir, "Excluir a subtarefa?"),
+                    BorderLayout.SOUTH);
+        }
+        if ((nova || rascunho) && aoRascunho != null) {
+            aoClicarFora(() -> {
+                Subtarefa atual = nova && vazia() ? null : comTituloDeRascunho(subtarefa());
+                fechar();
+                if (atual != null) {
+                    Formulario.rascunhar(dono, () -> aoRascunho.accept(atual));
+                }
+            });
         }
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
+    }
+
+    /** Se nada foi escrito; uma subtarefa nova vazia é descartada em vez de virar rascunho. */
+    private boolean vazia() {
+        return titulo.getText().isBlank() && Formulario.textoDa(instrucao).isBlank()
+                && Formulario.textoDa(criterio).isBlank();
+    }
+
+    private static Subtarefa comTituloDeRascunho(Subtarefa s) {
+        if (!s.titulo().isBlank()) {
+            return s;
+        }
+        return new Subtarefa(s.id(), "Rascunho", s.instrucao(), s.criterioDeAceite(), s.requerVerificacao(),
+                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push());
     }
 
     /**

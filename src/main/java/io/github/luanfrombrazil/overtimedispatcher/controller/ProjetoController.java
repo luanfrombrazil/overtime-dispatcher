@@ -72,14 +72,16 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
 
     @Override
     public void novaTask() {
-        new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null, null).abrir();
+        new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null, null,
+                t -> alterado(servico.salvarRascunho(projeto, t))).abrir();
     }
 
     @Override
     public void editarTask(Task task) {
         new TaskDialog(frame, projeto, task, t -> alterado(servico.salvarTask(projeto, t)),
                 () -> alterado(servico.excluirTask(projeto, task)),
-                estado -> alterado(servico.definirEstado(projeto, task, estado))).abrir();
+                estado -> alterado(servico.definirEstado(projeto, task, estado)),
+                t -> alterado(servico.salvarRascunho(projeto, t))).abrir();
     }
 
     @Override
@@ -103,14 +105,15 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
     @Override
     public void novaSubtarefa(Task task) {
         new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
-                null).abrir();
+                null, s -> alterado(servico.salvarRascunho(projeto, task, s))).abrir();
     }
 
     @Override
     public void editarSubtarefa(Task task, Subtarefa subtarefa) {
         new SubtarefaDialog(frame, task, subtarefa, s -> alterado(servico.salvarSubtarefa(projeto, task, s)),
                 () -> alterado(servico.excluirSubtarefa(projeto, task, subtarefa)),
-                estado -> alterado(servico.definirEstado(projeto, task, subtarefa, estado))).abrir();
+                estado -> alterado(servico.definirEstado(projeto, task, subtarefa, estado)),
+                s -> alterado(servico.salvarRascunho(projeto, task, s))).abrir();
     }
 
     @Override

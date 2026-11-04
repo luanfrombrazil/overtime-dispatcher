@@ -33,6 +33,7 @@ public final class Tema {
     public static final Color VERMELHO = new Color(0xC94F4F);
     public static final Color CINZA = new Color(0x5E6268);
     public static final Color LARANJA = new Color(0xC7712A);
+    public static final Color BRANCO = new Color(0xFFFFFF);
 
     public static final Color ROXO = new Color(0x8B5CF6);
     public static final Color ROXO_CLARO = new Color(0xC4B5FD);
@@ -72,6 +73,7 @@ public final class Tema {
             case ERRO -> VERMELHO;
             case PENDENTE -> CINZA;
             case ORACULO -> ROXO;
+            case RASCUNHO -> BRANCO;
         };
     }
 

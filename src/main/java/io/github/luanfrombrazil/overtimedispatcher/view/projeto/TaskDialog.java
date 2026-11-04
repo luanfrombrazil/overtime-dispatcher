@@ -35,19 +35,23 @@ public class TaskDialog extends Dialogo {
     /**
      * @param projeto   dá os padrões de provedor e esforço para uma Task nova
      * @param existente Task a editar, ou null para criar uma nova
-     * @param aoDecidir recebe o novo estado quando o usuário manda refazer a Task executada inteira
+     * @param aoDecidir   recebe o novo estado quando o usuário manda refazer a Task executada inteira
+     * @param aoRascunho  recebe a Task como está quando o usuário clica fora do pop-up de uma Task nova ou de um
+     *                    rascunho, que então fecha; null mantém o pop-up aberto
      */
     public TaskDialog(JFrame dono, Projeto projeto, Task existente, Consumer<Task> aoSalvar, Runnable aoExcluir,
-                      Consumer<Estado> aoDecidir) {
+                      Consumer<Estado> aoDecidir, Consumer<Task> aoRascunho) {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
+        boolean rascunho = !nova && existente.rascunho();
         boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova task" : travada ? "Task finalizada" : "Editar task"), null));
+        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova task" : rascunho ? "Rascunho de task"
+                : travada ? "Task finalizada" : "Editar task"), null));
         corpo.add(Box.createVerticalStrut(14));
-        if (!nova && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
+        if (!nova && !rascunho && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
             corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
@@ -75,10 +79,32 @@ public class TaskDialog extends Dialogo {
             Formulario.travar(titulo, descricao, provedor, esforco);
             raiz.add(Formulario.rodapeSomenteLeitura(this, aoExcluir, confirmarExclusao), BorderLayout.SOUTH);
         } else {
-            raiz.add(Formulario.rodape(this, nova ? "Criar task" : "Salvar", () -> aoSalvar.accept(task()),
+            raiz.add(Formulario.rodape(this, nova || rascunho ? "Criar task" : "Salvar", () -> aoSalvar.accept(task()),
                     nova ? null : aoExcluir, confirmarExclusao), BorderLayout.SOUTH);
         }
+        if ((nova || rascunho) && aoRascunho != null) {
+            aoClicarFora(() -> {
+                Task atual = nova && vazia() ? null : comTituloDeRascunho(task());
+                fechar();
+                if (atual != null) {
+                    Formulario.rascunhar(dono, () -> aoRascunho.accept(atual));
+                }
+            });
+        }
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
+    }
+
+    /** Se nada foi preenchido; uma Task nova vazia é descartada em vez de virar rascunho. */
+    private boolean vazia() {
+        return titulo.getText().isBlank() && Formulario.textoDa(descricao).isBlank();
+    }
+
+    private static Task comTituloDeRascunho(Task task) {
+        if (!task.titulo().isBlank()) {
+            return task;
+        }
+        return new Task(task.id(), "Rascunho", task.descricao(), task.provedor(), task.esforco(), task.origem(),
+                task.subtarefas(), task.sessao(), task.execucao(), task.resultado());
     }
 
     private Task task() {

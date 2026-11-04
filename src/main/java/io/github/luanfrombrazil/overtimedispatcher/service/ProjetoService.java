@@ -100,19 +100,43 @@ public class ProjetoService {
         projetos.remove(projeto.id());
     }
 
-    /** Adiciona a Task ao fim do projeto, ou substitui a de mesmo id mantendo as subtarefas e a sessão. */
+    /**
+     * Adiciona a Task ao fim do projeto, ou substitui a de mesmo id mantendo as subtarefas e a sessão. Salvar um
+     * rascunho o cria de fato: ele entra na fila.
+     */
     public synchronized Projeto salvarTask(Projeto projeto, Task task) {
         exigir(task.titulo(), "Dê um título à task.");
         Projeto atual = atual(projeto);
         List<Task> tasks = new ArrayList<>(atual.tasks());
         int indice = indiceDaTask(tasks, task.id());
         if (indice < 0) {
-            tasks.add(task);
+            tasks.add(task.rascunho() ? task.comExecucao(Estado.PENDENTE, null) : task);
         } else {
             Task antiga = tasks.get(indice);
             exigirAberta(antiga);
             tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
-                    .comExecucao(antiga.execucao(), antiga.resultado()));
+                    .comExecucao(antiga.rascunho() ? Estado.PENDENTE : antiga.execucao(), antiga.resultado()));
+        }
+        return gravar(atual.comTasks(tasks));
+    }
+
+    /**
+     * Guarda a Task como rascunho, que não é executado: adiciona ao fim do projeto ou substitui o rascunho de mesmo
+     * id, mantendo as subtarefas. Uma Task que já foi criada não volta a ser rascunho.
+     */
+    public synchronized Projeto salvarRascunho(Projeto projeto, Task task) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        Task rascunho = task.comExecucao(Estado.RASCUNHO, null);
+        if (indice < 0) {
+            tasks.add(rascunho.comSubtarefas(List.of()).comSessao(null));
+        } else {
+            Task antiga = tasks.get(indice);
+            if (!antiga.rascunho()) {
+                throw new IllegalArgumentException("\"" + antiga.titulo() + "\" já foi criada e não é mais um rascunho.");
+            }
+            tasks.set(indice, rascunho.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao()));
         }
         return gravar(atual.comTasks(tasks));
     }
@@ -180,15 +204,12 @@ public class ProjetoService {
 
     /**
      * Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. A Task
-     * finalizada não recebe subtarefas novas, e a subtarefa finalizada não pode ser editada.
+     * finalizada não recebe subtarefas novas, e a subtarefa finalizada não pode ser editada. Salvar um rascunho o
+     * cria de fato: ele entra na fila.
      */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");
-        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
-        if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
-            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
-        }
-        exigirAberta(atual);
+        exigirAceitaSubtarefa(projeto, task);
         return alterarSubtarefas(projeto, task, subtarefas -> {
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
             int indice = indiceDaSubtarefa(novas, subtarefa.id());
@@ -197,10 +218,41 @@ public class ProjetoService {
             } else {
                 Subtarefa antiga = novas.get(indice);
                 exigirAberta(antiga);
-                novas.set(indice, subtarefa.comEstado(antiga.estado(), antiga.resultado()));
+                novas.set(indice, antiga.rascunho() ? subtarefa.comEstado(Estado.PENDENTE, null)
+                        : subtarefa.comEstado(antiga.estado(), antiga.resultado()));
             }
             return novas;
         });
+    }
+
+    /**
+     * Guarda a subtarefa como rascunho, que não é executado: adiciona ao fim da Task ou substitui o rascunho de
+     * mesmo id. Uma subtarefa que já foi criada não volta a ser rascunho.
+     */
+    public synchronized Projeto salvarRascunho(Projeto projeto, Task task, Subtarefa subtarefa) {
+        exigirAceitaSubtarefa(projeto, task);
+        return alterarSubtarefas(projeto, task, subtarefas -> {
+            List<Subtarefa> novas = new ArrayList<>(subtarefas);
+            int indice = indiceDaSubtarefa(novas, subtarefa.id());
+            Subtarefa rascunho = subtarefa.comEstado(Estado.RASCUNHO, null);
+            if (indice < 0) {
+                novas.add(rascunho);
+            } else if (novas.get(indice).rascunho()) {
+                novas.set(indice, rascunho);
+            } else {
+                throw new IllegalArgumentException("\"" + novas.get(indice).titulo()
+                        + "\" já foi criada e não é mais um rascunho.");
+            }
+            return novas;
+        });
+    }
+
+    private void exigirAceitaSubtarefa(Projeto projeto, Task task) {
+        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
+        if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
+        }
+        exigirAberta(atual);
     }
 
     /**
@@ -249,12 +301,12 @@ public class ProjetoService {
     /**
      * Próximo trabalho na fila, seguindo a ordem dos projetos, das Tasks e das subtarefas: a primeira subtarefa
      * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo
-     * esperam ser aceitas.
+     * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados.
      */
     public synchronized Optional<Proxima> proxima() {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
-                if (task.origem() == Origem.ORACULO) {
+                if (task.origem() == Origem.ORACULO || task.rascunho()) {
                     continue;
                 }
                 if (task.inteira()) {
