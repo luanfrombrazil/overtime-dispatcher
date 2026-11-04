@@ -13,7 +13,11 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -23,7 +27,8 @@ import java.util.function.Consumer;
 
 /**
  * Cartão de uma Task. Expandido, mostra as subtarefas e as ações. Tasks do Oráculo aparecem em roxo. A Task
- * finalizada fica travada: sem alça, sem nova subtarefa e com os detalhes só para leitura.
+ * finalizada fica travada: a alça vira o botão verde da conclusão, sem nova subtarefa e com os detalhes só para
+ * leitura.
  */
 class TaskCard extends Cartao {
 
@@ -65,6 +70,9 @@ class TaskCard extends Cartao {
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
                         : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
                         seta, alca);
+            } else if (task.finalizada()) {
+                // No lugar da alça, que não move mais a Task, a mesma barra em verde mostra a conclusão.
+                cabecalho.comDireita(seta, botaoConclusao(task.titulo(), task.conclusao()));
             } else if (alca == null) {
                 cabecalho.comDireita(seta);
             } else {
@@ -96,6 +104,30 @@ class TaskCard extends Cartao {
     static BotaoIcone botaoTentarDeNovo(String dica, Runnable acao) {
         BotaoIcone botao = new BotaoIcone(Ui.icone("tentar-de-novo", 14, Tema.TEXTO), dica, 24);
         botao.addActionListener(e -> acao.run());
+        return botao;
+    }
+
+    /**
+     * Botão de três barras com borda verde, no lugar da alça de um item finalizado: mostra a mensagem de
+     * conclusão do agente.
+     */
+    static BotaoIcone botaoConclusao(String titulo, String mensagem) {
+        BotaoIcone botao = new BotaoIcone(Ui.icone("arrastar", 14, Tema.VERDE), "Finalizada; clique para ver a conclusão",
+                24);
+        botao.setBorda(Tema.VERDE);
+        botao.addActionListener(e -> {
+            JTextArea texto = new JTextArea(mensagem == null || mensagem.isBlank()
+                    ? "O agente não deixou mensagem de conclusão." : mensagem.strip(), 12, 48);
+            texto.setEditable(false);
+            texto.setLineWrap(true);
+            texto.setWrapStyleWord(true);
+            texto.setFont(Tema.corpo());
+            texto.setCaretPosition(0);
+            JScrollPane rolagem = new JScrollPane(texto);
+            rolagem.setBorder(BorderFactory.createLineBorder(Tema.VERDE));
+            JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(botao), rolagem, "Conclusão: " + titulo,
+                    JOptionPane.PLAIN_MESSAGE);
+        });
         return botao;
     }
 

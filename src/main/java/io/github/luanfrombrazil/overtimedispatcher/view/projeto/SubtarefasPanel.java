@@ -90,11 +90,13 @@ class SubtarefasPanel extends JPanel {
                     aoClicar.accept(s);
                 }
             });
-            // A finalizada fica travada, sem alça para mudar a ordem.
+            // A finalizada fica travada: no lugar da alça, a barra verde mostra a conclusão.
             if (s.estado() == Estado.ERRO) {
                 item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)),
                         reordenacao.alca("Arraste para mudar a ordem"));
-            } else if (!s.finalizada()) {
+            } else if (s.finalizada()) {
+                item.comDireita(TaskCard.botaoConclusao(s.titulo(), s.resultado()));
+            } else {
                 item.comDireita(reordenacao.alca("Arraste para mudar a ordem"));
             }
             linha.add(item, BorderLayout.CENTER);

@@ -51,6 +51,14 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
     }
 
     /**
+     * Mensagem de conclusão: a resposta do agente à Task inteira ou, quando ela tem subtarefas, à última delas,
+     * que fecha a sessão compartilhada. Null se não houver.
+     */
+    public String conclusao() {
+        return inteira() ? resultado : subtarefas.getLast().resultado();
+    }
+
+    /**
      * Tasks do Oráculo aparecem em roxo; a Task executada inteira tem o próprio estado; as demais herdam o
      * estado das subtarefas.
      */

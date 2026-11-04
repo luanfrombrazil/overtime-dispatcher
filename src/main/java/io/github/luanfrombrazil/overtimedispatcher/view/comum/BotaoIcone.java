@@ -5,6 +5,7 @@ import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.Icon;
 import javax.swing.JButton;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -18,6 +19,7 @@ public class BotaoIcone extends JButton {
 
     private int contador;
     private boolean ativo;
+    private Color borda = Tema.BORDA;
 
     public BotaoIcone(Icon icone, String dica) {
         this(icone, dica, 32);
@@ -45,10 +47,20 @@ public class BotaoIcone extends JButton {
         aplicarEstilo();
     }
 
+    /** Troca a cor da borda (a padrão é {@link Tema#BORDA}). */
+    public void setBorda(Color borda) {
+        this.borda = borda;
+        aplicarEstilo();
+    }
+
     private void aplicarEstilo() {
         putClientProperty(FlatClientProperties.STYLE,
-                "arc:8; margin:0,0,0,0; focusWidth:0; innerFocusWidth:0; borderWidth:1; borderColor:#43454A; background:"
-                        + (ativo ? "#2E436E" : "#2B2D30"));
+                "arc:8; margin:0,0,0,0; focusWidth:0; innerFocusWidth:0; borderWidth:1; borderColor:" + hex(borda)
+                        + "; background:" + (ativo ? "#2E436E" : "#2B2D30"));
+    }
+
+    private static String hex(Color cor) {
+        return String.format("#%06X", cor.getRGB() & 0xFFFFFF);
     }
 
     @Override
