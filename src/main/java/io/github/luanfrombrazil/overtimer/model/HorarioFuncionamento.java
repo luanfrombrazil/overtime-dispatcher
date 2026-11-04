@@ -1,9 +1,11 @@
 package io.github.luanfrombrazil.overtimer.model;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Horário em que a automação pode rodar: para cada dia da semana (segunda a domingo),
@@ -91,6 +93,22 @@ public final class HorarioFuncionamento {
         int dia = instante.getDayOfWeek().getValue() - 1;
         int segmento = instante.getHour() * 2 + instante.getMinute() / 30;
         return segmentos[dia][segmento];
+    }
+
+    /**
+     * Início do primeiro segmento liberado depois de {@code instante} (o segmento em que ele cai não conta);
+     * vazio se nenhum horário está liberado.
+     */
+    public Optional<LocalDateTime> proximaLiberacao(LocalDateTime instante) {
+        LocalDateTime segmento = instante.truncatedTo(ChronoUnit.HOURS)
+                .plusMinutes(instante.getMinute() / 30 * 30L);
+        for (int i = 1; i <= DIAS * SEGMENTOS; i++) {
+            LocalDateTime candidato = segmento.plusMinutes(30L * i);
+            if (permite(candidato)) {
+                return Optional.of(candidato);
+            }
+        }
+        return Optional.empty();
     }
 
     public HorarioFuncionamento copia() {

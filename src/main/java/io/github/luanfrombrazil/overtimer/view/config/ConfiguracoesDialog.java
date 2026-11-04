@@ -147,6 +147,9 @@ public class ConfiguracoesDialog extends Dialogo {
         JPanel pagina = pagina();
 
         pagina.add(Ui.cabecalho(Ui.secao("Horário de funcionamento"), null));
+        pagina.add(Box.createVerticalStrut(4));
+        pagina.add(Ui.cabecalho(Ui.legenda("O agendador só começa execuções nos horários marcados. Clique e arraste "
+                + "para marcar ou desmarcar."), null));
         pagina.add(Box.createVerticalStrut(10));
         HorarioFuncionamento atual = configuracoes.horarioFuncionamento();
         barras = new BarrasHorario(atual);

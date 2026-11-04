@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimer.service.ProjetoService;
 import io.github.luanfrombrazil.overtimer.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
+import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.persistence.PastaDados;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProjetos;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
@@ -28,6 +29,7 @@ public final class Overtimer {
         PastaDados.migrarDoNomeAntigo(pastaDados);
         ProjetoService projetos = new ProjetoService(new RepositorioProjetos(pastaDados));
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
+        agendador.usarHorario(new ConfiguracoesRepositorio(pastaDados).carregar().horarioFuncionamento());
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
         ConsumoService consumo = ConsumoService.padrao(agendador::executando);

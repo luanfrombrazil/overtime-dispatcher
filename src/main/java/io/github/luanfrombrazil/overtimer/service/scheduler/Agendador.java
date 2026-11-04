@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
@@ -16,12 +17,16 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,7 +48,11 @@ import java.util.concurrent.TimeUnit;
  * {@link #agora()} não contam), para dar tempo de criar as subtarefas dela. Se esse ciclo está a menos de meio
  * intervalo, ela espera um ciclo a mais.
  * <p>
- * Ainda não respeita o horário de funcionamento nem a reserva (módulo de consumo).
+ * Só começa uma execução dentro do {@linkplain #usarHorario horário de funcionamento}; a que já está em andamento
+ * quando o horário fecha vai até o fim. Fora do horário, além dos ciclos do intervalo, acorda sozinho quando o
+ * horário abre.
+ * <p>
+ * Ainda não respeita a reserva (módulo de consumo).
  */
 public class Agendador {
 
@@ -90,6 +99,10 @@ public class Agendador {
     /** Tasks recém-criadas, pelo id, e o ciclo do intervalo a partir do qual podem ser executadas. */
     private final Map<String, Long> retidas = new ConcurrentHashMap<>();
     private ScheduledFuture<?> ciclos;
+    /** Horário em que pode começar uma execução; até receber um, roda sempre. */
+    private volatile HorarioFuncionamento horario = HorarioFuncionamento.sempre();
+    /** Ciclo marcado para quando o horário de funcionamento abrir; null se não há nenhum. */
+    private ScheduledFuture<?> abertura;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
@@ -124,7 +137,44 @@ public class Agendador {
         if (ciclos != null) {
             ciclos.cancel(false);
         }
+        marcarAbertura();
         avisarSituacao();
+    }
+
+    /**
+     * Troca o horário de funcionamento (ao abrir a app e ao salvar as configurações). Se o horário novo já está
+     * aberto, faz um ciclo na hora.
+     */
+    public void usarHorario(HorarioFuncionamento novo) {
+        horario = novo.copia();
+        marcarAbertura();
+        avisarSituacao();
+        agora();
+    }
+
+    /** Se uma execução pode começar agora. */
+    public boolean dentroDoHorario() {
+        return horario.permite(LocalDateTime.now());
+    }
+
+    /**
+     * Fora do horário e rodando, marca um ciclo para quando ele abrir; nos outros casos, desmarca. O segundo a mais
+     * garante que o relógio já passou da virada do segmento.
+     */
+    private synchronized void marcarAbertura() {
+        if (abertura != null) {
+            abertura.cancel(false);
+            abertura = null;
+        }
+        if (!rodando || executor.isShutdown() || dentroDoHorario()) {
+            return;
+        }
+        horario.proximaLiberacao(LocalDateTime.now()).ifPresent(quando -> {
+            long espera = Duration.between(Instant.now(), quando.atZone(ZoneId.systemDefault()).toInstant())
+                    .plusSeconds(1).toMillis();
+            // O fim do ciclo chama marcarAbertura de novo: se o relógio se adiantou ao timer, marca outra vez.
+            abertura = executor.schedule(this::ciclo, Math.max(0, espera), TimeUnit.MILLISECONDS);
+        });
     }
 
     /** Faz um ciclo já, sem esperar o intervalo (ex.: uma subtarefa nova ou uma verificação aprovada). */
@@ -164,6 +214,12 @@ public class Agendador {
         String atual = emExecucao;
         if (atual != null) {
             return new Situacao(true, "Rodando · " + atual);
+        }
+        LocalDateTime agora = LocalDateTime.now();
+        if (!horario.permite(agora)) {
+            return new Situacao(true, "Rodando · fora do horário" + horario.proximaLiberacao(agora)
+                    .map(quando -> " · volta " + quando(agora, quando))
+                    .orElse(" · nenhum horário liberado"));
         }
         Instant proximo = proximoCiclo;
         return new Situacao(true, "Rodando · fila vazia" + (proximo == null ? ""
@@ -213,7 +269,7 @@ public class Agendador {
     /** Executa o trabalho liberado até a fila esvaziar ou o agendador ser pausado. */
     void ciclo() {
         try {
-            while (rodando) {
+            while (rodando && dentroDoHorario()) {
                 Optional<ProjetoService.Proxima> proxima = projetos.proxima(this::liberada);
                 if (proxima.isEmpty()) {
                     break;
@@ -229,6 +285,8 @@ public class Agendador {
             emExecucao = null;
             // Fila vazia: a próxima execução, mesmo que da mesma Task, conta como um começo novo.
             ultimaTaskIniciada = null;
+            // Parou por ter saído do horário (ou acabou de entrar nele): acorda na próxima abertura.
+            marcarAbertura();
             avisarSituacao();
         }
     }
@@ -318,6 +376,14 @@ public class Agendador {
 
     private static String hora() {
         return LocalTime.now().format(HORA);
+    }
+
+    /** "às 22:00", "amanhã às 07:00" ou "sáb às 00:00". */
+    private static String quando(LocalDateTime agora, LocalDateTime quando) {
+        long dias = ChronoUnit.DAYS.between(agora.toLocalDate(), quando.toLocalDate());
+        String dia = dias == 0 ? "" : dias == 1 ? "amanhã "
+                : quando.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.of("pt", "BR")).replace(".", "") + " ";
+        return dia + "às " + quando.format(HORA);
     }
 
     private static String primeiraLinha(String texto) {

@@ -158,6 +158,8 @@ public class MainController implements BarraLateral.Ouvinte {
         } catch (UncheckedIOException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage(), "Configurações", JOptionPane.ERROR_MESSAGE);
         }
+        // Mesmo sem conseguir gravar, o horário escolhido vale para esta sessão.
+        agendador.usarHorario(configuracoes.horarioFuncionamento());
     }
 
     private void alternarAgendador() {
