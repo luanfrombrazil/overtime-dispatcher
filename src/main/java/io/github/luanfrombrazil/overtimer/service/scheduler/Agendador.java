@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
@@ -269,7 +270,9 @@ public class Agendador {
             Path pasta = areaDeTrabalho.preparar(projeto, task);
             String sessao = sessaoNova ? UUID.randomUUID().toString() : task.sessao();
             Execucao execucao = new Execucao(pasta, Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task)),
-                    sessao, sessaoNova, task.esforco(), projeto.permissoes(), projeto.usaGit(), LIMITE_DA_EXECUCAO);
+                    sessao, sessaoNova, subtarefa == null ? task.esforco() : subtarefa.esforcoOu(task.esforco()),
+                    subtarefa == null ? Modelo.PADRAO : subtarefa.modelo(), projeto.permissoes(), projeto.usaGit(),
+                    LIMITE_DA_EXECUCAO);
             resultado = agente.get().executar(execucao, linha -> registrar(projetoId, taskId, "  " + linha));
         } catch (IOException | RuntimeException e) {
             resultado = ResultadoExecucao.falha(e.getMessage() == null ? e.toString() : e.getMessage());

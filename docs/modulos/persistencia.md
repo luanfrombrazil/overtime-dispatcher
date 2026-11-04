@@ -22,7 +22,7 @@ worktrees/<id da task>/                                 worktree git da Task (pr
 
 - Os ids são UUIDs e não aparecem na tela.
 - `projeto.json` guarda nome, sigla, descrição, pasta, branch (ausente quando o projeto não usa git), provedor e esforço padrão, permissões e a lista ordenada dos ids das Tasks.
-- `task.json` guarda título, descrição, provedor, esforço, origem, a sessão do agente, o estado e a resposta da Task executada inteira (`execucao` e `resultado`, usados só sem subtarefas) e as subtarefas (instrução, critério de aceite, verificação manual, commit e push, estado, resposta da última execução e os ids das subtarefas das quais depende).
+- `task.json` guarda título, descrição, provedor, esforço, origem, a sessão do agente, o estado e a resposta da Task executada inteira (`execucao` e `resultado`, usados só sem subtarefas) e as subtarefas (instrução, critério de aceite, verificação manual, commit e push, esforço e modelo, estado, resposta da última execução e os ids das subtarefas das quais depende).
 - O estado do projeto não é salvo, nem o da Task que tem subtarefas: vem das subtarefas.
 - Cada arquivo é escrito num `.tmp` e depois trocado, para não ficar pela metade.
 - Excluir um projeto apaga só a pasta dele na pasta central; a pasta do projeto no sistema não é tocada.

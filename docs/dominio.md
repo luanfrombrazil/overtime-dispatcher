@@ -25,6 +25,7 @@ Oráculo (observa tudo e sugere)
 - Pode **depender** de outras subtarefas.
 - Pode exigir **verificação manual**.
 - Diz ao agente se deve fazer **commit** ao terminar (marcado por padrão) e **push** depois do commit (desmarcado por padrão; só vale com commit).
+- Tem o próprio **esforço** (barra de Baixo a Máximo; Médio por padrão) e **modelo** (Padrão, Opus, Sonnet ou Haiku; Padrão deixa a escolha ao agente). Subtarefas antigas, sem esforço, usam o da Task.
 - O agente pode **pedir orientação** no meio do trabalho; enquanto espera, segue para outra Task.
 
 ## Protocolo
