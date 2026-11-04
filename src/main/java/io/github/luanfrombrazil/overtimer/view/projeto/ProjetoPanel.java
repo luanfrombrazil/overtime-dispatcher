@@ -21,7 +21,10 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Cursor;
+import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
@@ -75,8 +78,12 @@ public class ProjetoPanel extends JPanel {
     }
 
     private static final int ALTURA_CONSOLE = 180;
+    private static final int ALTURA_MINIMA_CONSOLE = 80;
+    private static final int ALTURA_PUXADOR = 10;
 
     private final Ouvinte ouvinte;
+    /** Altura do log escolhida no puxador; sobrevive aos redesenhos da tela. */
+    private int alturaConsole = ALTURA_CONSOLE;
     private final Set<String> expandidas = new HashSet<>();
     private Console console;
     private final Set<String> conhecidas = new HashSet<>();
@@ -139,11 +146,58 @@ public class ProjetoPanel extends JPanel {
     /** Acrescenta uma linha ao console, que aparece na primeira linha recebida. */
     public void adicionarLog(String linha) {
         if (console == null) {
-            console = new Console(List.of("Log"), List.of(), ALTURA_CONSOLE);
-            add(console, BorderLayout.SOUTH);
+            console = new Console(List.of("Log"), List.of(), alturaConsole);
+            JPanel envoltorio = new JPanel(new BorderLayout());
+            envoltorio.setOpaque(false);
+            envoltorio.add(puxador(), BorderLayout.NORTH);
+            envoltorio.add(console, BorderLayout.CENTER);
+            add(envoltorio, BorderLayout.SOUTH);
             revalidate();
         }
         console.adicionar(linha);
+    }
+
+    /** Faixa acima do console que, arrastada, aumenta ou diminui a altura do log. */
+    private JComponent puxador() {
+        JComponent puxador = new JComponent() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Tema.BORDA);
+                g2.fillRoundRect((getWidth() - 36) / 2, (getHeight() - 4) / 2, 36, 4, 4, 4);
+                g2.dispose();
+            }
+        };
+        puxador.setPreferredSize(new Dimension(0, ALTURA_PUXADOR));
+        puxador.setCursor(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR));
+        puxador.setToolTipText("Arraste para mudar a altura do log");
+        MouseAdapter arrasto = new MouseAdapter() {
+            private int yInicial;
+            private int alturaInicial;
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                yInicial = e.getYOnScreen();
+                alturaInicial = alturaConsole;
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                // O resto da tela guarda espaço para o cabeçalho e ao menos um pedaço das Tasks.
+                int maxima = Math.max(ALTURA_MINIMA_CONSOLE, getHeight() - 220);
+                alturaConsole = Math.clamp(alturaInicial + yInicial - e.getYOnScreen(), ALTURA_MINIMA_CONSOLE, maxima);
+                if (console != null) {
+                    Dimension tamanho = new Dimension(100, alturaConsole);
+                    console.setPreferredSize(tamanho);
+                    console.setMinimumSize(tamanho);
+                    revalidate();
+                }
+            }
+        };
+        puxador.addMouseListener(arrasto);
+        puxador.addMouseMotionListener(arrasto);
+        return puxador;
     }
 
     private JPanel cabecalho(Projeto projeto) {
