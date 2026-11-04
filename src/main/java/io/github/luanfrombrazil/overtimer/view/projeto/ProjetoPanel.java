@@ -4,7 +4,6 @@ import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.view.comum.Console;
-import io.github.luanfrombrazil.overtimer.view.comum.Etiqueta;
 import io.github.luanfrombrazil.overtimer.view.comum.Iniciais;
 import io.github.luanfrombrazil.overtimer.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimer.view.comum.SeletorImagem;
@@ -159,7 +158,7 @@ public class ProjetoPanel extends JPanel {
         }
         return Ui.coluna(10,
                 Ui.cabecalho(titulo,
-                        Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), editar, novaTask)),
+                        Ui.linha(8, editar, novaTask)),
                 Ui.legenda(local));
     }
 
