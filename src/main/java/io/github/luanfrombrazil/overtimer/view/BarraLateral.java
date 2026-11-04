@@ -292,8 +292,11 @@ public class BarraLateral extends JPanel {
         return Ui.largo(linha);
     }
 
-    /** Botão do Oráculo, com fundo levemente roxo. Compacto, só o símbolo detalhado, centralizado. */
+    /** Botão do Oráculo, com fundo levemente roxo e o símbolo detalhado. Compacto, só o símbolo, centralizado. */
     private static class BotaoOraculo extends JPanel {
+
+        /** Um pouco maior que os ícones das linhas (28), para o símbolo detalhado aparecer bem. */
+        private static final int TAMANHO_ICONE = 36;
 
         private final boolean compacto;
 
@@ -305,12 +308,12 @@ public class BarraLateral extends JPanel {
             String rotuloSugestoes = sugestoes + (sugestoes == 1 ? " sugestão" : " sugestões");
             if (compacto) {
                 setToolTipText(sugestoes == 0 ? "Oráculo" : "Oráculo · " + rotuloSugestoes);
-                JLabel icone = new JLabel(Ui.iconeOraculo(true, 32));
+                JLabel icone = new JLabel(Ui.iconeOraculo(true, TAMANHO_ICONE));
                 icone.setHorizontalAlignment(JLabel.CENTER);
                 add(icone, BorderLayout.CENTER);
             } else {
                 setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 12));
-                add(new JLabel(Ui.iconeOraculo(false, 28)), BorderLayout.WEST);
+                add(new JLabel(Ui.iconeOraculo(true, TAMANHO_ICONE)), BorderLayout.WEST);
                 JPanel textos = sugestoes == 0
                         ? Ui.coluna(0, Ui.secao("Oráculo"))
                         : Ui.coluna(1, Ui.secao("Oráculo"), Ui.texto(rotuloSugestoes, Tema.legenda(), Tema.ROXO_CLARO));
