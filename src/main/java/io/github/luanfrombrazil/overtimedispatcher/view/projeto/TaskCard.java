@@ -33,21 +33,25 @@ import java.util.function.Consumer;
 class TaskCard extends Cartao {
 
     private final Task task;
+    private final boolean finalizada;
     private final JPanel corpo;
     private final JLabel seta = new JLabel();
     private final Consumer<Boolean> aoExpandir;
     private boolean expandido;
 
     /**
+     * @param finalizada se o cartão aparece travado, entre as finalizadas; uma Task finalizada pode continuar
+     *                   aberta enquanto uma subtarefa nova é escrita nela
      * @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão
      * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem; null
      *                   na Task finalizada, que não muda de ordem
      */
-    TaskCard(Task task, boolean expandido, Consumer<Boolean> aoExpandir, ProjetoPanel.Ouvinte ouvinte,
-             JComponent alca) {
+    TaskCard(Task task, boolean finalizada, boolean expandido, Consumer<Boolean> aoExpandir,
+             ProjetoPanel.Ouvinte ouvinte, JComponent alca) {
         super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
                 task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
         this.task = task;
+        this.finalizada = finalizada;
         this.aoExpandir = aoExpandir;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
@@ -70,7 +74,7 @@ class TaskCard extends Cartao {
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
                         : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
                         seta, alca);
-            } else if (task.finalizada()) {
+            } else if (finalizada) {
                 // No lugar da alça, que não move mais a Task, a mesma barra em verde mostra a conclusão.
                 cabecalho.comDireita(seta, botaoConclusao(task.titulo(), task.conclusao()));
             } else if (alca == null) {
@@ -78,15 +82,16 @@ class TaskCard extends Cartao {
             } else {
                 cabecalho.comDireita(seta, alca);
             }
-            cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            cabecalho.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    setExpandido(!TaskCard.this.expandido);
-                    TaskCard.this.aoExpandir.accept(TaskCard.this.expandido);
-                }
-            });
-            if (!task.subtarefas().isEmpty()) {
+            // Sem subtarefas não há o que recolher: o cartão fica sempre aberto, só com as ações, e sem a seta.
+            if (!task.inteira()) {
+                cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                cabecalho.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        setExpandido(!TaskCard.this.expandido);
+                        TaskCard.this.aoExpandir.accept(TaskCard.this.expandido);
+                    }
+                });
                 corpo.add(new SubtarefasPanel(task.subtarefas(),
                         (uma, outra) -> ouvinte.amarrar(task, uma, outra),
                         (s, deslocamento) -> ouvinte.moverSubtarefa(task, s, deslocamento),
@@ -135,7 +140,7 @@ class TaskCard extends Cartao {
         JPanel linha = new JPanel(new BorderLayout());
         linha.setOpaque(false);
         linha.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
-        if (task.finalizada()) {
+        if (finalizada) {
             // Finalizada: travada, só dá para ver os detalhes.
             JButton ver = Ui.botaoSecundario("Ver detalhes");
             ver.addActionListener(e -> ouvinte.editarTask(task));
@@ -157,7 +162,9 @@ class TaskCard extends Cartao {
 
     void setExpandido(boolean expandido) {
         this.expandido = expandido;
-        corpo.setVisible(expandido);
+        boolean recolhivel = task.estado() == Estado.ORACULO || !task.inteira();
+        corpo.setVisible(expandido || !recolhivel);
+        seta.setVisible(recolhivel);
         seta.setIcon(Ui.icone(expandido ? "seta-baixo" : "seta-direita", 14, Tema.TEXTO_SECUNDARIO));
         revalidate();
         repaint();

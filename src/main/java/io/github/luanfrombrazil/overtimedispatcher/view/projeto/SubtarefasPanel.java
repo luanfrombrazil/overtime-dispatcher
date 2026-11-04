@@ -35,8 +35,8 @@ import java.util.function.Consumer;
 /**
  * Lista de subtarefas com o círculo de amarrar e a corda vermelha entre as dependentes, com um nó em cada
  * ponta amarrada.
- * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas); arrastar
- * pela alça de três barras, no fim da linha, muda a ordem.
+ * Arrastar de um círculo (origem) até outra subtarefa (destino) faz o destino depender da origem, ou desamarra, se
+ * já estavam amarradas; arrastar pela alça de três barras, no fim da linha, muda a ordem.
  */
 class SubtarefasPanel extends JPanel {
 

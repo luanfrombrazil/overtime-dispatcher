@@ -49,6 +49,10 @@ public record Subtarefa(String id, String titulo, String instrucao, String crite
         return estado == Estado.CONCLUIDO;
     }
 
+    public boolean rascunho() {
+        return estado == Estado.RASCUNHO;
+    }
+
     /** Texto curto sob o título. */
     public String detalhe() {
         return switch (estado) {

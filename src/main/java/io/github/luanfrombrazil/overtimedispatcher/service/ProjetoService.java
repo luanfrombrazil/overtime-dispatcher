@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -43,6 +45,8 @@ public class ProjetoService {
     private final RepositorioProjetos repositorio;
     private final Map<String, Projeto> projetos = new HashMap<>();
     private final List<Consumer<Projeto>> ouvintes = new CopyOnWriteArrayList<>();
+    private final List<Consumer<Task>> aoCriar = new CopyOnWriteArrayList<>();
+    private final Set<String> seguradas = ConcurrentHashMap.newKeySet();
 
     /** Carrega os projetos. O que estava em andamento quando a app fechou volta para a fila. */
     public ProjetoService(RepositorioProjetos repositorio) {
@@ -64,6 +68,11 @@ public class ProjetoService {
     /** Avisado (na thread de quem mudou) quando o agendador altera um projeto. */
     public void aoMudar(Consumer<Projeto> ouvinte) {
         ouvintes.add(ouvinte);
+    }
+
+    /** Avisado (na thread de quem criou) quando uma Task entra na fila: nova ou rascunho criado de fato. */
+    public void aoCriarTask(Consumer<Task> ouvinte) {
+        aoCriar.add(ouvinte);
     }
 
     /** Projetos em ordem alfabética. */
@@ -100,19 +109,50 @@ public class ProjetoService {
         projetos.remove(projeto.id());
     }
 
-    /** Adiciona a Task ao fim do projeto, ou substitui a de mesmo id mantendo as subtarefas e a sessão. */
+    /**
+     * Adiciona a Task ao fim do projeto, ou substitui a de mesmo id mantendo as subtarefas e a sessão. Salvar um
+     * rascunho o cria de fato: ele entra na fila.
+     */
     public synchronized Projeto salvarTask(Projeto projeto, Task task) {
         exigir(task.titulo(), "Dê um título à task.");
         Projeto atual = atual(projeto);
         List<Task> tasks = new ArrayList<>(atual.tasks());
         int indice = indiceDaTask(tasks, task.id());
+        boolean criada;
         if (indice < 0) {
-            tasks.add(task);
+            criada = true;
+            tasks.add(task.rascunho() ? task.comExecucao(Estado.PENDENTE, null) : task);
         } else {
             Task antiga = tasks.get(indice);
             exigirAberta(antiga);
+            criada = antiga.rascunho();
             tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
-                    .comExecucao(antiga.execucao(), antiga.resultado()));
+                    .comExecucao(antiga.rascunho() ? Estado.PENDENTE : antiga.execucao(), antiga.resultado()));
+        }
+        Projeto gravado = gravar(atual.comTasks(tasks));
+        if (criada) {
+            aoCriar.forEach(o -> o.accept(task));
+        }
+        return gravado;
+    }
+
+    /**
+     * Guarda a Task como rascunho, que não é executado: adiciona ao fim do projeto ou substitui o rascunho de mesmo
+     * id, mantendo as subtarefas. Uma Task que já foi criada não volta a ser rascunho.
+     */
+    public synchronized Projeto salvarRascunho(Projeto projeto, Task task) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        Task rascunho = task.comExecucao(Estado.RASCUNHO, null);
+        if (indice < 0) {
+            tasks.add(rascunho.comSubtarefas(List.of()).comSessao(null));
+        } else {
+            Task antiga = tasks.get(indice);
+            if (!antiga.rascunho()) {
+                throw new IllegalArgumentException("\"" + antiga.titulo() + "\" já foi criada e não é mais um rascunho.");
+            }
+            tasks.set(indice, rascunho.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao()));
         }
         return gravar(atual.comTasks(tasks));
     }
@@ -180,15 +220,12 @@ public class ProjetoService {
 
     /**
      * Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. A Task
-     * finalizada não recebe subtarefas novas, e a subtarefa finalizada não pode ser editada.
+     * finalizada não recebe subtarefas novas, e a subtarefa finalizada não pode ser editada. Salvar um rascunho o
+     * cria de fato: ele entra na fila.
      */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");
-        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
-        if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
-            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
-        }
-        exigirAberta(atual);
+        exigirAceitaSubtarefa(projeto, task);
         return alterarSubtarefas(projeto, task, subtarefas -> {
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
             int indice = indiceDaSubtarefa(novas, subtarefa.id());
@@ -197,10 +234,60 @@ public class ProjetoService {
             } else {
                 Subtarefa antiga = novas.get(indice);
                 exigirAberta(antiga);
-                novas.set(indice, subtarefa.comEstado(antiga.estado(), antiga.resultado()));
+                novas.set(indice, antiga.rascunho() ? subtarefa.comEstado(Estado.PENDENTE, null)
+                        : subtarefa.comEstado(antiga.estado(), antiga.resultado()));
             }
             return novas;
         });
+    }
+
+    /**
+     * Guarda a subtarefa como rascunho, que não é executado: adiciona ao fim da Task ou substitui o rascunho de
+     * mesmo id. Uma subtarefa que já foi criada não volta a ser rascunho.
+     */
+    public synchronized Projeto salvarRascunho(Projeto projeto, Task task, Subtarefa subtarefa) {
+        exigirAceitaSubtarefa(projeto, task);
+        return alterarSubtarefas(projeto, task, subtarefas -> {
+            List<Subtarefa> novas = new ArrayList<>(subtarefas);
+            int indice = indiceDaSubtarefa(novas, subtarefa.id());
+            Subtarefa rascunho = subtarefa.comEstado(Estado.RASCUNHO, null);
+            if (indice < 0) {
+                novas.add(rascunho);
+            } else if (novas.get(indice).rascunho()) {
+                novas.set(indice, rascunho);
+            } else {
+                throw new IllegalArgumentException("\"" + novas.get(indice).titulo()
+                        + "\" já foi criada e não é mais um rascunho.");
+            }
+            return novas;
+        });
+    }
+
+    /**
+     * Segura a Task entre as abertas enquanto o usuário escreve uma subtarefa nova nela: mesmo que as subtarefas
+     * dela terminem nesse meio-tempo, ela ainda aceita a nova. Desfazer com {@link #soltar}.
+     */
+    public void segurarAberta(Task task) {
+        seguradas.add(task.id());
+    }
+
+    public void soltar(Task task) {
+        seguradas.remove(task.id());
+    }
+
+    /** Se a Task está segura entre as abertas por {@link #segurarAberta}. */
+    public boolean seguraAberta(Task task) {
+        return seguradas.contains(task.id());
+    }
+
+    private void exigirAceitaSubtarefa(Projeto projeto, Task task) {
+        Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
+        if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
+        }
+        if (!seguraAberta(atual)) {
+            exigirAberta(atual);
+        }
     }
 
     /**
@@ -249,12 +336,17 @@ public class ProjetoService {
     /**
      * Próximo trabalho na fila, seguindo a ordem dos projetos, das Tasks e das subtarefas: a primeira subtarefa
      * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo
-     * esperam ser aceitas.
+     * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados.
      */
     public synchronized Optional<Proxima> proxima() {
+        return proxima(task -> true);
+    }
+
+    /** Como {@link #proxima()}, pulando as Tasks que {@code liberada} ainda segura. */
+    public synchronized Optional<Proxima> proxima(Predicate<Task> liberada) {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
-                if (task.origem() == Origem.ORACULO) {
+                if (task.origem() == Origem.ORACULO || task.rascunho() || !liberada.test(task)) {
                     continue;
                 }
                 if (task.inteira()) {
@@ -327,30 +419,64 @@ public class ProjetoService {
     }
 
     /**
-     * Amarra ou desamarra duas subtarefas: a que está mais abaixo na lista passa a depender
-     * (ou deixa de depender) da que está mais acima. A de baixo não pode estar finalizada.
+     * Amarra ou desamarra duas subtarefas pela corda arrastada da {@code origem} até o {@code destino}: o destino
+     * passa a depender da origem. Se a origem está abaixo, o destino desce para logo abaixo dela, levando junto as
+     * subtarefas que esperam por ele no caminho. Se as duas já estavam amarradas, em qualquer sentido, a corda é
+     * solta. A subtarefa que ganha ou perde a dependência, e as que mudam de lugar, não podem estar finalizadas.
      */
-    public synchronized Projeto alternarDependencia(Projeto projeto, Task task, Subtarefa uma, Subtarefa outra) {
-        if (uma.id().equals(outra.id())) {
+    public synchronized Projeto alternarDependencia(Projeto projeto, Task task, Subtarefa origem, Subtarefa destino) {
+        if (origem.id().equals(destino.id())) {
             return atual(projeto);
         }
         return alterarSubtarefas(projeto, task, subtarefas -> {
-            int a = indiceDaSubtarefa(subtarefas, uma.id());
-            int b = indiceDaSubtarefa(subtarefas, outra.id());
-            if (a < 0 || b < 0) {
+            int o = indiceDaSubtarefa(subtarefas, origem.id());
+            int d = indiceDaSubtarefa(subtarefas, destino.id());
+            if (o < 0 || d < 0) {
                 throw new IllegalArgumentException("Subtarefa não encontrada.");
             }
-            Subtarefa anterior = subtarefas.get(Math.min(a, b));
-            Subtarefa posterior = subtarefas.get(Math.max(a, b));
-            exigirAberta(posterior);
-            List<String> dependencias = new ArrayList<>(posterior.dependeDe());
-            if (!dependencias.remove(anterior.id())) {
-                dependencias.add(anterior.id());
-            }
+            Subtarefa de = subtarefas.get(o);
+            Subtarefa para = subtarefas.get(d);
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
-            novas.set(Math.max(a, b), posterior.comDependencias(dependencias));
+            if (para.dependeDe().contains(de.id())) {
+                exigirAberta(para);
+                novas.set(d, semDependencia(para, de.id()));
+                return novas;
+            }
+            if (de.dependeDe().contains(para.id())) {
+                exigirAberta(de);
+                novas.set(o, semDependencia(de, para.id()));
+                return novas;
+            }
+            exigirAberta(para);
+            List<String> dependencias = new ArrayList<>(para.dependeDe());
+            dependencias.add(de.id());
+            novas.set(d, para.comDependencias(dependencias));
+            if (o < d) {
+                return novas;
+            }
+            // A origem está abaixo: o destino e quem espera por ele até a origem descem para logo abaixo dela.
+            Set<String> bloco = new HashSet<>();
+            List<Subtarefa> movidas = new ArrayList<>();
+            for (int i = d; i < o; i++) {
+                Subtarefa s = novas.get(i);
+                if (i == d || s.dependeDe().stream().anyMatch(bloco::contains)) {
+                    exigirAberta(s);
+                    bloco.add(s.id());
+                    movidas.add(s);
+                }
+            }
+            if (de.dependeDe().stream().anyMatch(bloco::contains)) {
+                throw new IllegalArgumentException("\"" + de.titulo() + "\" já espera por \"" + para.titulo()
+                        + "\"; amarrar ao contrário formaria um ciclo.");
+            }
+            novas.removeIf(s -> bloco.contains(s.id()));
+            novas.addAll(indiceDaSubtarefa(novas, de.id()) + 1, movidas);
             return novas;
         });
+    }
+
+    private static Subtarefa semDependencia(Subtarefa subtarefa, String dependencia) {
+        return subtarefa.comDependencias(subtarefa.dependeDe().stream().filter(id -> !id.equals(dependencia)).toList());
     }
 
     private Projeto alterarSubtarefas(Projeto projeto, Task task, UnaryOperator<List<Subtarefa>> alteracao) {

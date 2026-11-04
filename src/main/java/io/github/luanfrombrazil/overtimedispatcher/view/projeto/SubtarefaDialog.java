@@ -11,7 +11,6 @@ import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -24,18 +23,15 @@ import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação, commit e push e dependências.
- * A subtarefa finalizada abre travada, só para leitura.
+ * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação, commit e push. As
+ * dependências não ficam aqui: são os fios arrastados entre as subtarefas no cartão da Task. A subtarefa finalizada
+ * abre travada, só para leitura.
  */
 public class SubtarefaDialog extends Dialogo {
-
-    private static final int DEPENDENCIAS_VISIVEIS = 5;
 
     private final Subtarefa existente;
     private final JTextField titulo;
@@ -44,26 +40,28 @@ public class SubtarefaDialog extends Dialogo {
     private final JCheckBox verificacao;
     private final JCheckBox commit;
     private final JCheckBox push;
-    private final Map<String, JCheckBox> dependencias = new LinkedHashMap<>();
 
     /**
-     * @param task      Task da subtarefa; as subtarefas acima desta podem ser escolhidas como dependência
+     * @param task      Task da subtarefa
      * @param existente subtarefa a editar, ou null para criar uma nova no fim da Task
-     * @param aoDecidir recebe o novo estado quando o usuário aprova a verificação ou manda refazer
+     * @param aoDecidir  recebe o novo estado quando o usuário aprova a verificação ou manda refazer
+     * @param aoRascunho recebe a subtarefa como está quando o usuário clica fora do pop-up de uma subtarefa nova ou
+     *                   de um rascunho, que então fecha; null mantém o pop-up aberto
      */
     public SubtarefaDialog(JFrame dono, Task task, Subtarefa existente, Consumer<Subtarefa> aoSalvar, Runnable aoExcluir,
-                           Consumer<Estado> aoDecidir) {
+                           Consumer<Estado> aoDecidir, Consumer<Subtarefa> aoRascunho) {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
+        boolean rascunho = !nova && existente.rascunho();
         boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : travada ? "Subtarefa finalizada" : "Editar subtarefa"),
-                null));
+        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : rascunho ? "Rascunho de subtarefa"
+                : travada ? "Subtarefa finalizada" : "Editar subtarefa"), null));
         corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
         corpo.add(Box.createVerticalStrut(14));
-        if (!nova && existente.estado() != Estado.PENDENTE) {
+        if (!nova && !rascunho && existente.estado() != Estado.PENDENTE) {
             corpo.add(situacao(this, existente.estado(), existente.resultado(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
@@ -91,42 +89,41 @@ public class SubtarefaDialog extends Dialogo {
         });
         corpo.add(Ui.cabecalho(Ui.linha(16, commit, push), null));
 
-        List<Subtarefa> anteriores = anteriores(task, existente);
-        if (!anteriores.isEmpty()) {
-            Formulario.secao(corpo, "Depende de");
-            JPanel lista = new JPanel();
-            lista.setLayout(new BoxLayout(lista, BoxLayout.Y_AXIS));
-            lista.setOpaque(false);
-            for (Subtarefa s : anteriores) {
-                JCheckBox caixa = Formulario.caixa(s.titulo(), !nova && existente.dependeDe().contains(s.id()));
-                dependencias.put(s.id(), caixa);
-                lista.add(Ui.cabecalho(caixa, null));
-            }
-            if (anteriores.size() > DEPENDENCIAS_VISIVEIS) {
-                JScrollPane rolagem = new JScrollPane(lista);
-                rolagem.setOpaque(false);
-                rolagem.getViewport().setOpaque(false);
-                rolagem.setBorder(BorderFactory.createEmptyBorder());
-                int altura = DEPENDENCIAS_VISIVEIS * lista.getComponent(0).getPreferredSize().height;
-                rolagem.setPreferredSize(new Dimension(100, altura));
-                corpo.add(Ui.largo(rolagem));
-            } else {
-                corpo.add(Ui.largo(lista));
-            }
-        }
-
         JPanel raiz = (JPanel) getContentPane();
         raiz.add(corpo, BorderLayout.CENTER);
         if (travada) {
             // A subtarefa finalizada só pode ser vista; "Refazer", na situação, a devolve à fila.
             Formulario.travar(titulo, instrucao, criterio, verificacao, commit, push);
-            Formulario.travar(dependencias.values().toArray(new JComponent[0]));
             raiz.add(Formulario.rodapeSomenteLeitura(this, null, null), BorderLayout.SOUTH);
         } else {
-            raiz.add(Formulario.rodape(this, nova ? "Criar subtarefa" : "Salvar", () -> aoSalvar.accept(subtarefa()),
-                    nova ? null : aoExcluir, "Excluir a subtarefa?"), BorderLayout.SOUTH);
+            raiz.add(Formulario.rodape(this, nova || rascunho ? "Criar subtarefa" : "Salvar",
+                    () -> aoSalvar.accept(subtarefa()), nova ? null : aoExcluir, "Excluir a subtarefa?"),
+                    BorderLayout.SOUTH);
+        }
+        if ((nova || rascunho) && aoRascunho != null) {
+            aoClicarFora(() -> {
+                Subtarefa atual = nova && vazia() ? null : comTituloDeRascunho(subtarefa());
+                fechar();
+                if (atual != null) {
+                    Formulario.rascunhar(dono, () -> aoRascunho.accept(atual));
+                }
+            });
         }
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
+    }
+
+    /** Se nada foi escrito; uma subtarefa nova vazia é descartada em vez de virar rascunho. */
+    private boolean vazia() {
+        return titulo.getText().isBlank() && Formulario.textoDa(instrucao).isBlank()
+                && Formulario.textoDa(criterio).isBlank();
+    }
+
+    private static Subtarefa comTituloDeRascunho(Subtarefa s) {
+        if (!s.titulo().isBlank()) {
+            return s;
+        }
+        return new Subtarefa(s.id(), "Rascunho", s.instrucao(), s.criterioDeAceite(), s.requerVerificacao(),
+                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push());
     }
 
     /**
@@ -179,31 +176,14 @@ public class SubtarefaDialog extends Dialogo {
         return botao;
     }
 
-    /** Subtarefas acima desta na lista (todas, para uma nova). */
-    private static List<Subtarefa> anteriores(Task task, Subtarefa existente) {
-        List<Subtarefa> todas = task.subtarefas();
-        if (existente == null) {
-            return todas;
-        }
-        for (int i = 0; i < todas.size(); i++) {
-            if (todas.get(i).id().equals(existente.id())) {
-                return todas.subList(0, i);
-            }
-        }
-        return todas;
-    }
-
+    /** As dependências não são escolhidas aqui: a nova nasce solta, e a editada mantém os fios que já tinha. */
     private Subtarefa subtarefa() {
-        List<String> escolhidas = dependencias.entrySet().stream()
-                .filter(e -> e.getValue().isSelected())
-                .map(Map.Entry::getKey)
-                .toList();
         if (existente == null) {
             return Subtarefa.nova(titulo.getText().strip(), Formulario.textoDa(instrucao), Formulario.textoDa(criterio),
-                    verificacao.isSelected(), escolhidas).comGit(commit.isSelected(), push.isSelected());
+                    verificacao.isSelected(), List.of()).comGit(commit.isSelected(), push.isSelected());
         }
         return new Subtarefa(existente.id(), titulo.getText().strip(), Formulario.textoDa(instrucao),
-                Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), escolhidas,
+                Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), existente.dependeDe(),
                 existente.resultado(), commit.isSelected(), push.isSelected());
     }
 }

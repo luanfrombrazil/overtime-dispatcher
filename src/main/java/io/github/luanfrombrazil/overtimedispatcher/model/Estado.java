@@ -11,7 +11,9 @@ public enum Estado {
     ATENCAO,
     ERRO,
     PENDENTE,
-    ORACULO;
+    ORACULO,
+    /** Rascunho guardado ao fechar o pop-up clicando fora; não vai para a fila até ser criado de fato. */
+    RASCUNHO;
 
     /**
      * Estado de um conjunto a partir dos estados das partes: falha e pedido de atenção têm prioridade,

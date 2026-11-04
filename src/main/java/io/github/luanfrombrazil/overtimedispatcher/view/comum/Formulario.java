@@ -15,6 +15,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 
@@ -153,6 +154,18 @@ public final class Formulario {
      * Rodapé de um item travado, que só pode ser visto: "Fechar" à direita e, com {@code aoExcluir}, "Excluir"
      * à esquerda, como em {@link #rodape(Dialogo, String, Runnable, Runnable, String)}.
      */
+    /**
+     * Guarda um rascunho depois que o pop-up já fechou: uma {@link IllegalArgumentException} vira um aviso sobre
+     * {@code dono}.
+     */
+    public static void rascunhar(Component dono, Runnable aoGuardar) {
+        try {
+            aoGuardar.run();
+        } catch (IllegalArgumentException erro) {
+            JOptionPane.showMessageDialog(dono, erro.getMessage(), "Rascunho não guardado", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
     public static JPanel rodapeSomenteLeitura(Dialogo dialogo, Runnable aoExcluir, String confirmarExclusao) {
         JButton fechar = Ui.botaoSecundario("Fechar");
         fechar.addActionListener(e -> dialogo.fechar());
@@ -170,13 +183,12 @@ public final class Formulario {
         return rodape;
     }
 
-    /** Impede a edição dos campos, que continuam legíveis. */
+    /** Desabilita os campos, que aparecem acinzentados e continuam legíveis; as áreas de texto ainda rolam. */
     public static void travar(JComponent... campos) {
         for (JComponent campo : campos) {
             if (campo instanceof JScrollPane rolagem && rolagem.getViewport().getView() instanceof JTextArea area) {
                 area.setEditable(false);
-            } else if (campo instanceof JTextField texto) {
-                texto.setEditable(false);
+                area.setEnabled(false);
             } else {
                 campo.setEnabled(false);
             }

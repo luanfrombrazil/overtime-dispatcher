@@ -31,9 +31,10 @@ public record Projeto(String id, String nome, String sigla, String descricao, St
         return branch != null;
     }
 
-    /** Estado resumido das Tasks; as sugestões do Oráculo não contam. */
+    /** Estado resumido das Tasks; as sugestões do Oráculo e os rascunhos não contam. */
     public Estado estado() {
-        return Estado.resumir(tasks.stream().map(Task::estado).filter(e -> e != Estado.ORACULO).toList());
+        return Estado.resumir(tasks.stream().map(Task::estado)
+                .filter(e -> e != Estado.ORACULO && e != Estado.RASCUNHO).toList());
     }
 
     /** Texto curto sob o nome, na barra lateral. */

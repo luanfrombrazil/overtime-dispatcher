@@ -9,7 +9,8 @@ import java.util.UUID;
  *
  * @param subtarefas passos da Task, na ordem de execução; vazia quando a Task é executada inteira
  * @param sessao     id da sessão do agente compartilhada pelas execuções, ou null antes da primeira
- * @param execucao   estado da Task executada inteira; só vale enquanto ela não tem subtarefas
+ * @param execucao   estado da Task executada inteira; só vale enquanto ela não tem subtarefas, exceto
+ *                   {@link Estado#RASCUNHO}, que marca a Task toda como rascunho
  * @param resultado  resposta do agente na última execução da Task inteira, ou o motivo da falha
  */
 public record Task(String id, String titulo, String descricao, Provedor provedor, Esforco esforco,
@@ -37,6 +38,14 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
     }
 
+    /**
+     * Se é um rascunho: marcado por {@link Estado#RASCUNHO} na execução, com ou sem subtarefas. O rascunho não é
+     * executado.
+     */
+    public boolean rascunho() {
+        return execucao == Estado.RASCUNHO;
+    }
+
     /** Se é executada inteira, sem subtarefas. */
     public boolean inteira() {
         return subtarefas.isEmpty();
@@ -59,14 +68,14 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
     }
 
     /**
-     * Tasks do Oráculo aparecem em roxo; a Task executada inteira tem o próprio estado; as demais herdam o
+     * Tasks do Oráculo aparecem em roxo; o rascunho e a Task executada inteira têm o próprio estado; as demais herdam o
      * estado das subtarefas.
      */
     public Estado estado() {
         if (origem == Origem.ORACULO) {
             return Estado.ORACULO;
         }
-        if (inteira()) {
+        if (rascunho() || inteira()) {
             return execucao;
         }
         return Estado.resumir(subtarefas.stream().map(Subtarefa::estado).toList());
@@ -81,7 +90,6 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return switch (estado()) {
             case ATENCAO -> Textos.verificacoes(verificacoes());
             case ERRO -> "Falhou";
-            case PENDENTE -> inteira() ? "Sem subtarefas: roda inteira" : null;
             default -> null;
         };
     }
