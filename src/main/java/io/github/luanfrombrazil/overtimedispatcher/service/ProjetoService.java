@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -45,6 +46,7 @@ public class ProjetoService {
     private final Map<String, Projeto> projetos = new HashMap<>();
     private final List<Consumer<Projeto>> ouvintes = new CopyOnWriteArrayList<>();
     private final List<Consumer<Task>> aoCriar = new CopyOnWriteArrayList<>();
+    private final Set<String> seguradas = ConcurrentHashMap.newKeySet();
 
     /** Carrega os projetos. O que estava em andamento quando a app fechou volta para a fila. */
     public ProjetoService(RepositorioProjetos repositorio) {
@@ -261,12 +263,31 @@ public class ProjetoService {
         });
     }
 
+    /**
+     * Segura a Task entre as abertas enquanto o usuário escreve uma subtarefa nova nela: mesmo que as subtarefas
+     * dela terminem nesse meio-tempo, ela ainda aceita a nova. Desfazer com {@link #soltar}.
+     */
+    public void segurarAberta(Task task) {
+        seguradas.add(task.id());
+    }
+
+    public void soltar(Task task) {
+        seguradas.remove(task.id());
+    }
+
+    /** Se a Task está segura entre as abertas por {@link #segurarAberta}. */
+    public boolean seguraAberta(Task task) {
+        return seguradas.contains(task.id());
+    }
+
     private void exigirAceitaSubtarefa(Projeto projeto, Task task) {
         Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
         if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
             throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
         }
-        exigirAberta(atual);
+        if (!seguraAberta(atual)) {
+            exigirAberta(atual);
+        }
     }
 
     /**

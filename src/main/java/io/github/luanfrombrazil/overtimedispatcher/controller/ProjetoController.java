@@ -104,8 +104,21 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
 
     @Override
     public void novaSubtarefa(Task task) {
-        new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
-                null, s -> alterado(servico.salvarRascunho(projeto, task, s))).abrir();
+        // Enquanto a subtarefa é escrita, a Task não desce para as finalizadas, mesmo que as outras terminem.
+        servico.segurarAberta(task);
+        try {
+            new SubtarefaDialog(frame, task, null, s -> alterado(servico.salvarSubtarefa(projeto, task, s)), null,
+                    null, s -> alterado(servico.salvarRascunho(projeto, task, s))).abrir();
+        } finally {
+            servico.soltar(task);
+        }
+        // Sem subtarefa nova, a Task que terminou nesse meio-tempo desce agora.
+        servico.buscar(projeto.id()).ifPresent(this::alterado);
+    }
+
+    @Override
+    public boolean seguraAberta(Task task) {
+        return servico.seguraAberta(task);
     }
 
     @Override

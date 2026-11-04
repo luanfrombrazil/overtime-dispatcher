@@ -33,21 +33,25 @@ import java.util.function.Consumer;
 class TaskCard extends Cartao {
 
     private final Task task;
+    private final boolean finalizada;
     private final JPanel corpo;
     private final JLabel seta = new JLabel();
     private final Consumer<Boolean> aoExpandir;
     private boolean expandido;
 
     /**
+     * @param finalizada se o cartão aparece travado, entre as finalizadas; uma Task finalizada pode continuar
+     *                   aberta enquanto uma subtarefa nova é escrita nela
      * @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão
      * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem; null
      *                   na Task finalizada, que não muda de ordem
      */
-    TaskCard(Task task, boolean expandido, Consumer<Boolean> aoExpandir, ProjetoPanel.Ouvinte ouvinte,
-             JComponent alca) {
+    TaskCard(Task task, boolean finalizada, boolean expandido, Consumer<Boolean> aoExpandir,
+             ProjetoPanel.Ouvinte ouvinte, JComponent alca) {
         super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
                 task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
         this.task = task;
+        this.finalizada = finalizada;
         this.aoExpandir = aoExpandir;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
@@ -70,7 +74,7 @@ class TaskCard extends Cartao {
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
                         : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
                         seta, alca);
-            } else if (task.finalizada()) {
+            } else if (finalizada) {
                 // No lugar da alça, que não move mais a Task, a mesma barra em verde mostra a conclusão.
                 cabecalho.comDireita(seta, botaoConclusao(task.titulo(), task.conclusao()));
             } else if (alca == null) {
@@ -136,7 +140,7 @@ class TaskCard extends Cartao {
         JPanel linha = new JPanel(new BorderLayout());
         linha.setOpaque(false);
         linha.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
-        if (task.finalizada()) {
+        if (finalizada) {
             // Finalizada: travada, só dá para ver os detalhes.
             JButton ver = Ui.botaoSecundario("Ver detalhes");
             ver.addActionListener(e -> ouvinte.editarTask(task));

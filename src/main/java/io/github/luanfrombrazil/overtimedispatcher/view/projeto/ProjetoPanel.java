@@ -49,6 +49,9 @@ public class ProjetoPanel extends JPanel {
 
         void novaSubtarefa(Task task);
 
+        /** Se a Task fica entre as abertas mesmo finalizada, porque uma subtarefa nova está sendo escrita nela. */
+        boolean seguraAberta(Task task);
+
         void editarSubtarefa(Task task, Subtarefa subtarefa);
 
         /** Amarra ou desamarra duas subtarefas da mesma Task. */
@@ -96,7 +99,7 @@ public class ProjetoPanel extends JPanel {
             expandidas.clear();
             conhecidas.clear();
             finalizadas.clear();
-            projeto.tasks().stream().filter(t -> !t.finalizada()).findFirst().ifPresent(t -> expandidas.add(t.id()));
+            projeto.tasks().stream().filter(t -> !finalizada(t)).findFirst().ifPresent(t -> expandidas.add(t.id()));
             projeto.tasks().forEach(t -> conhecidas.add(t.id()));
         }
         for (Task t : projeto.tasks()) {
@@ -104,7 +107,7 @@ public class ProjetoPanel extends JPanel {
                 expandidas.add(t.id());
             }
             // A Task que acabou de ser finalizada desce fechada para a seção das finalizadas.
-            if (!t.finalizada()) {
+            if (!finalizada(t)) {
                 finalizadas.remove(t.id());
             } else if (finalizadas.add(t.id())) {
                 expandidas.remove(t.id());
@@ -147,8 +150,8 @@ public class ProjetoPanel extends JPanel {
 
     /** As Tasks em andamento ou na fila, que podem ser reordenadas, e abaixo a seção das finalizadas, travadas. */
     private JScrollPane tasks(List<Task> todas) {
-        List<Task> abertas = todas.stream().filter(t -> !t.finalizada()).toList();
-        List<Task> finalizadas = todas.stream().filter(Task::finalizada).toList();
+        List<Task> abertas = todas.stream().filter(t -> !finalizada(t)).toList();
+        List<Task> finalizadas = todas.stream().filter(this::finalizada).toList();
         JPanel lista = new JPanel() {
             @Override
             protected void paintChildren(Graphics g) {
@@ -194,8 +197,13 @@ public class ProjetoPanel extends JPanel {
         return rolagem;
     }
 
+    /** Finalizada e não segura entre as abertas por uma subtarefa nova sendo escrita. */
+    private boolean finalizada(Task task) {
+        return task.finalizada() && !ouvinte.seguraAberta(task);
+    }
+
     private TaskCard cartao(Task task, JComponent alca) {
-        return new TaskCard(task, expandidas.contains(task.id()), aberta -> {
+        return new TaskCard(task, finalizada(task), expandidas.contains(task.id()), aberta -> {
             if (aberta) {
                 expandidas.add(task.id());
             } else {
