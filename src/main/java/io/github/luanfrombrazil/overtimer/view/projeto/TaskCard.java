@@ -12,6 +12,7 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -122,7 +123,7 @@ class TaskCard extends Cartao {
         botao.setBorda(Tema.VERDE);
         botao.addActionListener(e -> {
             JTextArea texto = new JTextArea(mensagem == null || mensagem.isBlank()
-                    ? "O agente não deixou mensagem de conclusão." : mensagem.strip(), 12, 48);
+                    ? "O agente não deixou mensagem de conclusão." : mensagem.strip(), 18, 72);
             texto.setEditable(false);
             texto.setLineWrap(true);
             texto.setWrapStyleWord(true);
@@ -130,8 +131,13 @@ class TaskCard extends Cartao {
             texto.setCaretPosition(0);
             JScrollPane rolagem = new JScrollPane(texto);
             rolagem.setBorder(BorderFactory.createLineBorder(Tema.VERDE));
-            JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(botao), rolagem, "Conclusão: " + titulo,
-                    JOptionPane.PLAIN_MESSAGE);
+            JDialog dialogo = new JOptionPane(rolagem, JOptionPane.PLAIN_MESSAGE)
+                    .createDialog(SwingUtilities.getWindowAncestor(botao), "Conclusão: " + titulo);
+            // Pode crescer para ler conclusões longas, mas não fica menor que o tamanho inicial.
+            dialogo.setResizable(true);
+            dialogo.setMinimumSize(dialogo.getSize());
+            dialogo.setVisible(true);
+            dialogo.dispose();
         });
         return botao;
     }
