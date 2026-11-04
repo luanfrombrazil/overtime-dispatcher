@@ -419,30 +419,64 @@ public class ProjetoService {
     }
 
     /**
-     * Amarra ou desamarra duas subtarefas: a que está mais abaixo na lista passa a depender
-     * (ou deixa de depender) da que está mais acima. A de baixo não pode estar finalizada.
+     * Amarra ou desamarra duas subtarefas pela corda arrastada da {@code origem} até o {@code destino}: o destino
+     * passa a depender da origem. Se a origem está abaixo, o destino desce para logo abaixo dela, levando junto as
+     * subtarefas que esperam por ele no caminho. Se as duas já estavam amarradas, em qualquer sentido, a corda é
+     * solta. A subtarefa que ganha ou perde a dependência, e as que mudam de lugar, não podem estar finalizadas.
      */
-    public synchronized Projeto alternarDependencia(Projeto projeto, Task task, Subtarefa uma, Subtarefa outra) {
-        if (uma.id().equals(outra.id())) {
+    public synchronized Projeto alternarDependencia(Projeto projeto, Task task, Subtarefa origem, Subtarefa destino) {
+        if (origem.id().equals(destino.id())) {
             return atual(projeto);
         }
         return alterarSubtarefas(projeto, task, subtarefas -> {
-            int a = indiceDaSubtarefa(subtarefas, uma.id());
-            int b = indiceDaSubtarefa(subtarefas, outra.id());
-            if (a < 0 || b < 0) {
+            int o = indiceDaSubtarefa(subtarefas, origem.id());
+            int d = indiceDaSubtarefa(subtarefas, destino.id());
+            if (o < 0 || d < 0) {
                 throw new IllegalArgumentException("Subtarefa não encontrada.");
             }
-            Subtarefa anterior = subtarefas.get(Math.min(a, b));
-            Subtarefa posterior = subtarefas.get(Math.max(a, b));
-            exigirAberta(posterior);
-            List<String> dependencias = new ArrayList<>(posterior.dependeDe());
-            if (!dependencias.remove(anterior.id())) {
-                dependencias.add(anterior.id());
-            }
+            Subtarefa de = subtarefas.get(o);
+            Subtarefa para = subtarefas.get(d);
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
-            novas.set(Math.max(a, b), posterior.comDependencias(dependencias));
+            if (para.dependeDe().contains(de.id())) {
+                exigirAberta(para);
+                novas.set(d, semDependencia(para, de.id()));
+                return novas;
+            }
+            if (de.dependeDe().contains(para.id())) {
+                exigirAberta(de);
+                novas.set(o, semDependencia(de, para.id()));
+                return novas;
+            }
+            exigirAberta(para);
+            List<String> dependencias = new ArrayList<>(para.dependeDe());
+            dependencias.add(de.id());
+            novas.set(d, para.comDependencias(dependencias));
+            if (o < d) {
+                return novas;
+            }
+            // A origem está abaixo: o destino e quem espera por ele até a origem descem para logo abaixo dela.
+            Set<String> bloco = new HashSet<>();
+            List<Subtarefa> movidas = new ArrayList<>();
+            for (int i = d; i < o; i++) {
+                Subtarefa s = novas.get(i);
+                if (i == d || s.dependeDe().stream().anyMatch(bloco::contains)) {
+                    exigirAberta(s);
+                    bloco.add(s.id());
+                    movidas.add(s);
+                }
+            }
+            if (de.dependeDe().stream().anyMatch(bloco::contains)) {
+                throw new IllegalArgumentException("\"" + de.titulo() + "\" já espera por \"" + para.titulo()
+                        + "\"; amarrar ao contrário formaria um ciclo.");
+            }
+            novas.removeIf(s -> bloco.contains(s.id()));
+            novas.addAll(indiceDaSubtarefa(novas, de.id()) + 1, movidas);
             return novas;
         });
+    }
+
+    private static Subtarefa semDependencia(Subtarefa subtarefa, String dependencia) {
+        return subtarefa.comDependencias(subtarefa.dependeDe().stream().filter(id -> !id.equals(dependencia)).toList());
     }
 
     private Projeto alterarSubtarefas(Projeto projeto, Task task, UnaryOperator<List<Subtarefa>> alteracao) {

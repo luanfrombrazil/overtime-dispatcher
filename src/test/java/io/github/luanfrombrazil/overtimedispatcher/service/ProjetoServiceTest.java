@@ -89,19 +89,40 @@ class ProjetoServiceTest {
     }
 
     @Test
-    void alternarDependenciaAmarraAPosteriorNaAnteriorESolta() {
+    void alternarDependenciaFazODestinoDependerDaOrigemESolta() {
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
         Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
         projeto = servico.salvarSubtarefa(projeto, task, sub("A"));
         projeto = servico.salvarSubtarefa(projeto, task, sub("B"));
         List<Subtarefa> subs = projeto.tasks().getFirst().subtarefas();
 
-        // Arrastar de baixo para cima também faz a de baixo depender da de cima.
-        projeto = servico.alternarDependencia(projeto, task, subs.get(1), subs.get(0));
+        // Arrastar de cima para baixo: a de baixo (destino) passa a depender da de cima (origem).
+        projeto = servico.alternarDependencia(projeto, task, subs.get(0), subs.get(1));
         assertEquals(List.of(subs.get(0).id()), projeto.tasks().getFirst().subtarefas().get(1).dependeDe());
 
-        projeto = servico.alternarDependencia(projeto, task, subs.get(0), subs.get(1));
+        // Arrastar de novo, em qualquer sentido, solta.
+        projeto = servico.alternarDependencia(projeto, task, subs.get(1), subs.get(0));
         assertTrue(projeto.tasks().getFirst().subtarefas().get(1).dependeDe().isEmpty());
+    }
+
+    @Test
+    void origemAbaixoLevaODestinoParaLogoAbaixoDelaComQuemEsperaPorEle() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        Subtarefa a = sub("A");
+        Subtarefa b = Subtarefa.nova("B", "", "", false, List.of(a.id()));
+        Subtarefa c = sub("C");
+        Subtarefa d = sub("D");
+        Subtarefa e = sub("E");
+        for (Subtarefa s : List.of(a, b, c, d, e)) {
+            projeto = servico.salvarSubtarefa(projeto, task, s);
+        }
+
+        // D (origem) até A (destino): A passa a esperar D e desce para logo abaixo dela, levando B.
+        projeto = servico.alternarDependencia(projeto, task, d, a);
+        List<Subtarefa> subs = projeto.tasks().getFirst().subtarefas();
+        assertEquals(List.of("C", "D", "A", "B", "E"), subs.stream().map(Subtarefa::titulo).toList());
+        assertEquals(List.of(d.id()), subs.get(2).dependeDe());
     }
 
     @Test

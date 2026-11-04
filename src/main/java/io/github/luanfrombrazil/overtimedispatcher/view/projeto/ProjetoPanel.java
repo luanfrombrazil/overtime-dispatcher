@@ -54,8 +54,8 @@ public class ProjetoPanel extends JPanel {
 
         void editarSubtarefa(Task task, Subtarefa subtarefa);
 
-        /** Amarra ou desamarra duas subtarefas da mesma Task. */
-        void amarrar(Task task, Subtarefa uma, Subtarefa outra);
+        /** Amarra (o destino passa a depender da origem) ou desamarra duas subtarefas da mesma Task. */
+        void amarrar(Task task, Subtarefa origem, Subtarefa destino);
 
         /** Devolve à fila a subtarefa que falhou. */
         void tentarDeNovo(Task task, Subtarefa subtarefa);

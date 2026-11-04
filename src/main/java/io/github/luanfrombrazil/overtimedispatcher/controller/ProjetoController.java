@@ -130,9 +130,9 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
     }
 
     @Override
-    public void amarrar(Task task, Subtarefa uma, Subtarefa outra) {
+    public void amarrar(Task task, Subtarefa origem, Subtarefa destino) {
         try {
-            alterado(servico.alternarDependencia(projeto, task, uma, outra));
+            alterado(servico.alternarDependencia(projeto, task, origem, destino));
         } catch (IllegalArgumentException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage(), "Amarrar subtarefas", JOptionPane.WARNING_MESSAGE);
         }
