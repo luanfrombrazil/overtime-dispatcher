@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
+import io.github.luanfrombrazil.overtimer.view.comum.AnelGiratorio;
 import io.github.luanfrombrazil.overtimer.view.comum.BotaoIcone;
 import io.github.luanfrombrazil.overtimer.view.comum.IndicadorAgendador;
 import io.github.luanfrombrazil.overtimer.view.comum.LinhaLateral;
@@ -62,6 +63,9 @@ public class BarraLateral extends JPanel {
 
     private final BotaoIcone home = new BotaoIcone(Ui.icone("home", 18, Tema.TEXTO), "Home");
     private final JButton agendador = Ui.botaoPrimario(null);
+    /** Borda do botão do agendador, que gira enquanto ele roda. */
+    private final AnelGiratorio anelAgendador = new AnelGiratorio(agendador, 8);
+    /** Símbolo de pausa, só visível com o agendador parado. */
     private final IndicadorAgendador estado = new IndicadorAgendador();
     private final BotaoIcone recolher = new BotaoIcone(Ui.icone("recolher", 18, Tema.TEXTO), "Recolher barra lateral");
     private final JPanel topo = new JPanel(new BorderLayout()) {
@@ -138,8 +142,11 @@ public class BarraLateral extends JPanel {
         } else {
             topo.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.BORDA),
-                    BorderFactory.createEmptyBorder(10, 16, 10, 12)));
-            topo.add(Ui.linha(12, home, agendador, estado), BorderLayout.WEST);
+                    // Sem folga vertical: a altura vem da barra superior e os botões ficam centralizados nela; com
+                    // folga, o anel do agendador (mais alto que os botões) seria cortado.
+                    BorderFactory.createEmptyBorder(0, 16, 0, 12)));
+            // O anel já soma alguns pixels de folga em volta do botão, por isso o espaço menor.
+            topo.add(Ui.linha(8, home, anelAgendador, estado), BorderLayout.WEST);
             topo.add(Ui.linha(0, recolher), BorderLayout.EAST);
             setPreferredSize(new Dimension(LARGURA, 100));
         }
@@ -170,12 +177,17 @@ public class BarraLateral extends JPanel {
     }
 
     /**
-     * Mostra se o agendador está rodando: o símbolo de pausa ou o círculo girando. O que ele está fazendo só
-     * aparece ao passar o mouse.
+     * Mostra se o agendador está rodando: parado, o símbolo de pausa ao lado do botão; rodando, a borda do botão
+     * gira. O que ele está fazendo só aparece ao passar o mouse.
      */
     public void setAgendador(boolean rodando, String situacao) {
         mostrarBotaoAgendador(rodando);
-        estado.setEstado(rodando, situacao);
+        anelAgendador.setGirando(rodando);
+        estado.setVisible(!rodando);
+        estado.setSituacao(situacao);
+        // Sem o símbolo de pausa ao lado, a situação vai para a dica do próprio botão.
+        agendador.setToolTipText((rodando ? "Parar agendador" : "Iniciar agendador")
+                + (rodando && situacao != null ? " · " + situacao : ""));
         revalidate();
         repaint();
     }
@@ -202,7 +214,7 @@ public class BarraLateral extends JPanel {
         linhas.clear();
         if (recolhida) {
             // Na faixa fina o agendador sai do topo, que só tem espaço para o botão de expandir.
-            JPanel botao = centralizado(agendador);
+            JPanel botao = centralizado(anelAgendador);
             botao.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
             conteudo.add(Ui.largo(botao));
         }
