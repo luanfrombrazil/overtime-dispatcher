@@ -78,15 +78,16 @@ class TaskCard extends Cartao {
             } else {
                 cabecalho.comDireita(seta, alca);
             }
-            cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            cabecalho.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    setExpandido(!TaskCard.this.expandido);
-                    TaskCard.this.aoExpandir.accept(TaskCard.this.expandido);
-                }
-            });
-            if (!task.subtarefas().isEmpty()) {
+            // Sem subtarefas não há o que recolher: o cartão fica sempre aberto, só com as ações, e sem a seta.
+            if (!task.inteira()) {
+                cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                cabecalho.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        setExpandido(!TaskCard.this.expandido);
+                        TaskCard.this.aoExpandir.accept(TaskCard.this.expandido);
+                    }
+                });
                 corpo.add(new SubtarefasPanel(task.subtarefas(),
                         (uma, outra) -> ouvinte.amarrar(task, uma, outra),
                         (s, deslocamento) -> ouvinte.moverSubtarefa(task, s, deslocamento),
@@ -157,7 +158,9 @@ class TaskCard extends Cartao {
 
     void setExpandido(boolean expandido) {
         this.expandido = expandido;
-        corpo.setVisible(expandido);
+        boolean recolhivel = task.estado() == Estado.ORACULO || !task.inteira();
+        corpo.setVisible(expandido || !recolhivel);
+        seta.setVisible(recolhivel);
         seta.setIcon(Ui.icone(expandido ? "seta-baixo" : "seta-direita", 14, Tema.TEXTO_SECUNDARIO));
         revalidate();
         repaint();

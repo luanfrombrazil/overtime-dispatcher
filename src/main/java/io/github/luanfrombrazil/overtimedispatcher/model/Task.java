@@ -81,7 +81,6 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return switch (estado()) {
             case ATENCAO -> Textos.verificacoes(verificacoes());
             case ERRO -> "Falhou";
-            case PENDENTE -> inteira() ? "Sem subtarefas: roda inteira" : null;
             default -> null;
         };
     }
