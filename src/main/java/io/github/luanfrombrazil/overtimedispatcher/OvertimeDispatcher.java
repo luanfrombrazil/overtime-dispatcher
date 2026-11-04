@@ -21,12 +21,12 @@ public final class OvertimeDispatcher {
     private OvertimeDispatcher() {
     }
 
-    static void main(String[] args) {
+    static void main() {
         Tema.instalar();
         Path pastaDados = PastaDados.padrao();
         ProjetoService projetos = new ProjetoService(new RepositorioProjetos(pastaDados));
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
-        // Ao fechar a app, o agente em execução é encerrado; a subtarefa volta à fila na próxima abertura.
+
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
         SwingUtilities.invokeLater(() -> new MainController(new DadosService(), projetos, agendador).iniciar());
     }
