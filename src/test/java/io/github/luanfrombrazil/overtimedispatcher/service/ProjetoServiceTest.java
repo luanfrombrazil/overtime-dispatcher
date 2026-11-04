@@ -315,11 +315,67 @@ class ProjetoServiceTest {
         Task concluida = projeto.tasks().getFirst();
         assertEquals(Estado.CONCLUIDO, concluida.estado());
         assertEquals("Feito", concluida.resultado());
-        // Editar a Task não apaga o resultado.
-        projeto = servico.salvarTask(projeto, new Task(inteira.id(), "Renomeada", "", Provedor.AUTOMATICO,
-                Esforco.MEDIUM, inteira.origem(), List.of(), null, null, null));
-        assertEquals(Estado.CONCLUIDO, projeto.tasks().getFirst().estado());
-        assertEquals("Feito", projeto.tasks().getFirst().resultado());
+        // A Task finalizada fica travada.
+        assertTrue(concluida.finalizada());
+        Projeto finalizado = projeto;
+        assertThrows(IllegalArgumentException.class, () -> servico.salvarTask(finalizado, new Task(inteira.id(),
+                "Renomeada", "", Provedor.AUTOMATICO, Esforco.MEDIUM, inteira.origem(), List.of(), null, null, null)));
+        assertThrows(IllegalArgumentException.class, () -> servico.salvarSubtarefa(finalizado, inteira, sub("B")));
+        assertEquals("Inteira", servico.buscar(projeto.id()).orElseThrow().tasks().getFirst().titulo());
+    }
+
+    @Test
+    void editarTaskPendenteNaoApagaOResultado() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        projeto = servico.marcar(projeto.id(), task.id(), null, Estado.ERRO, "FALHOU: x").orElseThrow();
+
+        projeto = servico.salvarTask(projeto, new Task(task.id(), "Renomeada", "", Provedor.AUTOMATICO,
+                Esforco.MEDIUM, task.origem(), List.of(), null, null, null));
+        assertEquals("Renomeada", projeto.tasks().getFirst().titulo());
+        assertEquals(Estado.ERRO, projeto.tasks().getFirst().estado());
+        assertEquals("FALHOU: x", projeto.tasks().getFirst().resultado());
+    }
+
+    @Test
+    void subtarefaFinalizadaTravaEdicaoExclusaoEOrdem() {
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(novoProjeto("P"), task);
+        Subtarefa a = sub("A");
+        Subtarefa b = sub("B");
+        projeto = servico.salvarSubtarefa(projeto, task, a);
+        projeto = servico.salvarSubtarefa(projeto, task, b);
+        projeto = servico.marcar(projeto.id(), task.id(), a.id(), Estado.CONCLUIDO, "ok").orElseThrow();
+
+        Projeto atual = projeto;
+        assertThrows(IllegalArgumentException.class, () -> servico.salvarSubtarefa(atual, task, a));
+        assertThrows(IllegalArgumentException.class, () -> servico.excluirSubtarefa(atual, task, a));
+        assertThrows(IllegalArgumentException.class, () -> servico.moverSubtarefa(atual, task, a, 1));
+        // A que ainda está na fila continua editável e pode esperar a finalizada.
+        projeto = servico.salvarSubtarefa(projeto, task, b.comDependencias(List.of(a.id())));
+        assertEquals(List.of(a.id()), projeto.tasks().getFirst().subtarefas().get(1).dependeDe());
+        assertFalse(projeto.tasks().getFirst().finalizada());
+
+        // Refazer devolve a subtarefa à fila e destrava.
+        projeto = servico.definirEstado(projeto, task, a, Estado.PENDENTE);
+        projeto = servico.salvarSubtarefa(projeto, task, new Subtarefa(a.id(), "A editada", "", "", false,
+                Estado.PENDENTE, List.of(), null, true, false));
+        assertEquals("A editada", projeto.tasks().getFirst().subtarefas().getFirst().titulo());
+    }
+
+    @Test
+    void taskFinalizadaNaoMudaDeOrdemEAsAbertasPassamPorEla() {
+        Task a = Task.nova("A", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task b = Task.nova("B", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task c = Task.nova("C", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = servico.salvarTask(servico.salvarTask(servico.salvarTask(novoProjeto("P"), a), b), c);
+        projeto = servico.marcar(projeto.id(), b.id(), null, Estado.CONCLUIDO, "ok").orElseThrow();
+
+        Projeto atual = projeto;
+        assertThrows(IllegalArgumentException.class, () -> servico.moverTask(atual, b, -1));
+        // Entre as abertas, C sobe uma posição e passa à frente de A; B fica onde estava.
+        projeto = servico.moverTask(projeto, c, -1);
+        assertEquals(List.of("C", "B", "A"), projeto.tasks().stream().map(Task::titulo).toList());
     }
 
     @Test

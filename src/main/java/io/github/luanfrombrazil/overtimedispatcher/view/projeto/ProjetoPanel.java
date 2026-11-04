@@ -13,6 +13,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -27,7 +28,8 @@ import java.util.Set;
  * Tela de um projeto: cabeçalho, as Tasks em cartões e o log do agente. Pode ser redesenhada com
  * {@link #mostrar} sem perder quais Tasks estão abertas nem a posição da rolagem.
  * <p>
- * As Tasks rodam na ordem em que aparecem; a alça de três barras no fim de cada uma muda essa ordem.
+ * As Tasks rodam na ordem em que aparecem; a alça de três barras no fim de cada uma muda essa ordem. As Tasks
+ * finalizadas (todas as subtarefas concluídas) descem para a seção "Finalizadas", travadas e sem alça.
  */
 public class ProjetoPanel extends JPanel {
 
@@ -65,6 +67,7 @@ public class ProjetoPanel extends JPanel {
     private final Set<String> expandidas = new HashSet<>();
     private Console console;
     private final Set<String> conhecidas = new HashSet<>();
+    private final Set<String> finalizadas = new HashSet<>();
     private String projetoId;
     private JScrollPane rolagem;
     private Reordenacao reordenacao;
@@ -92,14 +95,19 @@ public class ProjetoPanel extends JPanel {
             projetoId = projeto.id();
             expandidas.clear();
             conhecidas.clear();
-            if (!projeto.tasks().isEmpty()) {
-                expandidas.add(projeto.tasks().getFirst().id());
-            }
+            finalizadas.clear();
+            projeto.tasks().stream().filter(t -> !t.finalizada()).findFirst().ifPresent(t -> expandidas.add(t.id()));
             projeto.tasks().forEach(t -> conhecidas.add(t.id()));
         }
         for (Task t : projeto.tasks()) {
             if (conhecidas.add(t.id())) {
                 expandidas.add(t.id());
+            }
+            // A Task que acabou de ser finalizada desce fechada para a seção das finalizadas.
+            if (!t.finalizada()) {
+                finalizadas.remove(t.id());
+            } else if (finalizadas.add(t.id())) {
+                expandidas.remove(t.id());
             }
         }
 
@@ -137,7 +145,10 @@ public class ProjetoPanel extends JPanel {
                 Ui.legenda(local));
     }
 
-    private JScrollPane tasks(List<Task> tasks) {
+    /** As Tasks em andamento ou na fila, que podem ser reordenadas, e abaixo a seção das finalizadas, travadas. */
+    private JScrollPane tasks(List<Task> todas) {
+        List<Task> abertas = todas.stream().filter(t -> !t.finalizada()).toList();
+        List<Task> finalizadas = todas.stream().filter(Task::finalizada).toList();
         JPanel lista = new JPanel() {
             @Override
             protected void paintChildren(Graphics g) {
@@ -145,28 +156,35 @@ public class ProjetoPanel extends JPanel {
                 reordenacao.desenhar(g);
             }
         };
-        reordenacao = new Reordenacao(lista, (de, para) -> ouvinte.moverTask(tasks.get(de), para - de));
+        reordenacao = new Reordenacao(lista, (de, para) -> ouvinte.moverTask(abertas.get(de), para - de));
         lista.setLayout(new BoxLayout(lista, BoxLayout.Y_AXIS));
         lista.setOpaque(false);
-        if (tasks.isEmpty()) {
-            lista.add(Ui.cabecalho(Ui.legenda("Nenhuma task."), null));
+        if (abertas.isEmpty()) {
+            lista.add(Ui.cabecalho(Ui.legenda(todas.isEmpty() ? "Nenhuma task." : "Nenhuma task pendente."), null));
         }
-        for (int i = 0; i < tasks.size(); i++) {
+        for (int i = 0; i < abertas.size(); i++) {
             if (i > 0) {
                 lista.add(Box.createVerticalStrut(10));
             }
-            Task task = tasks.get(i);
-            lista.add(new TaskCard(task, expandidas.contains(task.id()), aberta -> {
-                if (aberta) {
-                    expandidas.add(task.id());
-                } else {
-                    expandidas.remove(task.id());
-                }
-            }, ouvinte, reordenacao.alca("Arraste para mudar a ordem de execução")));
+            lista.add(cartao(abertas.get(i), reordenacao.alca("Arraste para mudar a ordem de execução")));
+        }
+
+        JPanel coluna = new JPanel();
+        coluna.setLayout(new BoxLayout(coluna, BoxLayout.Y_AXIS));
+        coluna.setOpaque(false);
+        coluna.add(lista);
+        if (!finalizadas.isEmpty()) {
+            coluna.add(Box.createVerticalStrut(20));
+            coluna.add(Ui.cabecalho(Ui.linha(8, Ui.secao("Finalizadas"),
+                    Ui.legenda(String.valueOf(finalizadas.size()))), null));
+            for (Task task : finalizadas) {
+                coluna.add(Box.createVerticalStrut(10));
+                coluna.add(cartao(task, null));
+            }
         }
         JPanel envoltorio = new JPanel(new BorderLayout());
         envoltorio.setOpaque(false);
-        envoltorio.add(lista, BorderLayout.NORTH);
+        envoltorio.add(coluna, BorderLayout.NORTH);
 
         JScrollPane rolagem = new JScrollPane(envoltorio);
         rolagem.setOpaque(false);
@@ -174,5 +192,15 @@ public class ProjetoPanel extends JPanel {
         rolagem.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         rolagem.getVerticalScrollBar().setUnitIncrement(16);
         return rolagem;
+    }
+
+    private TaskCard cartao(Task task, JComponent alca) {
+        return new TaskCard(task, expandidas.contains(task.id()), aberta -> {
+            if (aberta) {
+                expandidas.add(task.id());
+            } else {
+                expandidas.remove(task.id());
+            }
+        }, ouvinte, alca);
     }
 }

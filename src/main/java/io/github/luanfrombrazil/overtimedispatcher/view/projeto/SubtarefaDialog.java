@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 
 /**
  * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação, commit e push e dependências.
+ * A subtarefa finalizada abre travada, só para leitura.
  */
 public class SubtarefaDialog extends Dialogo {
 
@@ -55,9 +56,11 @@ public class SubtarefaDialog extends Dialogo {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
+        boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : "Editar subtarefa"), null));
+        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : travada ? "Subtarefa finalizada" : "Editar subtarefa"),
+                null));
         corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
         corpo.add(Box.createVerticalStrut(14));
         if (!nova && existente.estado() != Estado.PENDENTE) {
@@ -114,8 +117,15 @@ public class SubtarefaDialog extends Dialogo {
 
         JPanel raiz = (JPanel) getContentPane();
         raiz.add(corpo, BorderLayout.CENTER);
-        raiz.add(Formulario.rodape(this, nova ? "Criar subtarefa" : "Salvar", () -> aoSalvar.accept(subtarefa()),
-                nova ? null : aoExcluir, "Excluir a subtarefa?"), BorderLayout.SOUTH);
+        if (travada) {
+            // A subtarefa finalizada só pode ser vista; "Refazer", na situação, a devolve à fila.
+            Formulario.travar(titulo, instrucao, criterio, verificacao, commit, push);
+            Formulario.travar(dependencias.values().toArray(new JComponent[0]));
+            raiz.add(Formulario.rodapeSomenteLeitura(this, null, null), BorderLayout.SOUTH);
+        } else {
+            raiz.add(Formulario.rodape(this, nova ? "Criar subtarefa" : "Salvar", () -> aoSalvar.accept(subtarefa()),
+                    nova ? null : aoExcluir, "Excluir a subtarefa?"), BorderLayout.SOUTH);
+        }
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
     }
 

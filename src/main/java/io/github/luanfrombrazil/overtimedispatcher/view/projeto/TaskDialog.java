@@ -21,7 +21,8 @@ import java.awt.Dimension;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação e edição de Task: título, descrição, provedor e esforço.
+ * Pop-up de criação e edição de Task: título, descrição, provedor e esforço. A Task finalizada abre travada,
+ * só para leitura.
  */
 public class TaskDialog extends Dialogo {
 
@@ -41,9 +42,10 @@ public class TaskDialog extends Dialogo {
         super(dono, Tema.BORDA);
         this.existente = existente;
         boolean nova = existente == null;
+        boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova task" : "Editar task"), null));
+        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova task" : travada ? "Task finalizada" : "Editar task"), null));
         corpo.add(Box.createVerticalStrut(14));
         if (!nova && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
             corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(), aoDecidir));
@@ -67,8 +69,15 @@ public class TaskDialog extends Dialogo {
 
         JPanel raiz = (JPanel) getContentPane();
         raiz.add(corpo, BorderLayout.CENTER);
-        raiz.add(Formulario.rodape(this, nova ? "Criar task" : "Salvar", () -> aoSalvar.accept(task()),
-                nova ? null : aoExcluir, "Excluir a task e todas as suas subtarefas?"), BorderLayout.SOUTH);
+        String confirmarExclusao = "Excluir a task e todas as suas subtarefas?";
+        if (travada) {
+            // A Task finalizada só pode ser vista ou excluída.
+            Formulario.travar(titulo, descricao, provedor, esforco);
+            raiz.add(Formulario.rodapeSomenteLeitura(this, aoExcluir, confirmarExclusao), BorderLayout.SOUTH);
+        } else {
+            raiz.add(Formulario.rodape(this, nova ? "Criar task" : "Salvar", () -> aoSalvar.accept(task()),
+                    nova ? null : aoExcluir, confirmarExclusao), BorderLayout.SOUTH);
+        }
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
     }
 

@@ -57,7 +57,10 @@ class SubtarefasPanel extends JPanel {
                     Consumer<Subtarefa> aoTentarDeNovo) {
         this.subtarefas = subtarefas;
         this.aoAmarrar = aoAmarrar;
-        this.reordenacao = new Reordenacao(this, (de, para) -> aoMover.accept(subtarefas.get(de), para - de));
+        // Só as subtarefas não finalizadas têm alça; as posições da reordenação contam apenas elas.
+        List<Subtarefa> moveis = subtarefas.stream().filter(s -> !s.finalizada()).toList();
+        this.reordenacao = new Reordenacao(this, (de, para) -> aoMover.accept(moveis.get(de),
+                indices.get(moveis.get(para).id()) - indices.get(moveis.get(de).id())));
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
@@ -80,18 +83,19 @@ class SubtarefasPanel extends JPanel {
             linha.add(envoltorioNo, BorderLayout.WEST);
             ItemStatus item = new ItemStatus(s.estado(), s.titulo(), s.detalhe(), Tema.SUTIL);
             item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            item.setToolTipText("Clique para editar");
+            item.setToolTipText(s.finalizada() ? "Finalizada; clique para ver" : "Clique para editar");
             item.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     aoClicar.accept(s);
                 }
             });
-            JComponent alca = reordenacao.alca("Arraste para mudar a ordem");
+            // A finalizada fica travada, sem alça para mudar a ordem.
             if (s.estado() == Estado.ERRO) {
-                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)), alca);
-            } else {
-                item.comDireita(alca);
+                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)),
+                        reordenacao.alca("Arraste para mudar a ordem"));
+            } else if (!s.finalizada()) {
+                item.comDireita(reordenacao.alca("Arraste para mudar a ordem"));
             }
             linha.add(item, BorderLayout.CENTER);
             linha.setMaximumSize(new Dimension(Integer.MAX_VALUE, linha.getPreferredSize().height));

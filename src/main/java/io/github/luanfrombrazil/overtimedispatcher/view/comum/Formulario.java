@@ -144,21 +144,59 @@ public final class Formulario {
             }
         }), BorderLayout.EAST);
         if (aoExcluir != null) {
-            JButton excluir = Ui.botaoPerigo("Excluir");
-            excluir.addActionListener(e -> {
-                if (JOptionPane.showConfirmDialog(dialogo, confirmarExclusao, "Excluir",
-                        JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION) {
-                    aoExcluir.run();
-                    dialogo.fechar();
-                }
-            });
-            JPanel esquerda = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-            esquerda.setOpaque(false);
-            esquerda.setBorder(BorderFactory.createEmptyBorder(0, 24, 20, 0));
-            esquerda.add(excluir);
-            rodape.add(esquerda, BorderLayout.WEST);
+            rodape.add(excluir(dialogo, aoExcluir, confirmarExclusao), BorderLayout.WEST);
         }
         return rodape;
+    }
+
+    /**
+     * Rodapé de um item travado, que só pode ser visto: "Fechar" à direita e, com {@code aoExcluir}, "Excluir"
+     * à esquerda, como em {@link #rodape(Dialogo, String, Runnable, Runnable, String)}.
+     */
+    public static JPanel rodapeSomenteLeitura(Dialogo dialogo, Runnable aoExcluir, String confirmarExclusao) {
+        JButton fechar = Ui.botaoSecundario("Fechar");
+        fechar.addActionListener(e -> dialogo.fechar());
+        dialogo.getRootPane().setDefaultButton(fechar);
+        JPanel direita = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        direita.setOpaque(false);
+        direita.setBorder(BorderFactory.createEmptyBorder(0, 24, 20, 16));
+        direita.add(fechar);
+        JPanel rodape = new JPanel(new BorderLayout());
+        rodape.setOpaque(false);
+        rodape.add(direita, BorderLayout.EAST);
+        if (aoExcluir != null) {
+            rodape.add(excluir(dialogo, aoExcluir, confirmarExclusao), BorderLayout.WEST);
+        }
+        return rodape;
+    }
+
+    /** Impede a edição dos campos, que continuam legíveis. */
+    public static void travar(JComponent... campos) {
+        for (JComponent campo : campos) {
+            if (campo instanceof JScrollPane rolagem && rolagem.getViewport().getView() instanceof JTextArea area) {
+                area.setEditable(false);
+            } else if (campo instanceof JTextField texto) {
+                texto.setEditable(false);
+            } else {
+                campo.setEnabled(false);
+            }
+        }
+    }
+
+    private static JPanel excluir(Dialogo dialogo, Runnable aoExcluir, String confirmarExclusao) {
+        JButton excluir = Ui.botaoPerigo("Excluir");
+        excluir.addActionListener(e -> {
+            if (JOptionPane.showConfirmDialog(dialogo, confirmarExclusao, "Excluir",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION) {
+                aoExcluir.run();
+                dialogo.fechar();
+            }
+        });
+        JPanel esquerda = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        esquerda.setOpaque(false);
+        esquerda.setBorder(BorderFactory.createEmptyBorder(0, 24, 20, 0));
+        esquerda.add(excluir);
+        return esquerda;
     }
 
     private static JPanel botoes(Dialogo dialogo, String confirmar, Runnable aoConfirmar) {

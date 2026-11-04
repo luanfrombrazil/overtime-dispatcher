@@ -44,6 +44,11 @@ public record Subtarefa(String id, String titulo, String instrucao, String crite
                 commit, push);
     }
 
+    /** Se a subtarefa foi concluída; daí em diante ela não pode mais ser editada, excluída nem mudar de ordem. */
+    public boolean finalizada() {
+        return estado == Estado.CONCLUIDO;
+    }
+
     /** Texto curto sob o título. */
     public String detalhe() {
         return switch (estado) {
