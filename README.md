@@ -1,4 +1,4 @@
-# Overtime Dispatcher
+# Overtimer
 
 Aplicação desktop que mantém uma **fila de tarefas** para agentes de IA — Claude Code, Codex e Gemini — e as executa automaticamente quando o agente está ocioso, aproveitando os créditos das suas assinaturas sem gastar a parte reservada para o seu uso manual.
 
