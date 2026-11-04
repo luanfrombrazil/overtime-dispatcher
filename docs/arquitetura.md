@@ -14,8 +14,8 @@ Aplicação desktop em Java, simples e modular, com classes bem definidas, segui
 ## Estrutura do código
 
 ```
-src/main/java/io/github/luanfrombrazil/overtimedispatcher/
-├─ OvertimeDispatcher.java   ponto de entrada
+src/main/java/io/github/luanfrombrazil/overtimer/
+├─ Overtimer.java   ponto de entrada
 ├─ model/                    entidades
 ├─ service/
 │  ├─ agente/                executar os agentes (Claude Code, Codex, Gemini)
@@ -38,7 +38,7 @@ Detalhes de cada serviço em [`modulos/`](modulos/).
 | Build | Maven |
 | JSON | Jackson |
 | Interface | Swing + FlatLaf (tema escuro) |
-| Pacote raiz | `io.github.luanfrombrazil.overtimedispatcher` |
+| Pacote raiz | `io.github.luanfrombrazil.overtimer` |
 
 ## Distribuição
 

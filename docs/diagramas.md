@@ -151,7 +151,7 @@ flowchart LR
     usuario["👤 Usuário"]
     tempo["⏱ Tempo"]
 
-    subgraph sistema["Overtime Dispatcher"]
+    subgraph sistema["Overtimer"]
         uc1(["Gerenciar projeto"])
         uc2(["Gerenciar tasks e subtarefas"])
         uc3(["Amarrar dependência"])
@@ -189,7 +189,7 @@ flowchart LR
     usuario["👤 Usuário"]
     tempo["⏱ Tempo"]
 
-    subgraph sistema["Overtime Dispatcher"]
+    subgraph sistema["Overtimer"]
         uc1(["Gerenciar protocolo"])
         uc2(["Executar protocolo"])
         uc3(["Acessar site, e-mail ou calendário"])
@@ -218,7 +218,7 @@ flowchart LR
     usuario["👤 Usuário"]
     tempo["⏱ Tempo"]
 
-    subgraph sistema["Overtime Dispatcher"]
+    subgraph sistema["Overtimer"]
         uc1(["Gerenciar trilha"])
         uc2(["Planejar blocos"])
         uc3(["Marcar bloco feito"])
@@ -246,7 +246,7 @@ flowchart LR
 flowchart LR
     usuario["👤 Usuário"]
 
-    subgraph sistema["Overtime Dispatcher"]
+    subgraph sistema["Overtimer"]
         uc1(["Definir horário de funcionamento"])
         uc2(["Definir reserva de uso"])
         uc3(["Ativar modo silencioso"])

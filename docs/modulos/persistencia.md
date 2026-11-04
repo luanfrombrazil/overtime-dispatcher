@@ -9,7 +9,7 @@ Guarda os dados da app em arquivos **JSON** (com Jackson), numa **pasta central*
 
 ## Pasta central
 
-`%APPDATA%\OvertimeDispatcher` no Windows (`~/.overtime-dispatcher` se a variável não existir). A propriedade `-Dovertime.dados=<pasta>` troca a pasta, para testes ou para separar os dados de desenvolvimento.
+`%APPDATA%\Overtimer` no Windows (`~/.overtimer` se a variável não existir). Na primeira execução com o nome novo, os dados da pasta do nome antigo (`OvertimeDispatcher` / `.overtime-dispatcher`) são movidos para cá e os worktrees das Tasks são reparados. A propriedade `-Dovertimer.dados=<pasta>` troca a pasta, para testes ou para separar os dados de desenvolvimento.
 
 ## Projetos
 
