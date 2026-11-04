@@ -15,7 +15,9 @@ import io.github.luanfrombrazil.overtimedispatcher.service.agente.ResultadoExecu
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -36,6 +38,10 @@ import java.util.concurrent.TimeUnit;
  * Enquanto está rodando, faz um ciclo a cada {@link #INTERVALO} (e também logo depois de {@link #agora()}):
  * pega o próximo trabalho liberado, executa no agente da Task e repete até a fila esvaziar. Pausar não
  * interrompe a execução em andamento; só impede que a próxima comece.
+ * <p>
+ * Uma Task criada com o agendador rodando só é executada a partir do próximo ciclo do intervalo (os de
+ * {@link #agora()} não contam), para dar tempo de criar as subtarefas dela. Se esse ciclo está a menos de meio
+ * intervalo, ela espera um ciclo a mais.
  * <p>
  * Ainda não respeita o horário de funcionamento nem a reserva (módulo de consumo).
  */
@@ -69,13 +75,19 @@ public class Agendador {
     private final List<Ouvinte> ouvintes = new CopyOnWriteArrayList<>();
     private volatile boolean rodando;
     private volatile String emExecucao;
-    private volatile LocalTime proximoCiclo;
+    /** Quando começa o próximo ciclo do intervalo; null enquanto um deles está em andamento. */
+    private volatile Instant proximoCiclo;
+    /** Quantos ciclos do intervalo já começaram. */
+    private volatile long ciclosDoIntervalo;
+    /** Tasks recém-criadas, pelo id, e o ciclo do intervalo a partir do qual podem ser executadas. */
+    private final Map<String, Long> retidas = new ConcurrentHashMap<>();
     private ScheduledFuture<?> ciclos;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
         this.agentes = agentes;
         this.areaDeTrabalho = areaDeTrabalho;
+        projetos.aoCriarTask(this::reter);
     }
 
     public void aoMudar(Ouvinte ouvinte) {
@@ -91,7 +103,11 @@ public class Agendador {
             return;
         }
         rodando = true;
-        ciclos = executor.scheduleWithFixedDelay(this::ciclo, 0, INTERVALO.toMillis(), TimeUnit.MILLISECONDS);
+        // Ligar o agendador é uma decisão do usuário: o que estava retido entra já no primeiro ciclo.
+        retidas.clear();
+        proximoCiclo = Instant.now();
+        ciclos = executor.scheduleWithFixedDelay(this::cicloDoIntervalo, 0, INTERVALO.toMillis(),
+                TimeUnit.MILLISECONDS);
         avisarSituacao();
     }
 
@@ -136,15 +152,56 @@ public class Agendador {
         if (atual != null) {
             return new Situacao(true, "Rodando · " + atual);
         }
-        LocalTime proximo = proximoCiclo;
-        return new Situacao(true, "Rodando · fila vazia" + (proximo == null ? "" : " · próximo ciclo às " + proximo.format(HORA)));
+        Instant proximo = proximoCiclo;
+        return new Situacao(true, "Rodando · fila vazia" + (proximo == null ? ""
+                : " · próximo ciclo às " + LocalTime.ofInstant(proximo, ZoneId.systemDefault()).format(HORA)));
+    }
+
+    /**
+     * Segura a Task recém-criada até o próximo ciclo do intervalo, ou o seguinte se o próximo está a menos de meio
+     * intervalo. Com o agendador parado não segura: ela entra quando ele for ligado.
+     */
+    private void reter(Task task) {
+        if (!rodando) {
+            return;
+        }
+        // Lê o contador antes do horário: no meio da virada de um ciclo, erra para o lado de esperar mais.
+        long atual = ciclosDoIntervalo;
+        Instant proximo = proximoCiclo;
+        boolean imediato = proximo != null
+                && Duration.between(Instant.now(), proximo).compareTo(INTERVALO.dividedBy(2)) < 0;
+        retidas.put(task.id(), atual + (imediato ? 2 : 1));
+    }
+
+    private boolean liberada(Task task) {
+        Long aPartirDe = retidas.get(task.id());
+        if (aPartirDe == null) {
+            return true;
+        }
+        if (aPartirDe <= ciclosDoIntervalo) {
+            retidas.remove(task.id());
+            return true;
+        }
+        return false;
+    }
+
+    /** Ciclo do intervalo: libera as Tasks retidas que chegaram a vez e marca quando será o próximo. */
+    private void cicloDoIntervalo() {
+        ciclosDoIntervalo++;
+        proximoCiclo = null;
+        try {
+            ciclo();
+        } finally {
+            proximoCiclo = Instant.now().plus(INTERVALO);
+            avisarSituacao();
+        }
     }
 
     /** Executa o trabalho liberado até a fila esvaziar ou o agendador ser pausado. */
     void ciclo() {
         try {
             while (rodando) {
-                Optional<ProjetoService.Proxima> proxima = projetos.proxima();
+                Optional<ProjetoService.Proxima> proxima = projetos.proxima(this::liberada);
                 if (proxima.isEmpty()) {
                     break;
                 }
@@ -157,7 +214,6 @@ public class Agendador {
             System.err.println("Agendador: " + e);
         } finally {
             emExecucao = null;
-            proximoCiclo = LocalTime.now().plus(INTERVALO);
             avisarSituacao();
         }
     }

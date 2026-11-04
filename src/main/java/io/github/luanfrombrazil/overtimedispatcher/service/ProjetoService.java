@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -43,6 +44,7 @@ public class ProjetoService {
     private final RepositorioProjetos repositorio;
     private final Map<String, Projeto> projetos = new HashMap<>();
     private final List<Consumer<Projeto>> ouvintes = new CopyOnWriteArrayList<>();
+    private final List<Consumer<Task>> aoCriar = new CopyOnWriteArrayList<>();
 
     /** Carrega os projetos. O que estava em andamento quando a app fechou volta para a fila. */
     public ProjetoService(RepositorioProjetos repositorio) {
@@ -64,6 +66,11 @@ public class ProjetoService {
     /** Avisado (na thread de quem mudou) quando o agendador altera um projeto. */
     public void aoMudar(Consumer<Projeto> ouvinte) {
         ouvintes.add(ouvinte);
+    }
+
+    /** Avisado (na thread de quem criou) quando uma Task entra na fila: nova ou rascunho criado de fato. */
+    public void aoCriarTask(Consumer<Task> ouvinte) {
+        aoCriar.add(ouvinte);
     }
 
     /** Projetos em ordem alfabética. */
@@ -109,15 +116,22 @@ public class ProjetoService {
         Projeto atual = atual(projeto);
         List<Task> tasks = new ArrayList<>(atual.tasks());
         int indice = indiceDaTask(tasks, task.id());
+        boolean criada;
         if (indice < 0) {
+            criada = true;
             tasks.add(task.rascunho() ? task.comExecucao(Estado.PENDENTE, null) : task);
         } else {
             Task antiga = tasks.get(indice);
             exigirAberta(antiga);
+            criada = antiga.rascunho();
             tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
                     .comExecucao(antiga.rascunho() ? Estado.PENDENTE : antiga.execucao(), antiga.resultado()));
         }
-        return gravar(atual.comTasks(tasks));
+        Projeto gravado = gravar(atual.comTasks(tasks));
+        if (criada) {
+            aoCriar.forEach(o -> o.accept(task));
+        }
+        return gravado;
     }
 
     /**
@@ -304,9 +318,14 @@ public class ProjetoService {
      * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados.
      */
     public synchronized Optional<Proxima> proxima() {
+        return proxima(task -> true);
+    }
+
+    /** Como {@link #proxima()}, pulando as Tasks que {@code liberada} ainda segura. */
+    public synchronized Optional<Proxima> proxima(Predicate<Task> liberada) {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
-                if (task.origem() == Origem.ORACULO || task.rascunho()) {
+                if (task.origem() == Origem.ORACULO || task.rascunho() || !liberada.test(task)) {
                     continue;
                 }
                 if (task.inteira()) {
