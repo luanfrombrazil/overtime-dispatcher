@@ -2,7 +2,7 @@
 
 > Em definição.
 
-Varre um projeto e, dado o estado em que ele se encontra, sugere o que fazer. Fica separado de Projetos, Protocolos e Trilhas, no topo da barra lateral, com o símbolo de um **olho roxo**.
+Varre um projeto e, dado o estado em que ele se encontra, sugere o que fazer. Fica separado de Projetos, Protocolos e Trilhas, no topo da lista da barra lateral (logo abaixo dos botões de Home e do agendador), com o símbolo de um **olho roxo**.
 
 ## Quando age
 Quando um **projeto contínuo** fica sem tasks ou com poucas.

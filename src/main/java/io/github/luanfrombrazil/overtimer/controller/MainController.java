@@ -49,8 +49,8 @@ public class MainController implements BarraLateral.Ouvinte {
         this.projetoController = new ProjetoController(frame, projetos, agendador::log,
                 this::projetoAlterado, this::projetoExcluido);
 
-        barraSuperior.aoClicarHome(this::home);
-        barraSuperior.aoClicarAgendador(this::alternarAgendador);
+        barraLateral.aoClicarHome(this::home);
+        barraLateral.aoClicarAgendador(this::alternarAgendador);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
         barraSuperior.aoClicarNotificacoes(() -> configuracoes("Notificações"));
 
@@ -58,7 +58,7 @@ public class MainController implements BarraLateral.Ouvinte {
         agendador.aoMudar(new Agendador.Ouvinte() {
             @Override
             public void situacao(Agendador.Situacao situacao) {
-                SwingUtilities.invokeLater(() -> barraSuperior.setAgendador(situacao.rodando(), situacao.texto()));
+                SwingUtilities.invokeLater(() -> barraLateral.setAgendador(situacao.rodando(), situacao.texto()));
             }
 
             @Override
@@ -83,7 +83,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     public void iniciar() {
         Agendador.Situacao situacao = agendador.situacao();
-        barraSuperior.setAgendador(situacao.rodando(), situacao.texto());
+        barraLateral.setAgendador(situacao.rodando(), situacao.texto());
         home();
         frame.setVisible(true);
     }
@@ -95,7 +95,7 @@ public class MainController implements BarraLateral.Ouvinte {
     public void home() {
         projetoAberto = null;
         barraLateral.selecionar(null);
-        barraSuperior.setHomeAtivo(true);
+        barraLateral.setHomeAtivo(true);
         frame.mostrar(new HomePanel(dados));
     }
 
@@ -186,6 +186,6 @@ public class MainController implements BarraLateral.Ouvinte {
 
     private void abrirItem(Object item) {
         barraLateral.selecionar(item);
-        barraSuperior.setHomeAtivo(false);
+        barraLateral.setHomeAtivo(false);
     }
 }

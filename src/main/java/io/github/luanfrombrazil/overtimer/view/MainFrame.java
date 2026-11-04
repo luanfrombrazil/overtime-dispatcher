@@ -9,7 +9,8 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 
 /**
- * Janela principal: barra superior, barra lateral e a área central, que troca entre Home, Projeto, Protocolo e Trilha.
+ * Janela principal: barra lateral (da altura da janela), barra superior e a área central, que troca entre Home,
+ * Projeto, Protocolo e Trilha.
  */
 public class MainFrame extends JFrame {
 
@@ -25,9 +26,14 @@ public class MainFrame extends JFrame {
         JPanel raiz = new JPanel(new BorderLayout());
         raiz.setBackground(Tema.APP);
         centro.setBackground(Tema.APP);
-        raiz.add(barraSuperior, BorderLayout.NORTH);
+        // A barra lateral vai até o topo da janela; a superior fica só sobre a área central.
+        JPanel direita = new JPanel(new BorderLayout());
+        direita.setBackground(Tema.APP);
+        direita.add(barraSuperior, BorderLayout.NORTH);
+        direita.add(centro, BorderLayout.CENTER);
+        barraLateral.alinharTopoCom(barraSuperior);
         raiz.add(barraLateral, BorderLayout.WEST);
-        raiz.add(centro, BorderLayout.CENTER);
+        raiz.add(direita, BorderLayout.CENTER);
         setContentPane(raiz);
     }
 
