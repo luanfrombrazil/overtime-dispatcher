@@ -2,6 +2,7 @@ package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Corda;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
@@ -32,7 +33,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Lista de subtarefas com o círculo de amarrar e o fio vermelho entre as dependentes.
+ * Lista de subtarefas com o círculo de amarrar e a corda vermelha entre as dependentes, com um nó em cada
+ * ponta amarrada.
  * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas); arrastar
  * pela alça de três barras, no fim da linha, muda a ordem.
  */
@@ -158,9 +160,6 @@ class SubtarefasPanel extends JPanel {
     protected void paintChildren(Graphics g) {
         super.paintChildren(g);
         Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(Tema.FIO);
-        g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (int i = 0; i < subtarefas.size(); i++) {
             for (String dependencia : subtarefas.get(i).dependeDe()) {
                 Integer origem = indices.get(dependencia);
@@ -170,18 +169,19 @@ class SubtarefasPanel extends JPanel {
                 Point a = centro(nos.get(origem));
                 Point b = centro(nos.get(i));
                 double curva = 12 + Math.abs(b.y - a.y) * 0.08;
-                g2.draw(new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
+                Corda.desenhar(g2, new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
                         b.x - curva, a.y + (b.y - a.y) * 0.65, b.x, b.y));
             }
         }
         if (origemArrasto >= 0 && ponteiro != null) {
             Point a = centro(nos.get(origemArrasto));
-            g2.draw(new Line2D.Double(a.x, a.y, ponteiro.x, ponteiro.y));
+            Corda.desenhar(g2, new Line2D.Double(a.x, a.y, ponteiro.x, ponteiro.y));
         }
+        // As pontas amarradas viram nós da corda.
         for (No no : nos) {
             if (no.amarrado || (origemArrasto >= 0 && no == nos.get(origemArrasto))) {
                 Point p = centro(no);
-                g2.fillOval(p.x - 7, p.y - 7, 14, 14);
+                Corda.no(g2, p.x, p.y, 7);
             }
         }
         g2.dispose();
