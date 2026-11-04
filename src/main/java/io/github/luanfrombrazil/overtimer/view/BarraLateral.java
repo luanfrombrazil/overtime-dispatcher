@@ -31,7 +31,7 @@ import java.util.Map;
 
 /**
  * Barra da esquerda, da altura da janela: no topo Home, agendador e recolher; abaixo o Oráculo, depois Projetos,
- * Protocolos e Trilhas. Recolhida, mostra só os botões do topo, em coluna.
+ * Protocolos e Trilhas. Recolhida, vira uma faixa fina sem rótulos (ver {@link #setRecolhida}).
  */
 public class BarraLateral extends JPanel {
 
@@ -76,9 +76,12 @@ public class BarraLateral extends JPanel {
         }
     };
     private final JScrollPane rolagem = new JScrollPane();
-    private final JPanel coluna = new JPanel(new BorderLayout());
     private JComponent alturaTopo;
     private boolean recolhida;
+    private List<Projeto> projetos;
+    private List<Protocolo> protocolos;
+    private List<Trilha> trilhas;
+    private int sugestoes;
 
     public BarraLateral(List<Projeto> projetos, List<Protocolo> protocolos, List<Trilha> trilhas,
                         int sugestoes, Ouvinte ouvinte) {
@@ -101,10 +104,10 @@ public class BarraLateral extends JPanel {
         rolagem.getVerticalScrollBar().setUnitIncrement(16);
 
         topo.setOpaque(false);
-        coluna.setOpaque(false);
-        coluna.setBorder(BorderFactory.createEmptyBorder(12, 0, 12, 0));
         mostrarBotaoAgendador(false);
         recolher.addActionListener(e -> setRecolhida(!recolhida));
+        add(topo, BorderLayout.NORTH);
+        add(rolagem, BorderLayout.CENTER);
         montar();
     }
 
@@ -114,25 +117,23 @@ public class BarraLateral extends JPanel {
         revalidate();
     }
 
-    /** Recolhida, a barra mostra só Home, agendador e recolher, um embaixo do outro. */
+    /**
+     * Recolhida, a barra vira uma faixa fina sem rótulos: o botão de expandir, o agendador, o Oráculo, um "+" por
+     * seção e os ícones de cada projeto, protocolo e trilha.
+     */
     public void setRecolhida(boolean recolhida) {
         this.recolhida = recolhida;
         montar();
+        atualizar(projetos, protocolos, trilhas, sugestoes);
     }
 
     private void montar() {
-        removeAll();
         topo.removeAll();
-        coluna.removeAll();
         recolher.setToolTipText(recolhida ? "Expandir barra lateral" : "Recolher barra lateral");
         recolher.setAtivo(recolhida);
         if (recolhida) {
             topo.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.BORDA));
             topo.add(centralizado(recolher), BorderLayout.CENTER);
-            JPanel botoes = Ui.coluna(12, centralizado(home), centralizado(agendador), centralizado(estado));
-            coluna.add(botoes, BorderLayout.NORTH);
-            add(topo, BorderLayout.NORTH);
-            add(coluna, BorderLayout.CENTER);
             setPreferredSize(new Dimension(LARGURA_RECOLHIDA, 100));
         } else {
             topo.setBorder(BorderFactory.createCompoundBorder(
@@ -140,10 +141,11 @@ public class BarraLateral extends JPanel {
                     BorderFactory.createEmptyBorder(10, 16, 10, 12)));
             topo.add(Ui.linha(12, home, agendador, estado), BorderLayout.WEST);
             topo.add(Ui.linha(0, recolher), BorderLayout.EAST);
-            add(topo, BorderLayout.NORTH);
-            add(rolagem, BorderLayout.CENTER);
             setPreferredSize(new Dimension(LARGURA, 100));
         }
+        // Recolhida, a barra de rolagem comeria boa parte da faixa: fica com largura zero (com a política NEVER a
+        // roda do mouse pararia de rolar).
+        rolagem.getVerticalScrollBar().setPreferredSize(recolhida ? new Dimension(0, 0) : null);
         revalidate();
         repaint();
     }
@@ -192,22 +194,34 @@ public class BarraLateral extends JPanel {
 
     /** Refaz as listas, mantendo o item selecionado. */
     public void atualizar(List<Projeto> projetos, List<Protocolo> protocolos, List<Trilha> trilhas, int sugestoes) {
+        this.projetos = projetos;
+        this.protocolos = protocolos;
+        this.trilhas = trilhas;
+        this.sugestoes = sugestoes;
         conteudo.removeAll();
         linhas.clear();
-        conteudo.add(new BotaoOraculo(sugestoes, ouvinte::oraculo));
+        if (recolhida) {
+            // Na faixa fina o agendador sai do topo, que só tem espaço para o botão de expandir.
+            JPanel botao = centralizado(agendador);
+            botao.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+            conteudo.add(Ui.largo(botao));
+        }
+        conteudo.add(new BotaoOraculo(sugestoes, recolhida, ouvinte::oraculo));
 
-        conteudo.add(cabecalho("Projetos", "+ Projeto", ouvinte::novoProjeto));
+        conteudo.add(cabecalho("Projetos", "+ Projeto", "Novo projeto", ouvinte::novoProjeto));
         for (Projeto p : projetos) {
-            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.imagem(), p.detalhe(),
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.imagem(), p.detalhe(), recolhida,
                     () -> ouvinte.projeto(p)));
         }
-        conteudo.add(cabecalho("Protocolos", "+ Protocolo", ouvinte::novoProtocolo));
+        conteudo.add(cabecalho("Protocolos", "+ Protocolo", "Novo protocolo", ouvinte::novoProtocolo));
         for (Protocolo p : protocolos) {
-            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.protocolo(p)));
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), null, p.detalhe(), recolhida,
+                    () -> ouvinte.protocolo(p)));
         }
-        conteudo.add(cabecalho("Trilhas", "+ Trilha", ouvinte::novaTrilha));
+        conteudo.add(cabecalho("Trilhas", "+ Trilha", "Nova trilha", ouvinte::novaTrilha));
         for (Trilha t : trilhas) {
-            adicionar(t, new LinhaLateral(t.estado(), t.nome(), t.sigla(), t.detalhe(), () -> ouvinte.trilha(t)));
+            adicionar(t, new LinhaLateral(t.estado(), t.nome(), t.sigla(), null, t.detalhe(), recolhida,
+                    () -> ouvinte.trilha(t)));
         }
         selecionar(selecionado);
         conteudo.revalidate();
@@ -231,7 +245,16 @@ public class BarraLateral extends JPanel {
         return item instanceof Projeto p ? p.id() : item;
     }
 
-    private static JPanel cabecalho(String titulo, String rotuloBotao, Runnable acao) {
+    /** Título da seção e botão de criar; recolhida, só o botão "+", com a ação na dica. */
+    private JPanel cabecalho(String titulo, String rotuloBotao, String dica, Runnable acao) {
+        if (recolhida) {
+            JButton botao = Ui.botaoPrimario("+");
+            botao.setToolTipText(dica);
+            botao.addActionListener(e -> acao.run());
+            JPanel linha = centralizado(botao);
+            linha.setBorder(BorderFactory.createEmptyBorder(10, 0, 6, 0));
+            return Ui.largo(linha);
+        }
         JButton botao = Ui.botaoPrimario(rotuloBotao);
         // Os três botões ficam com a largura do maior rótulo, "+ Protocolo".
         Dimension tamanho = Ui.botaoPrimario("+ Protocolo").getPreferredSize();
@@ -246,26 +269,36 @@ public class BarraLateral extends JPanel {
         return Ui.largo(linha);
     }
 
-    /** Botão do Oráculo, com fundo levemente roxo. */
+    /** Botão do Oráculo, com fundo levemente roxo. Compacto, só o símbolo detalhado, centralizado. */
     private static class BotaoOraculo extends JPanel {
 
-        BotaoOraculo(int sugestoes, Runnable acao) {
+        private final boolean compacto;
+
+        BotaoOraculo(int sugestoes, boolean compacto, Runnable acao) {
             super(new BorderLayout(12, 0));
+            this.compacto = compacto;
             setOpaque(false);
-            setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 12));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            add(new JLabel(Ui.iconeOraculo(false, 28)), BorderLayout.WEST);
-            JPanel textos = sugestoes == 0
-                    ? Ui.coluna(0, Ui.secao("Oráculo"))
-                    : Ui.coluna(1, Ui.secao("Oráculo"), Ui.texto(sugestoes + (sugestoes == 1 ? " sugestão" : " sugestões"),
-                    Tema.legenda(), Tema.ROXO_CLARO));
-            JPanel centro = new JPanel(new java.awt.GridBagLayout());
-            centro.setOpaque(false);
-            java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-            c.weightx = 1;
-            c.fill = java.awt.GridBagConstraints.HORIZONTAL;
-            centro.add(textos, c);
-            add(centro, BorderLayout.CENTER);
+            String rotuloSugestoes = sugestoes + (sugestoes == 1 ? " sugestão" : " sugestões");
+            if (compacto) {
+                setToolTipText(sugestoes == 0 ? "Oráculo" : "Oráculo · " + rotuloSugestoes);
+                JLabel icone = new JLabel(Ui.iconeOraculo(true, 32));
+                icone.setHorizontalAlignment(JLabel.CENTER);
+                add(icone, BorderLayout.CENTER);
+            } else {
+                setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 12));
+                add(new JLabel(Ui.iconeOraculo(false, 28)), BorderLayout.WEST);
+                JPanel textos = sugestoes == 0
+                        ? Ui.coluna(0, Ui.secao("Oráculo"))
+                        : Ui.coluna(1, Ui.secao("Oráculo"), Ui.texto(rotuloSugestoes, Tema.legenda(), Tema.ROXO_CLARO));
+                JPanel centro = new JPanel(new java.awt.GridBagLayout());
+                centro.setOpaque(false);
+                java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+                c.weightx = 1;
+                c.fill = java.awt.GridBagConstraints.HORIZONTAL;
+                centro.add(textos, c);
+                add(centro, BorderLayout.CENTER);
+            }
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
@@ -276,7 +309,7 @@ public class BarraLateral extends JPanel {
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(LARGURA, 56);
+            return new Dimension(compacto ? LARGURA_RECOLHIDA : LARGURA, 56);
         }
 
         @Override

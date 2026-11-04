@@ -30,29 +30,31 @@ public class LinhaLateral extends JPanel {
 
     /** @param imagem caminho da imagem do ícone, ou null para mostrar as iniciais */
     public LinhaLateral(Estado estado, String nome, String sigla, String imagem, String detalhe, Runnable aoClicar) {
+        this(estado, nome, sigla, imagem, detalhe, false, aoClicar);
+    }
+
+    /**
+     * @param compacta só o ícone, centralizado, sem nome nem motivo (barra lateral recolhida); o nome fica na dica
+     */
+    public LinhaLateral(Estado estado, String nome, String sigla, String imagem, String detalhe, boolean compacta,
+                        Runnable aoClicar) {
         super(new BorderLayout(10, 0));
         this.estado = estado;
         setOpaque(false);
-        setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA + 10, 0, 12));
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JPanel icone = new JPanel(new java.awt.GridBagLayout());
         icone.setOpaque(false);
         icone.add(new Iniciais(sigla, imagem, 28));
-        add(icone, BorderLayout.WEST);
-
-        JLabel rotulo = Ui.secao(nome);
-        JPanel textos = detalhe == null
-                ? Ui.coluna(0, rotulo)
-                : Ui.coluna(1, rotulo, Ui.texto(detalhe, Tema.legenda(), Tema.corDetalhe(estado)));
-        JPanel centro = new JPanel(new java.awt.GridBagLayout());
-        centro.setOpaque(false);
-        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-        c.weightx = 1;
-        c.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        centro.add(textos, c);
-        add(centro, BorderLayout.CENTER);
-
+        if (compacta) {
+            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA, 0, 0));
+            setToolTipText(detalhe == null ? nome : nome + " · " + detalhe);
+            add(icone, BorderLayout.CENTER);
+        } else {
+            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA + 10, 0, 12));
+            add(icone, BorderLayout.WEST);
+            add(textos(nome, detalhe), BorderLayout.CENTER);
+        }
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -71,6 +73,20 @@ public class LinhaLateral extends JPanel {
                 repaint();
             }
         });
+    }
+
+    private JPanel textos(String nome, String detalhe) {
+        JLabel rotulo = Ui.secao(nome);
+        JPanel textos = detalhe == null
+                ? Ui.coluna(0, rotulo)
+                : Ui.coluna(1, rotulo, Ui.texto(detalhe, Tema.legenda(), Tema.corDetalhe(estado)));
+        JPanel centro = new JPanel(new java.awt.GridBagLayout());
+        centro.setOpaque(false);
+        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+        c.weightx = 1;
+        c.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        centro.add(textos, c);
+        return centro;
     }
 
     public void setSelecionada(boolean selecionada) {
