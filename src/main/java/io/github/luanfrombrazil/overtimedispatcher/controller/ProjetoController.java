@@ -77,6 +77,15 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
     }
 
     @Override
+    public void trocarImagemProjeto(String imagem) {
+        try {
+            aoAlterar.accept(servico.salvar(projeto.comImagem(imagem)));
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Imagem do projeto", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    @Override
     public void novaTask() {
         new TaskDialog(frame, projeto, null, t -> alterado(servico.salvarTask(projeto, t)), null, null).abrir();
     }

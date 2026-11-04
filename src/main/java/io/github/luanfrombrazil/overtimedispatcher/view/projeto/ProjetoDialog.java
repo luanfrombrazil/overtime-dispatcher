@@ -7,6 +7,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Provedor;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Dialogo;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Formulario;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Iniciais;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.SeletorImagem;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
@@ -21,9 +22,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -44,6 +48,10 @@ public class ProjetoDialog extends Dialogo {
     private final Function<Path, List<String>> branchesDa;
     private String pastaVerificada;
     private final JTextField nome;
+    private final Iniciais icone;
+    private final JButton removerImagem;
+    /** Caminho da imagem do ícone, ou null para as iniciais. */
+    private String imagem;
     private final JScrollPane descricao;
     private final JTextField pasta;
     private final JCheckBox usarGit;
@@ -74,7 +82,22 @@ public class ProjetoDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(14));
 
         nome = Formulario.texto(novo ? "" : existente.nome());
-        corpo.add(Formulario.identidade(nome));
+        imagem = novo ? null : existente.imagem();
+        icone = new Iniciais(Iniciais.de(nome.getText()), imagem, 36);
+        icone.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        icone.setToolTipText("Clique para escolher uma imagem .png ou .jpg");
+        icone.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                escolherImagem();
+            }
+        });
+        JButton escolher = Ui.botaoSecundario("Imagem…");
+        escolher.addActionListener(e -> escolherImagem());
+        removerImagem = Ui.botaoSecundario("Remover");
+        removerImagem.addActionListener(e -> mudarImagem(null));
+        removerImagem.setVisible(imagem != null);
+        corpo.add(Formulario.identidade(nome, icone, Ui.linha(8, escolher, removerImagem)));
         corpo.add(Box.createVerticalStrut(12));
         descricao = Formulario.area(novo ? "" : existente.descricao(), 3);
         corpo.add(Formulario.campo("Descrição", descricao));
@@ -130,6 +153,17 @@ public class ProjetoDialog extends Dialogo {
                 novo ? null : aoExcluir,
                 "Excluir o projeto e todas as suas tasks? A pasta do projeto não é alterada."), BorderLayout.SOUTH);
         raiz.setPreferredSize(new Dimension(560, raiz.getPreferredSize().height));
+    }
+
+    private void escolherImagem() {
+        SeletorImagem.escolher(this).ifPresent(this::mudarImagem);
+    }
+
+    private void mudarImagem(String caminho) {
+        imagem = caminho;
+        icone.setImagem(caminho);
+        removerImagem.setVisible(caminho != null);
+        revalidate();
     }
 
     private void procurarPasta() {
@@ -206,9 +240,9 @@ public class ProjetoDialog extends Dialogo {
         String sigla = Iniciais.de(nomeDigitado);
         if (existente == null) {
             return Projeto.novo(nomeDigitado, sigla, Formulario.textoDa(descricao), pasta.getText().strip(),
-                    branchEscolhida, p, e, permissoes);
+                    branchEscolhida, p, e, permissoes).comImagem(imagem);
         }
         return new Projeto(existente.id(), nomeDigitado, sigla, Formulario.textoDa(descricao), pasta.getText().strip(),
-                branchEscolhida, p, e, permissoes, existente.tasks());
+                branchEscolhida, p, e, permissoes, existente.tasks(), imagem);
     }
 }

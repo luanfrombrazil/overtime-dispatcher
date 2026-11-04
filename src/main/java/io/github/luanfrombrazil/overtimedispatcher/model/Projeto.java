@@ -9,12 +9,19 @@ import java.util.UUID;
  * @param branch    branch principal do git, ou null quando o projeto não usa git
  * @param provedor  provedor padrão das novas Tasks
  * @param esforco   esforço padrão das novas Tasks
+ * @param imagem    caminho da imagem (.png ou .jpg) usada como ícone, ou null para mostrar as iniciais
  */
 public record Projeto(String id, String nome, String sigla, String descricao, String pasta, String branch,
-                      Provedor provedor, Esforco esforco, Permissoes permissoes, List<Task> tasks) {
+                      Provedor provedor, Esforco esforco, Permissoes permissoes, List<Task> tasks, String imagem) {
 
     public Projeto {
         tasks = tasks == null ? List.of() : List.copyOf(tasks);
+    }
+
+    /** Projeto sem imagem. */
+    public Projeto(String id, String nome, String sigla, String descricao, String pasta, String branch,
+                   Provedor provedor, Esforco esforco, Permissoes permissoes, List<Task> tasks) {
+        this(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks, null);
     }
 
     public static Projeto novo(String nome, String sigla, String descricao, String pasta, String branch,
@@ -24,11 +31,15 @@ public record Projeto(String id, String nome, String sigla, String descricao, St
     }
 
     public Projeto comTasks(List<Task> tasks) {
-        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks);
+        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks, imagem);
     }
 
     public Projeto comNome(String nome, String sigla) {
-        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks);
+        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks, imagem);
+    }
+
+    public Projeto comImagem(String imagem) {
+        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks, imagem);
     }
 
     public boolean usaGit() {

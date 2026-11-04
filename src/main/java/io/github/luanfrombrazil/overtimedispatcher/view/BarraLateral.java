@@ -79,7 +79,8 @@ public class BarraLateral extends JScrollPane {
 
         conteudo.add(cabecalho("Projetos", "+ Projeto", ouvinte::novoProjeto));
         for (Projeto p : projetos) {
-            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.projeto(p)));
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.imagem(), p.detalhe(),
+                    () -> ouvinte.projeto(p)));
         }
         conteudo.add(cabecalho("Protocolos", "+ Protocolo", ouvinte::novoProtocolo));
         for (Protocolo p : protocolos) {

@@ -55,7 +55,15 @@ public final class Formulario {
     }
 
     public static JComponent identidade(JTextField nome) {
-        Iniciais iniciais = new Iniciais(Iniciais.de(nome.getText()), 36);
+        return identidade(nome, new Iniciais(Iniciais.de(nome.getText()), 36), null);
+    }
+
+    /**
+     * Ícone e nome lado a lado; as iniciais acompanham o que se digita.
+     *
+     * @param aoLado componente opcional à direita do nome (ex.: botões da imagem)
+     */
+    public static JComponent identidade(JTextField nome, Iniciais iniciais, JComponent aoLado) {
         nome.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
@@ -78,6 +86,12 @@ public final class Formulario {
         identidade.setOpaque(false);
         identidade.add(envoltorioIcone, java.awt.BorderLayout.WEST);
         identidade.add(campo("Nome", nome), java.awt.BorderLayout.CENTER);
+        if (aoLado != null) {
+            JPanel envoltorioLado = new JPanel(new java.awt.BorderLayout());
+            envoltorioLado.setOpaque(false);
+            envoltorioLado.add(aoLado, java.awt.BorderLayout.SOUTH);
+            identidade.add(envoltorioLado, java.awt.BorderLayout.EAST);
+        }
         return Ui.largo(identidade);
     }
 
