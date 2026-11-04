@@ -48,9 +48,9 @@ public final class HorarioFuncionamento {
         return horario;
     }
 
-    /** Horário usado quando ainda não há nada salvo. */
+    /** Horário usado quando ainda não há nada salvo: o tempo todo. */
     public static HorarioFuncionamento padrao() {
-        return noitesEFinsDeSemana();
+        return sempre();
     }
 
     public boolean liberado(int dia, int segmento) {
