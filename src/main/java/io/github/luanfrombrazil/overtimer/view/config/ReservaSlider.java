@@ -14,8 +14,8 @@ import java.awt.event.MouseEvent;
 import java.util.function.BiConsumer;
 
 /**
- * Controle com duas alças que divide a janela de uso de um provedor em:
- * automação (azul), Oráculo (roxo) e reserva do usuário (cinza).
+ * Controle com duas alças que divide a janela de uso de um provedor em: automação (azul, até o limite de uso),
+ * Oráculo (roxo) e o que fica para o usuário (cinza).
  */
 class ReservaSlider extends JComponent {
 

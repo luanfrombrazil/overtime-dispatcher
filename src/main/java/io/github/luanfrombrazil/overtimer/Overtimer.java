@@ -33,6 +33,7 @@ public final class Overtimer {
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
         ConsumoService consumo = ConsumoService.padrao(agendador::executando);
+        agendador.usarConsumo(consumo::uso);
         SwingUtilities.invokeLater(() -> {
             new MainController(new DadosService(), projetos, agendador, consumo).iniciar();
             // Só depois da tela existir, para a primeira medição já chegar ao ouvinte da barra superior.

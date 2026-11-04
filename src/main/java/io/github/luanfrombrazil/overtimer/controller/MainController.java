@@ -72,7 +72,11 @@ public class MainController implements BarraLateral.Ouvinte {
                 SwingUtilities.invokeLater(() -> projetoController.adicionarLog(projetoId, linha));
             }
         });
-        consumo.aoMudar(medido -> SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido)));
+        consumo.aoMudar(medido -> {
+            SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido));
+            // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
+            agendador.agora();
+        });
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {

@@ -3,8 +3,8 @@ package io.github.luanfrombrazil.overtimer.view.config;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Execucao;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
-import io.github.luanfrombrazil.overtimer.model.Configuracoes.Reserva;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.view.comum.Chip;
@@ -170,8 +170,9 @@ public class ConfiguracoesDialog extends Dialogo {
 
     /** As configurações como estão na tela. */
     private Configuracoes editadas() {
-        Map<Provedor, Reserva> reservas = new EnumMap<>(Provedor.class);
-        sliders.forEach((provedor, slider) -> reservas.put(provedor, new Reserva(slider.automacao(), slider.oraculo())));
+        Map<Provedor, LimiteDeUso> limites = new EnumMap<>(Provedor.class);
+        sliders.forEach((provedor, slider) ->
+                limites.put(provedor, new LimiteDeUso(slider.automacao(), slider.oraculo())));
         try {
             // Um número digitado sem Enter ainda não foi para o modelo.
             maximoPorIntervalo.commitEdit();
@@ -190,7 +191,7 @@ public class ConfiguracoesDialog extends Dialogo {
                 LocalTime.parse((String) silencioInicio.getSelectedItem()),
                 LocalTime.parse((String) silencioFim.getSelectedItem()), falhasFuramSilencio.isLigado(),
                 desktop.isLigado(), whatsapp.isLigado(), som.isLigado(), marcados);
-        return new Configuracoes(barras.horario(), reservas, execucao, notificacoes);
+        return new Configuracoes(barras.horario(), limites, execucao, notificacoes);
     }
 
     // ---------- Geral ----------
@@ -225,13 +226,16 @@ public class ConfiguracoesDialog extends Dialogo {
         pagina.add(Ui.cabecalho(barras, null));
 
         pagina.add(Box.createVerticalStrut(20));
-        pagina.add(Ui.cabecalho(Ui.secao("Reserva para você"), null));
+        pagina.add(Ui.cabecalho(Ui.secao("Limite de uso"), null));
+        pagina.add(Box.createVerticalStrut(4));
+        pagina.add(Ui.cabecalho(Ui.legenda("O agendador não começa Tasks num provedor cujo uso (sessão ou semanal) "
+                + "chegou ao limite azul. Roxo: Oráculo; o resto fica para você."), null));
         pagina.add(Box.createVerticalStrut(8));
-        for (int i = 0; i < Configuracoes.PROVEDORES_COM_RESERVA.size(); i++) {
+        for (int i = 0; i < Configuracoes.PROVEDORES_COM_LIMITE.size(); i++) {
             if (i > 0) {
                 pagina.add(Box.createVerticalStrut(6));
             }
-            pagina.add(reserva(Configuracoes.PROVEDORES_COM_RESERVA.get(i)));
+            pagina.add(limiteDeUso(Configuracoes.PROVEDORES_COM_LIMITE.get(i)));
         }
 
         pagina.add(Box.createVerticalStrut(20));
@@ -256,18 +260,20 @@ public class ConfiguracoesDialog extends Dialogo {
         return pagina;
     }
 
-    private JComponent reserva(Provedor provedor) {
-        Reserva atual = configuracoes.reserva(provedor);
+    private JComponent limiteDeUso(Provedor provedor) {
+        LimiteDeUso atual = configuracoes.limiteDeUso(provedor);
         ReservaSlider slider = new ReservaSlider(atual.automacao(), atual.oraculo());
         sliders.put(provedor, slider);
+        JLabel valorAutomacao = Ui.texto("", Tema.corpo(), Tema.ACENTO);
         JLabel valorOraculo = Ui.texto("", Tema.corpo(), Tema.ROXO_CLARO);
         JLabel valorVoce = Ui.corpo("");
         slider.aoMudar((o, v) -> {
+            valorAutomacao.setText((100 - o - v) + "%");
             valorOraculo.setText(o + "%");
             valorVoce.setText(v + "%");
         });
-        return Ui.cabecalho(Ui.linha(12, largura(Ui.corpo(provedor.toString()), 100), largura(slider, 300),
-                largura(valorOraculo, 40), largura(valorVoce, 40)), null);
+        return Ui.cabecalho(Ui.linha(12, largura(Ui.corpo(provedor.toString()), 100), largura(slider, 280),
+                largura(valorAutomacao, 40), largura(valorOraculo, 40), largura(valorVoce, 40)), null);
     }
 
     private static <T extends JComponent> T largura(T componente, int largura) {

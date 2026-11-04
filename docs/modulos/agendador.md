@@ -18,4 +18,5 @@ De tempos em tempos, verifica se há um agente ocioso e, se houver, entrega a pr
 - Terminou bem: concluída, ou **aguardando verificação** se a subtarefa exige verificação manual. O agente responde com `FALHOU:` quando não consegue concluir, e a subtarefa fica vermelha; "Tentar de novo" a devolve à fila.
 - Limite de 60 minutos por execução.
 - **Horário de funcionamento** (Configurações › Geral): uma execução só começa num segmento de 30 minutos marcado. A que está em andamento quando o horário fecha vai até o fim. Fora do horário, a barra superior mostra quando ele volta, e o agendador acorda sozinho na abertura. Salvar as configurações vale na hora.
-- **Ainda não:** reserva, várias execuções em paralelo, orientação no meio do trabalho (RPC) e notificações.
+- **Limite de uso** (Configurações › Geral): não começa uma Task num provedor que passou do limite; ver [consumo](consumo.md).
+- **Ainda não:** várias execuções em paralelo, orientação no meio do trabalho (RPC) e notificações.

@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Execucao;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
-import io.github.luanfrombrazil.overtimer.model.Configuracoes.Reserva;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento.Faixa;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -34,7 +34,7 @@ import java.util.Set;
  * <pre>
  * { "horarioFuncionamento": { "seg": ["00:00-07:00", "22:00-24:00"], "sab": ["00:00-24:00"], ... } }
  * </pre>
- * As demais seções ({@code reservas}, {@code execucao}, {@code notificacoes}) estão em docs/modulos/persistencia.md.
+ * As demais seções ({@code limitesDeUso}, {@code execucao}, {@code notificacoes}) estão em docs/modulos/persistencia.md.
  */
 public class ConfiguracoesRepositorio {
 
@@ -67,7 +67,8 @@ public class ConfiguracoesRepositorio {
             JsonNode horario = raiz.path("horarioFuncionamento");
             return new Configuracoes(
                     horario.isObject() ? lerHorario(horario) : HorarioFuncionamento.padrao(),
-                    lerReservas(raiz.path("reservas")),
+                    // A antiga "reservas" (protótipo, com automação em 0%) é ignorada de propósito.
+                    lerLimitesDeUso(raiz.path("limitesDeUso")),
                     lerExecucao(raiz.path("execucao")),
                     lerNotificacoes(raiz.path("notificacoes")));
         } catch (IOException | IllegalArgumentException | DateTimeParseException e) {
@@ -79,7 +80,7 @@ public class ConfiguracoesRepositorio {
     public void salvar(Configuracoes configuracoes) {
         ObjectNode raiz = json.createObjectNode();
         raiz.set("horarioFuncionamento", escreverHorario(configuracoes.horarioFuncionamento()));
-        raiz.set("reservas", escreverReservas(configuracoes));
+        raiz.set("limitesDeUso", escreverLimitesDeUso(configuracoes));
         raiz.set("execucao", escreverExecucao(configuracoes.execucao()));
         raiz.set("notificacoes", escreverNotificacoes(configuracoes.notificacoes()));
         try {
@@ -111,26 +112,26 @@ public class ConfiguracoesRepositorio {
         return no;
     }
 
-    private static Map<Provedor, Reserva> lerReservas(JsonNode no) {
-        Map<Provedor, Reserva> reservas = new EnumMap<>(Provedor.class);
-        for (Provedor provedor : Configuracoes.PROVEDORES_COM_RESERVA) {
-            JsonNode reserva = no.path(provedor.name());
-            if (reserva.isObject()) {
-                Reserva padrao = Reserva.padrao();
-                reservas.put(provedor, new Reserva(reserva.path("automacao").asInt(padrao.automacao()),
-                        reserva.path("oraculo").asInt(padrao.oraculo())));
+    private static Map<Provedor, LimiteDeUso> lerLimitesDeUso(JsonNode no) {
+        Map<Provedor, LimiteDeUso> limites = new EnumMap<>(Provedor.class);
+        for (Provedor provedor : Configuracoes.PROVEDORES_COM_LIMITE) {
+            JsonNode limite = no.path(provedor.name());
+            if (limite.isObject()) {
+                LimiteDeUso padrao = LimiteDeUso.padrao();
+                limites.put(provedor, new LimiteDeUso(limite.path("automacao").asInt(padrao.automacao()),
+                        limite.path("oraculo").asInt(padrao.oraculo())));
             }
         }
-        return reservas;
+        return limites;
     }
 
-    private ObjectNode escreverReservas(Configuracoes configuracoes) {
+    private ObjectNode escreverLimitesDeUso(Configuracoes configuracoes) {
         ObjectNode no = json.createObjectNode();
-        for (Provedor provedor : Configuracoes.PROVEDORES_COM_RESERVA) {
-            Reserva reserva = configuracoes.reserva(provedor);
+        for (Provedor provedor : Configuracoes.PROVEDORES_COM_LIMITE) {
+            LimiteDeUso limite = configuracoes.limiteDeUso(provedor);
             no.putObject(provedor.name())
-                    .put("automacao", reserva.automacao())
-                    .put("oraculo", reserva.oraculo());
+                    .put("automacao", limite.automacao())
+                    .put("oraculo", limite.oraculo());
         }
         return no;
     }

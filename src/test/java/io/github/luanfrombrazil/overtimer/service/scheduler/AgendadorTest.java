@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
+import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -122,6 +124,27 @@ class AgendadorTest {
         assertEquals(Estado.CONCLUIDO, subtarefa(projeto, task, 1).estado());
         assertEquals(primeira.sessao(), projetos.buscar(projeto.id()).orElseThrow().tasks().getFirst().sessao());
         assertTrue(agendador.log(projeto.id()).stream().anyMatch(l -> l.contains("› Edit arquivo.txt")));
+    }
+
+    @Test
+    void naoComecaTaskComOProvedorNoLimiteDeUso() throws InterruptedException {
+        AtomicInteger uso = new AtomicInteger(95);
+        agendador.usarConsumo(p -> uso.get());
+        agendador.aplicar(Configuracoes.padrao()); // automação até 90%
+        Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        projetos.salvarTask(projeto(), task);
+
+        agendador.iniciar();
+        Thread.sleep(300);
+
+        assertEquals(0, agente.execucoes.size());
+        assertTrue(agendador.situacao().texto().contains("limite de uso"), agendador.situacao().texto());
+
+        uso.set(40);
+        agendador.agora();
+        esperarFilaVazia();
+
+        assertEquals(1, agente.execucoes.size());
     }
 
     @Test

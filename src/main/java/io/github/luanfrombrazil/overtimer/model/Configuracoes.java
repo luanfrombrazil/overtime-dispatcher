@@ -8,20 +8,20 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Configurações salvas da aplicação: horário de funcionamento, reserva por provedor, execução e notificações.
+ * Configurações salvas da aplicação: horário de funcionamento, limite de uso por provedor, execução e notificações.
  */
-public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Provedor, Reserva> reservas,
+public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Provedor, LimiteDeUso> limitesDeUso,
                             Execucao execucao, Notificacoes notificacoes) {
 
-    /** Provedores que têm reserva própria (o automático usa a de quem for escolhido). */
-    public static final List<Provedor> PROVEDORES_COM_RESERVA =
+    /** Provedores que têm limite de uso próprio (o automático usa o de quem for escolhido). */
+    public static final List<Provedor> PROVEDORES_COM_LIMITE =
             List.of(Provedor.CLAUDE_CODE, Provedor.CODEX, Provedor.GEMINI);
 
     public Configuracoes {
         horarioFuncionamento = horarioFuncionamento.copia();
-        EnumMap<Provedor, Reserva> completas = new EnumMap<>(Provedor.class);
-        PROVEDORES_COM_RESERVA.forEach(p -> completas.put(p, reservas.getOrDefault(p, Reserva.padrao())));
-        reservas = Map.copyOf(completas);
+        EnumMap<Provedor, LimiteDeUso> completos = new EnumMap<>(Provedor.class);
+        PROVEDORES_COM_LIMITE.forEach(p -> completos.put(p, limitesDeUso.getOrDefault(p, LimiteDeUso.padrao())));
+        limitesDeUso = Map.copyOf(completos);
     }
 
     /** Só o horário escolhido; o resto com os valores padrão. */
@@ -38,23 +38,32 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
         return horarioFuncionamento.copia();
     }
 
-    public Reserva reserva(Provedor provedor) {
-        return reservas.getOrDefault(provedor, Reserva.padrao());
+    public LimiteDeUso limiteDeUso(Provedor provedor) {
+        return limitesDeUso.getOrDefault(provedor, LimiteDeUso.padrao());
     }
 
     /**
-     * Divisão da janela de uso de um provedor, em porcentagem: automação, Oráculo e, no que sobra, você.
+     * Divisão da janela de uso de um provedor, em porcentagem: até {@code automacao} o agendador pode começar
+     * Tasks; a faixa seguinte é do Oráculo e o que sobra fica para você.
      */
-    public record Reserva(int automacao, int oraculo) {
+    public record LimiteDeUso(int automacao, int oraculo) {
 
-        public Reserva {
+        public LimiteDeUso {
             if (automacao < 0 || oraculo < 0 || automacao + oraculo > 100) {
-                throw new IllegalArgumentException("reserva inválida: " + automacao + "% + " + oraculo + "%");
+                throw new IllegalArgumentException("limite de uso inválido: " + automacao + "% + " + oraculo + "%");
             }
         }
 
-        public static Reserva padrao() {
-            return new Reserva(0, 5);
+        /** Automação até 90% da janela, 5% para o Oráculo e 5% para você. */
+        public static LimiteDeUso padrao() {
+            return new LimiteDeUso(90, 5);
+        }
+
+        /**
+         * Se a automação pode começar algo com o uso medido (0 a 100); uso desconhecido (negativo) não impede.
+         */
+        public boolean permite(int uso) {
+            return uso < 0 || uso < automacao;
         }
 
         public int voce() {

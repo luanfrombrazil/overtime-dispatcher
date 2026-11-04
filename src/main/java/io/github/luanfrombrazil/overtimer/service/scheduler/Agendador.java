@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
@@ -37,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToIntFunction;
 
 /**
  * Entrega o trabalho da fila aos agentes, um de cada vez: subtarefas ou, quando não há subtarefas, a Task inteira.
@@ -57,13 +59,15 @@ import java.util.concurrent.TimeUnit;
  * quando o horário fecha vai até o fim. Fora do horário, além dos ciclos do intervalo, acorda sozinho quando o
  * horário abre.
  * <p>
- * Ainda não respeita a reserva (módulo de consumo).
+ * Não começa uma Task num provedor cujo {@linkplain #usarConsumo uso medido} (sessão ou semanal) chegou ao limite de
+ * uso dele nas configurações; pula para a próxima Task de outro provedor. Uso desconhecido não impede.
  */
 public class Agendador {
 
     public static final Duration INTERVALO_PADRAO = Duration.ofMinutes(5);
     /** Valor de {@link #usarIntervalo} para não limitar as execuções por intervalo. */
     public static final int SEM_LIMITE = 0;
+    private static final LimiteDeUso SEM_LIMITE_DE_USO = new LimiteDeUso(100, 0);
     public static final Duration LIMITE_DA_EXECUCAO = Duration.ofMinutes(60);
     private static final int LINHAS_EM_MEMORIA = 300;
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
@@ -115,6 +119,12 @@ public class Agendador {
     private volatile int maximoPorIntervalo = SEM_LIMITE;
     /** Execuções que começaram desde o último ciclo do intervalo. */
     private volatile int execucoesNoIntervalo;
+    /** Limite de uso de cada provedor; até receber as configurações, não limita. */
+    private volatile Map<Provedor, LimiteDeUso> limitesDeUso = Map.of();
+    /** Uso medido de cada provedor, de 0 a 100, ou negativo quando desconhecido. */
+    private volatile ToIntFunction<Provedor> uso = provedor -> -1;
+    /** Por que o último ciclo parou com trabalho na fila por causa do limite de uso; null se não parou por isso. */
+    private volatile String noLimiteDeUso;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
@@ -176,6 +186,7 @@ public class Agendador {
 
     /** Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo e máximo. */
     public void aplicar(Configuracoes configuracoes) {
+        limitesDeUso = configuracoes.limitesDeUso();
         usarHorario(configuracoes.horarioFuncionamento());
         Configuracoes.Execucao execucao = configuracoes.execucao();
         usarIntervalo(Duration.ofMinutes(execucao.intervaloMinutos()), execucao.maximoPorIntervalo());
@@ -183,6 +194,35 @@ public class Agendador {
 
     public Duration intervalo() {
         return intervalo;
+    }
+
+    /**
+     * De onde ler o uso de cada provedor (0 a 100, negativo quando desconhecido). Sem isso, o limite de uso não
+     * impede nada.
+     */
+    public void usarConsumo(ToIntFunction<Provedor> uso) {
+        this.uso = uso;
+    }
+
+    /**
+     * Se a Task pode começar pelo limite de uso do provedor que vai executá-la. Sem agente, deixa passar: a
+     * execução registra o erro de falta de agente.
+     */
+    private boolean dentroDoLimiteDeUso(Task task) {
+        Optional<Agente> agente = agentes.para(task.provedor());
+        if (agente.isEmpty()) {
+            return true;
+        }
+        Provedor provedor = agente.get().provedor();
+        return limitesDeUso.getOrDefault(provedor, SEM_LIMITE_DE_USO).permite(usoDe(provedor));
+    }
+
+    private int usoDe(Provedor provedor) {
+        try {
+            return uso.applyAsInt(provedor);
+        } catch (RuntimeException e) {
+            return -1;
+        }
     }
 
     private boolean limiteAtingido() {
@@ -281,7 +321,9 @@ public class Agendador {
                     .orElse(" · nenhum horário liberado"));
         }
         Instant proximo = proximoCiclo;
-        String motivo = limiteAtingido() ? "limite de " + maximoPorIntervalo + " por intervalo" : "fila vazia";
+        String bloqueio = noLimiteDeUso;
+        String motivo = limiteAtingido() ? "limite de " + maximoPorIntervalo + " por intervalo"
+                : bloqueio != null ? bloqueio : "fila vazia";
         return new Situacao(true, "Rodando · " + motivo + (proximo == null ? ""
                 : " · próximo ciclo às " + LocalTime.ofInstant(proximo, ZoneId.systemDefault()).format(HORA)));
     }
@@ -333,9 +375,16 @@ public class Agendador {
     /** Executa o trabalho liberado até a fila esvaziar, o máximo do intervalo ou o agendador ser pausado. */
     void ciclo() {
         try {
+            noLimiteDeUso = null;
             while (rodando && dentroDoHorario() && !limiteAtingido()) {
-                Optional<ProjetoService.Proxima> proxima = projetos.proxima(this::liberada);
+                Optional<ProjetoService.Proxima> proxima =
+                        projetos.proxima(task -> liberada(task) && dentroDoLimiteDeUso(task));
                 if (proxima.isEmpty()) {
+                    // Sobrou trabalho só em provedores no limite: a barra superior diz qual.
+                    noLimiteDeUso = projetos.proxima(this::liberada)
+                            .flatMap(p -> agentes.para(p.task().provedor()))
+                            .map(a -> a.provedor() + " no limite de uso (" + usoDe(a.provedor()) + "%)")
+                            .orElse(null);
                     break;
                 }
                 executar(proxima.get());

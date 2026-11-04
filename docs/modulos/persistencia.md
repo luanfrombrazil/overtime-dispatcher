@@ -39,10 +39,10 @@ Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "S
     "seg": ["00:00-07:00", "22:00-24:00"],
     "sab": ["00:00-24:00"]
   },
-  "reservas": {
-    "CLAUDE_CODE": { "automacao": 0, "oraculo": 5 },
-    "CODEX": { "automacao": 0, "oraculo": 5 },
-    "GEMINI": { "automacao": 0, "oraculo": 5 }
+  "limitesDeUso": {
+    "CLAUDE_CODE": { "automacao": 90, "oraculo": 5 },
+    "CODEX": { "automacao": 90, "oraculo": 5 },
+    "GEMINI": { "automacao": 90, "oraculo": 5 }
   },
   "execucao": { "intervaloMinutos": 5, "tentativas": 3, "timeoutMinutos": 30, "maximoPorIntervalo": 0 },
   "notificacoes": {
@@ -58,4 +58,4 @@ Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "S
 ```
 
 - O horário de funcionamento é gravado como faixas de 30 em 30 minutos por dia.
-- A reserva é a porcentagem da janela de uso de cada provedor para a automação e para o Oráculo; o resto é sua.
+- O limite de uso é a porcentagem da janela de uso de cada provedor até onde a automação pode começar Tasks, mais a faixa do Oráculo; o resto é sua. A seção `reservas` de versões anteriores é ignorada.
