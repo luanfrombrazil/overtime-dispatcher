@@ -143,7 +143,7 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     public void configuracoes() {
-        configuracoes("Agendamento");
+        configuracoes("Geral");
     }
 
     private void configuracoes(String secao) {

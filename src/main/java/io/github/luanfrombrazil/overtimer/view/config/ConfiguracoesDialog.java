@@ -31,12 +31,12 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Configurações, com navegação lateral. Agendamento e Notificações já prototipadas.
+ * Configurações, com navegação lateral. Geral e Notificações já prototipadas.
  */
 public class ConfiguracoesDialog extends Dialogo {
 
     private static final List<String> SECOES =
-            List.of("Geral", "Agendamento", "Provedores", "Notificações", "Projetos padrão", "Avançado");
+            List.of("Geral", "Provedores", "Notificações", "Projetos padrão", "Avançado");
 
     /** Valores iniciais da reserva de cada provedor: 0% para automação e 5% para o Oráculo. */
     private static final int AUTOMACAO_PADRAO = 0;
@@ -62,7 +62,7 @@ public class ConfiguracoesDialog extends Dialogo {
         paginas.setOpaque(false);
         for (String secao : SECOES) {
             JComponent pagina = switch (secao) {
-                case "Agendamento" -> agendamento();
+                case "Geral" -> geral();
                 case "Notificações" -> notificacoes();
                 default -> Ui.margem(Ui.coluna(0, Ui.legenda("Em construção.")), 20, 24, 20, 24);
             };
@@ -78,7 +78,7 @@ public class ConfiguracoesDialog extends Dialogo {
         conteudo.add(rodape(), BorderLayout.SOUTH);
         raiz.add(conteudo, BorderLayout.CENTER);
 
-        mostrar("Agendamento");
+        mostrar("Geral");
     }
 
     /** Abre numa seção específica (ex.: "Notificações"). */
@@ -141,9 +141,9 @@ public class ConfiguracoesDialog extends Dialogo {
         return rodape;
     }
 
-    // ---------- Agendamento ----------
+    // ---------- Geral ----------
 
-    private JComponent agendamento() {
+    private JComponent geral() {
         JPanel pagina = pagina();
 
         pagina.add(Ui.cabecalho(Ui.secao("Horário de funcionamento"), null));
