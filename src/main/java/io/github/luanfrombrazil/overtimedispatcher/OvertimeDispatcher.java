@@ -5,6 +5,7 @@ import io.github.luanfrombrazil.overtimedispatcher.service.DadosService;
 import io.github.luanfrombrazil.overtimedispatcher.service.ProjetoService;
 import io.github.luanfrombrazil.overtimedispatcher.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimedispatcher.service.agente.AreaDeTrabalho;
+import io.github.luanfrombrazil.overtimedispatcher.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimedispatcher.service.persistence.PastaDados;
 import io.github.luanfrombrazil.overtimedispatcher.service.persistence.RepositorioProjetos;
 import io.github.luanfrombrazil.overtimedispatcher.service.scheduler.Agendador;
@@ -28,6 +29,11 @@ public final class OvertimeDispatcher {
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
-        SwingUtilities.invokeLater(() -> new MainController(new DadosService(), projetos, agendador).iniciar());
+        ConsumoService consumo = ConsumoService.padrao();
+        SwingUtilities.invokeLater(() -> {
+            new MainController(new DadosService(), projetos, agendador, consumo).iniciar();
+            // Só depois da tela existir, para a primeira medição já chegar ao ouvinte da barra superior.
+            consumo.iniciar();
+        });
     }
 }
