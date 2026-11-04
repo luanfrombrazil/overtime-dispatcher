@@ -25,6 +25,11 @@ public class LinhaLateral extends JPanel {
     private boolean sobre;
 
     public LinhaLateral(Estado estado, String nome, String sigla, String detalhe, Runnable aoClicar) {
+        this(estado, nome, sigla, null, detalhe, aoClicar);
+    }
+
+    /** @param imagem caminho da imagem do ícone, ou null para mostrar as iniciais */
+    public LinhaLateral(Estado estado, String nome, String sigla, String imagem, String detalhe, Runnable aoClicar) {
         super(new BorderLayout(10, 0));
         this.estado = estado;
         setOpaque(false);
@@ -33,7 +38,7 @@ public class LinhaLateral extends JPanel {
 
         JPanel icone = new JPanel(new java.awt.GridBagLayout());
         icone.setOpaque(false);
-        icone.add(new Iniciais(sigla, 28));
+        icone.add(new Iniciais(sigla, imagem, 28));
         add(icone, BorderLayout.WEST);
 
         JLabel rotulo = Ui.secao(nome);

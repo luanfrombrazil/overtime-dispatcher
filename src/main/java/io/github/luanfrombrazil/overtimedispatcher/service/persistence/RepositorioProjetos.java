@@ -27,6 +27,7 @@ import java.util.stream.Stream;
  * Lê e grava os projetos em JSON:
  * <pre>
  * projetos/&lt;id do projeto&gt;/projeto.json             dados do projeto e a ordem das Tasks
+ * projetos/&lt;id do projeto&gt;/imagem.png (ou .jpg)       cópia da imagem escolhida como ícone, se houver
  * projetos/&lt;id do projeto&gt;/tasks/&lt;id da task&gt;/task.json  a Task com as suas subtarefas
  * projetos/&lt;id do projeto&gt;/tasks/&lt;id da task&gt;/log.txt    o que o agente fez em cada execução
  * </pre>
@@ -36,10 +37,15 @@ public class RepositorioProjetos {
     private static final String ARQUIVO_PROJETO = "projeto.json";
     private static final String ARQUIVO_TASK = "task.json";
     private static final String ARQUIVO_LOG = "log.txt";
+    private static final String ARQUIVO_IMAGEM = "imagem";
 
-    /** Conteúdo de projeto.json: o projeto sem as Tasks, que ficam nas suas próprias pastas. */
+    /**
+     * Conteúdo de projeto.json: o projeto sem as Tasks, que ficam nas suas próprias pastas. A imagem é só o
+     * nome do arquivo dentro da pasta do projeto.
+     */
     private record ArquivoProjeto(String id, String nome, String sigla, String descricao, String pasta, String branch,
-                                  Provedor provedor, Esforco esforco, Permissoes permissoes, List<String> tasks) {
+                                  Provedor provedor, Esforco esforco, Permissoes permissoes, List<String> tasks,
+                                  String imagem) {
     }
 
     private final Path raiz;
@@ -78,16 +84,26 @@ public class RepositorioProjetos {
                 tasks.add(json.readValue(arquivoTask.toFile(), Task.class));
             }
         }
+        Path imagem = arquivo.imagem() == null ? null : pasta.resolve(arquivo.imagem()).normalize();
+        boolean imagemValida = imagem != null && pasta.normalize().equals(imagem.getParent())
+                && Files.isRegularFile(imagem);
         return new Projeto(arquivo.id(), arquivo.nome(), arquivo.sigla(), arquivo.descricao(), arquivo.pasta(),
-                arquivo.branch(), arquivo.provedor(), arquivo.esforco(), arquivo.permissoes(), tasks);
+                arquivo.branch(), arquivo.provedor(), arquivo.esforco(), arquivo.permissoes(), tasks,
+                imagemValida ? imagem.toAbsolutePath().toString() : null);
     }
 
-    /** Grava o projeto e as suas Tasks, e apaga as pastas das Tasks que não existem mais. */
-    public void salvar(Projeto projeto) {
+    /**
+     * Grava o projeto e as suas Tasks, e apaga as pastas das Tasks que não existem mais. Uma imagem de fora da
+     * pasta do projeto é copiada para dentro dela.
+     *
+     * @return o projeto gravado, com a imagem apontando para a cópia
+     */
+    public Projeto salvar(Projeto projeto) {
         Path pasta = pastaDo(projeto.id());
         Path pastaTasks = pasta.resolve("tasks");
         try {
             Files.createDirectories(pastaTasks);
+            projeto = projeto.comImagem(guardarImagem(pasta, projeto.imagem()));
             Set<String> ids = new HashSet<>();
             for (Task task : projeto.tasks()) {
                 ids.add(task.id());
@@ -97,7 +113,8 @@ public class RepositorioProjetos {
             }
             gravar(pasta.resolve(ARQUIVO_PROJETO), new ArquivoProjeto(projeto.id(), projeto.nome(), projeto.sigla(),
                     projeto.descricao(), projeto.pasta(), projeto.branch(), projeto.provedor(), projeto.esforco(),
-                    projeto.permissoes(), projeto.tasks().stream().map(Task::id).toList()));
+                    projeto.permissoes(), projeto.tasks().stream().map(Task::id).toList(),
+                    projeto.imagem() == null ? null : Path.of(projeto.imagem()).getFileName().toString()));
             try (Stream<Path> existentes = Files.list(pastaTasks)) {
                 for (Path antiga : existentes.filter(p -> !ids.contains(p.getFileName().toString())).toList()) {
                     apagar(antiga);
@@ -106,6 +123,36 @@ public class RepositorioProjetos {
         } catch (IOException e) {
             throw new UncheckedIOException("Não foi possível salvar o projeto " + projeto.nome(), e);
         }
+        return projeto;
+    }
+
+    /**
+     * Deixa na pasta do projeto só a imagem escolhida: copia a de fora como {@code imagem.<extensão>} e apaga a
+     * anterior. Sem imagem, apaga a que houver.
+     *
+     * @return caminho da imagem dentro da pasta do projeto, ou null
+     */
+    private static String guardarImagem(Path pasta, String imagem) throws IOException {
+        Path destino = null;
+        if (imagem != null) {
+            Path origem = Path.of(imagem).toAbsolutePath().normalize();
+            if (pasta.toAbsolutePath().normalize().equals(origem.getParent())) {
+                destino = origem;
+            } else {
+                String nome = origem.getFileName().toString();
+                String extensao = nome.substring(nome.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT);
+                destino = pasta.resolve(ARQUIVO_IMAGEM + "." + extensao).toAbsolutePath().normalize();
+                Files.copy(origem, destino, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        try (Stream<Path> arquivos = Files.list(pasta)) {
+            for (Path p : arquivos.filter(p -> p.getFileName().toString().startsWith(ARQUIVO_IMAGEM + ".")).toList()) {
+                if (!p.toAbsolutePath().normalize().equals(destino)) {
+                    Files.delete(p);
+                }
+            }
+        }
+        return destino == null ? null : destino.toString();
     }
 
     /** Acrescenta uma linha ao {@code log.txt} da Task, se a pasta dela existir. */

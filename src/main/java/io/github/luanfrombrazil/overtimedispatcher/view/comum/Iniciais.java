@@ -2,24 +2,43 @@ package io.github.luanfrombrazil.overtimedispatcher.view.comum;
 
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
+import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ícone quadrado com as iniciais de um projeto, protocolo ou trilha.
+ * Ícone quadrado de um projeto, protocolo ou trilha: a imagem escolhida, se houver, ou as iniciais.
  */
 public class Iniciais extends JComponent {
 
+    /** Imagens já reduzidas, por caminho, data de alteração e tamanho, para não reler o arquivo a cada tela. */
+    private static final Map<String, BufferedImage> CACHE = new ConcurrentHashMap<>();
+    private static final int ARCO = 10;
+
     private String sigla;
     private final int tamanho;
+    private BufferedImage imagem;
 
     public Iniciais(String sigla, int tamanho) {
+        this(sigla, null, tamanho);
+    }
+
+    /** @param imagem caminho de uma imagem .png ou .jpg; null ou ilegível mostra as iniciais */
+    public Iniciais(String sigla, String imagem, int tamanho) {
         this.sigla = sigla;
         this.tamanho = tamanho;
+        this.imagem = carregar(imagem, tamanho);
         Dimension d = new Dimension(tamanho, tamanho);
         setPreferredSize(d);
         setMinimumSize(d);
@@ -31,11 +50,57 @@ public class Iniciais extends JComponent {
         repaint();
     }
 
+    public void setImagem(String imagem) {
+        this.imagem = carregar(imagem, tamanho);
+        repaint();
+    }
+
+    /** Lê a imagem e a recorta no centro, em quadrado, já no tamanho do ícone. */
+    private static BufferedImage carregar(String caminho, int tamanho) {
+        if (caminho == null) {
+            return null;
+        }
+        File arquivo = new File(caminho);
+        String chave = arquivo.getAbsolutePath() + "|" + arquivo.lastModified() + "|" + tamanho;
+        BufferedImage pronta = CACHE.get(chave);
+        if (pronta != null) {
+            return pronta;
+        }
+        try {
+            BufferedImage original = ImageIO.read(arquivo);
+            if (original == null) {
+                return null;
+            }
+            int lado = Math.min(original.getWidth(), original.getHeight());
+            BufferedImage quadrada = original.getSubimage((original.getWidth() - lado) / 2,
+                    (original.getHeight() - lado) / 2, lado, lado);
+            pronta = new BufferedImage(tamanho, tamanho, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = pronta.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(quadrada.getScaledInstance(tamanho, tamanho, Image.SCALE_SMOOTH), 0, 0, null);
+            g.dispose();
+            CACHE.put(chave, pronta);
+            return pronta;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        if (imagem != null) {
+            g2.setClip(new RoundRectangle2D.Float(0, 0, tamanho, tamanho, ARCO, ARCO));
+            g2.drawImage(imagem, 0, 0, null);
+            g2.setClip(null);
+            g2.setColor(Tema.BORDA);
+            g2.drawRoundRect(0, 0, tamanho - 1, tamanho - 1, ARCO, ARCO);
+            g2.dispose();
+            return;
+        }
         g2.setColor(Tema.SUTIL);
         g2.fillRoundRect(0, 0, tamanho - 1, tamanho - 1, 10, 10);
         g2.setColor(Tema.BORDA);

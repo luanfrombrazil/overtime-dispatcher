@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
 import io.github.luanfrombrazil.overtimedispatcher.service.Git;
 import io.github.luanfrombrazil.overtimedispatcher.service.ProjetoService;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Iniciais;
 import io.github.luanfrombrazil.overtimedispatcher.view.projeto.ProjetoDialog;
 import io.github.luanfrombrazil.overtimedispatcher.view.projeto.ProjetoPanel;
 import io.github.luanfrombrazil.overtimedispatcher.view.projeto.SubtarefaDialog;
@@ -68,6 +69,20 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
             servico.excluir(projeto);
             aoExcluir.run();
         }, Git::branches).abrir();
+    }
+
+    @Override
+    public void renomearProjeto(String nome) {
+        aoAlterar.accept(servico.salvar(projeto.comNome(nome, Iniciais.de(nome))));
+    }
+
+    @Override
+    public void trocarImagemProjeto(String imagem) {
+        try {
+            aoAlterar.accept(servico.salvar(projeto.comImagem(imagem)));
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Imagem do projeto", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     @Override

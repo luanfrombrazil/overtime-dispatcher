@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimedispatcher.view;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import io.github.luanfrombrazil.overtimedispatcher.model.Consumo;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.BarraProgresso;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.BotaoIcone;
@@ -13,6 +14,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,11 +28,13 @@ public class BarraSuperior extends JPanel {
     /** Barra de consumo 50% maior que a padrão (80 × 6). */
     private static final int LARGURA_CONSUMO = 120;
     private static final int ALTURA_CONSUMO = 9;
+    /** Espaço em branco entre as barras de cada provedor. */
+    private static final int ESPACO_CONSUMO = 28;
 
     private final BotaoIcone home = new BotaoIcone(Ui.icone("home", 18, Tema.TEXTO), "Home");
     private final BotaoIcone notificacoes = new BotaoIcone(Ui.icone("sino", 18, Tema.TEXTO), "Notificações");
     private final BotaoIcone configuracoes = new BotaoIcone(Ui.icone("engrenagem", 18, Tema.TEXTO), "Configurações");
-    private final JButton agendador = Ui.comIcone(Ui.botaoPrimario("Iniciar agendador"), "play");
+    private final JButton agendador = Ui.botaoPrimario(null);
     private final IndicadorAgendador estado = new IndicadorAgendador();
     private final JPanel consumo = Ui.linha(0);
     private final Map<String, Medida> medidas = new LinkedHashMap<>();
@@ -54,6 +58,8 @@ public class BarraSuperior extends JPanel {
         void mostrar(Consumo c) {
             barra.setPorcentagens(Math.max(0, c.sessao()), Math.max(0, c.semanal()));
             porcentagem.setText(c.rotulo());
+            // Sem medida, o "—" pareceria um separador entre as barras; o motivo continua na dica.
+            porcentagem.setVisible(c.conhecido());
             String dica = c.detalhe() == null
                     ? c.provedor() + " · sessão " + texto(c.sessao()) + " · semana " + texto(c.semanal())
                     : c.provedor() + " · " + c.detalhe();
@@ -75,6 +81,7 @@ public class BarraSuperior extends JPanel {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.BORDA),
                 BorderFactory.createEmptyBorder(10, 16, 10, 16)));
 
+        mostrarBotaoAgendador(false);
         add(Ui.linha(12, home, agendador, estado), BorderLayout.WEST);
 
         notificacoes.setContador(naoLidas);
@@ -100,7 +107,7 @@ public class BarraSuperior extends JPanel {
             for (Medida medida : medidas.values()) {
                 linhas.add(medida.linha);
             }
-            this.consumo.add(Ui.linha(16, linhas.toArray(new JComponent[0])));
+            this.consumo.add(Ui.linha(ESPACO_CONSUMO, linhas.toArray(new JComponent[0])));
         }
         revalidate();
         repaint();
@@ -131,11 +138,21 @@ public class BarraSuperior extends JPanel {
      * aparece ao passar o mouse.
      */
     public void setAgendador(boolean rodando, String situacao) {
-        agendador.setText(rodando ? "Pausar agendador" : "Iniciar agendador");
-        agendador.setIcon(Ui.icone(rodando ? "pausa" : "play", 12, Tema.TEXTO));
-        agendador.setMaximumSize(agendador.getPreferredSize());
+        mostrarBotaoAgendador(rodando);
         estado.setEstado(rodando, situacao);
         revalidate();
         repaint();
+    }
+
+    /**
+     * Botão só com o símbolo: play azul para iniciar, quadrado vermelho para parar. O texto da ação fica na dica.
+     */
+    private void mostrarBotaoAgendador(boolean rodando) {
+        agendador.setIcon(Ui.icone(rodando ? "parar" : "play", 14, Color.WHITE));
+        agendador.setToolTipText(rodando ? "Parar agendador" : "Iniciar agendador");
+        agendador.putClientProperty(FlatClientProperties.STYLE,
+                "arc:8; margin:7,7,7,7; focusWidth:0; innerFocusWidth:0; borderWidth:0; foreground:#FFFFFF; "
+                        + "background:" + (rodando ? "#C94F4F" : "#3574F0"));
+        agendador.setMaximumSize(agendador.getPreferredSize());
     }
 }

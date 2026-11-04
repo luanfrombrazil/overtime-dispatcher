@@ -79,7 +79,8 @@ public class BarraLateral extends JScrollPane {
 
         conteudo.add(cabecalho("Projetos", "+ Projeto", ouvinte::novoProjeto));
         for (Projeto p : projetos) {
-            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.detalhe(), () -> ouvinte.projeto(p)));
+            adicionar(p, new LinhaLateral(p.estado(), p.nome(), p.sigla(), p.imagem(), p.detalhe(),
+                    () -> ouvinte.projeto(p)));
         }
         conteudo.add(cabecalho("Protocolos", "+ Protocolo", ouvinte::novoProtocolo));
         for (Protocolo p : protocolos) {
@@ -113,6 +114,10 @@ public class BarraLateral extends JScrollPane {
 
     private static JPanel cabecalho(String titulo, String rotuloBotao, Runnable acao) {
         JButton botao = Ui.botaoPrimario(rotuloBotao);
+        // Os três botões ficam com a largura do maior rótulo, "+ Protocolo".
+        Dimension tamanho = Ui.botaoPrimario("+ Protocolo").getPreferredSize();
+        botao.setPreferredSize(tamanho);
+        botao.setMaximumSize(tamanho);
         botao.addActionListener(e -> acao.run());
         JPanel linha = new JPanel(new BorderLayout());
         linha.setOpaque(false);

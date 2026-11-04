@@ -100,6 +100,15 @@ public class ProjetoService {
                 throw new IllegalArgumentException("A branch \"" + projeto.branch() + "\" não existe na pasta do projeto.");
             }
         }
+        if (projeto.imagem() != null) {
+            String nome = projeto.imagem().toLowerCase(java.util.Locale.ROOT);
+            if (!nome.endsWith(".png") && !nome.endsWith(".jpg") && !nome.endsWith(".jpeg")) {
+                throw new IllegalArgumentException("A imagem do projeto deve ser .png ou .jpg.");
+            }
+            if (!java.nio.file.Files.isRegularFile(Path.of(projeto.imagem()))) {
+                throw new IllegalArgumentException("A imagem \"" + projeto.imagem() + "\" não existe.");
+            }
+        }
         Projeto existente = projetos.get(projeto.id());
         return gravar(existente == null ? projeto : projeto.comTasks(existente.tasks()));
     }
@@ -537,9 +546,9 @@ public class ProjetoService {
     }
 
     private Projeto gravar(Projeto projeto) {
-        repositorio.salvar(projeto);
-        projetos.put(projeto.id(), projeto);
-        return projeto;
+        Projeto gravado = repositorio.salvar(projeto);
+        projetos.put(gravado.id(), gravado);
+        return gravado;
     }
 
     private static int indiceDaTask(List<Task> tasks, String id) {

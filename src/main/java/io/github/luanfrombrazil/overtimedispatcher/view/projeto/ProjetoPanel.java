@@ -5,7 +5,9 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
 import io.github.luanfrombrazil.overtimedispatcher.model.Task;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Console;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Etiqueta;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Iniciais;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Reordenacao;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.SeletorImagem;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
@@ -19,7 +21,10 @@ import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Cursor;
 import java.awt.Graphics;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +41,12 @@ public class ProjetoPanel extends JPanel {
     /** Ações disparadas pela tela do projeto. */
     public interface Ouvinte {
         void editarProjeto();
+
+        /** Troca o nome do projeto, editado direto no título. */
+        void renomearProjeto(String nome);
+
+        /** Troca a imagem do projeto pela do caminho escolhido. */
+        void trocarImagemProjeto(String imagem);
 
         void novaTask();
 
@@ -142,10 +153,28 @@ public class ProjetoPanel extends JPanel {
         JButton novaTask = Ui.botaoPrimario("+ Nova Task");
         novaTask.addActionListener(e -> ouvinte.novaTask());
         String local = projeto.usaGit() ? projeto.pasta() + " · " + projeto.branch() : projeto.pasta();
+        JComponent titulo = new TituloEditavel(projeto.nome(), ouvinte::renomearProjeto);
+        if (projeto.imagem() != null) {
+            titulo = Ui.linha(8, imagem(projeto), titulo);
+        }
         return Ui.coluna(10,
-                Ui.cabecalho(Ui.titulo(projeto.nome()),
+                Ui.cabecalho(titulo,
                         Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), editar, novaTask)),
                 Ui.legenda(local));
+    }
+
+    /** Imagem do projeto ao lado do título; clicar escolhe outra. */
+    private JComponent imagem(Projeto projeto) {
+        Iniciais icone = new Iniciais(projeto.sigla(), projeto.imagem(), 32);
+        icone.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        icone.setToolTipText("Clique para trocar a imagem");
+        icone.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                SeletorImagem.escolher(ProjetoPanel.this).ifPresent(ouvinte::trocarImagemProjeto);
+            }
+        });
+        return icone;
     }
 
     /** As Tasks em andamento ou na fila, que podem ser reordenadas, e abaixo a seção das finalizadas, travadas. */
