@@ -84,7 +84,11 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
 
     @Override
     public void moverTask(Task task, int deslocamento) {
-        alterado(servico.moverTask(projeto, task, deslocamento));
+        try {
+            alterado(servico.moverTask(projeto, task, deslocamento));
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Ordenar tasks", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     @Override

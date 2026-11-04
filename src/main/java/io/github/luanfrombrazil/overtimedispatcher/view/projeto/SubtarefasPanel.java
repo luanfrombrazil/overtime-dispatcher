@@ -2,6 +2,7 @@ package io.github.luanfrombrazil.overtimedispatcher.view.projeto;
 
 import io.github.luanfrombrazil.overtimedispatcher.model.Estado;
 import io.github.luanfrombrazil.overtimedispatcher.model.Subtarefa;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.Corda;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.ItemStatus;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
@@ -32,7 +33,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Lista de subtarefas com o círculo de amarrar e o fio vermelho entre as dependentes.
+ * Lista de subtarefas com o círculo de amarrar e a corda vermelha entre as dependentes, com um nó em cada
+ * ponta amarrada.
  * Arrastar de um círculo até outra subtarefa amarra as duas (ou desamarra, se já estavam amarradas); arrastar
  * pela alça de três barras, no fim da linha, muda a ordem.
  */
@@ -57,7 +59,10 @@ class SubtarefasPanel extends JPanel {
                     Consumer<Subtarefa> aoTentarDeNovo) {
         this.subtarefas = subtarefas;
         this.aoAmarrar = aoAmarrar;
-        this.reordenacao = new Reordenacao(this, (de, para) -> aoMover.accept(subtarefas.get(de), para - de));
+        // Só as subtarefas não finalizadas têm alça; as posições da reordenação contam apenas elas.
+        List<Subtarefa> moveis = subtarefas.stream().filter(s -> !s.finalizada()).toList();
+        this.reordenacao = new Reordenacao(this, (de, para) -> aoMover.accept(moveis.get(de),
+                indices.get(moveis.get(para).id()) - indices.get(moveis.get(de).id())));
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
@@ -80,18 +85,21 @@ class SubtarefasPanel extends JPanel {
             linha.add(envoltorioNo, BorderLayout.WEST);
             ItemStatus item = new ItemStatus(s.estado(), s.titulo(), s.detalhe(), Tema.SUTIL);
             item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            item.setToolTipText("Clique para editar");
+            item.setToolTipText(s.finalizada() ? "Finalizada; clique para ver" : "Clique para editar");
             item.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     aoClicar.accept(s);
                 }
             });
-            JComponent alca = reordenacao.alca("Arraste para mudar a ordem");
+            // A finalizada fica travada: no lugar da alça, a barra verde mostra a conclusão.
             if (s.estado() == Estado.ERRO) {
-                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)), alca);
+                item.comDireita(TaskCard.botaoTentarDeNovo("Tentar de novo", () -> aoTentarDeNovo.accept(s)),
+                        reordenacao.alca("Arraste para mudar a ordem"));
+            } else if (s.finalizada()) {
+                item.comDireita(TaskCard.botaoConclusao(s.titulo(), s.resultado()));
             } else {
-                item.comDireita(alca);
+                item.comDireita(reordenacao.alca("Arraste para mudar a ordem"));
             }
             linha.add(item, BorderLayout.CENTER);
             linha.setMaximumSize(new Dimension(Integer.MAX_VALUE, linha.getPreferredSize().height));
@@ -152,9 +160,6 @@ class SubtarefasPanel extends JPanel {
     protected void paintChildren(Graphics g) {
         super.paintChildren(g);
         Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(Tema.FIO);
-        g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (int i = 0; i < subtarefas.size(); i++) {
             for (String dependencia : subtarefas.get(i).dependeDe()) {
                 Integer origem = indices.get(dependencia);
@@ -164,18 +169,19 @@ class SubtarefasPanel extends JPanel {
                 Point a = centro(nos.get(origem));
                 Point b = centro(nos.get(i));
                 double curva = 12 + Math.abs(b.y - a.y) * 0.08;
-                g2.draw(new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
+                Corda.desenhar(g2, new CubicCurve2D.Double(a.x, a.y, a.x - curva, a.y + (b.y - a.y) * 0.35,
                         b.x - curva, a.y + (b.y - a.y) * 0.65, b.x, b.y));
             }
         }
         if (origemArrasto >= 0 && ponteiro != null) {
             Point a = centro(nos.get(origemArrasto));
-            g2.draw(new Line2D.Double(a.x, a.y, ponteiro.x, ponteiro.y));
+            Corda.desenhar(g2, new Line2D.Double(a.x, a.y, ponteiro.x, ponteiro.y));
         }
+        // As pontas amarradas viram nós da corda.
         for (No no : nos) {
             if (no.amarrado || (origemArrasto >= 0 && no == nos.get(origemArrasto))) {
                 Point p = centro(no);
-                g2.fillOval(p.x - 7, p.y - 7, 14, 14);
+                Corda.no(g2, p.x, p.y, 7);
             }
         }
         g2.dispose();

@@ -122,8 +122,8 @@ public class HomePanel extends JPanel {
         cartao.add(javax.swing.Box.createVerticalStrut(8));
         List<JComponent> consumo = new ArrayList<>();
         for (Consumo c : dados.consumoUltimaSessao()) {
-            consumo.add(Ui.linha(6, Ui.legenda(c.provedor()), new BarraProgresso(c.porcentagem(), Tema.ACENTO, 70),
-                    Ui.legenda(c.porcentagem() + "%")));
+            consumo.add(Ui.linha(6, Ui.legenda(c.provedor()), new BarraProgresso(c.sessao(), Tema.ACENTO, 70),
+                    Ui.legenda(c.sessao() + "%")));
         }
         cartao.add(Ui.largo(Ui.linha(16, consumo.toArray(new JComponent[0]))));
         for (ItemResumo item : dados.ultimaSessao()) {

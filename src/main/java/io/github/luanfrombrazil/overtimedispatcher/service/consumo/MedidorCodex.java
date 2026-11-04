@@ -67,21 +67,23 @@ public class MedidorCodex implements Medidor {
         JsonNode limites = limites(evento);
         Instant quando = instante(evento);
         List<String> detalhe = new ArrayList<>();
-        int porcentagem = 0;
+        int usoSessao = Consumo.DESCONHECIDO;
+        int usoSemana = Consumo.DESCONHECIDO;
         JsonNode primaria = limites.path("primary");
         if (primaria.hasNonNull("used_percent")) {
-            porcentagem = usado(primaria, quando, agora);
-            detalhe.add("Janela de " + janela(primaria, "5 h") + ": " + porcentagem + "%" + renova(primaria, quando, agora));
+            usoSessao = usado(primaria, quando, agora);
+            detalhe.add("Janela de " + janela(primaria, "5 h") + ": " + usoSessao + "%" + renova(primaria, quando, agora));
         }
         JsonNode secundaria = limites.path("secondary");
         if (secundaria.hasNonNull("used_percent")) {
-            detalhe.add("Janela de " + janela(secundaria, "7 dias") + ": " + usado(secundaria, quando, agora) + "%"
+            usoSemana = usado(secundaria, quando, agora);
+            detalhe.add("Janela de " + janela(secundaria, "7 dias") + ": " + usoSemana + "%"
                     + renova(secundaria, quando, agora));
         }
         if (detalhe.isEmpty()) {
             return Consumo.desconhecido(provedor, "O Codex ainda não informou o uso.");
         }
-        return new Consumo(provedor, porcentagem, String.join(" · ", detalhe));
+        return new Consumo(provedor, usoSessao, usoSemana, String.join(" · ", detalhe));
     }
 
     private static JsonNode limites(JsonNode evento) {

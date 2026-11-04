@@ -13,7 +13,11 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -22,7 +26,9 @@ import java.awt.event.MouseEvent;
 import java.util.function.Consumer;
 
 /**
- * Cartão de uma Task. Expandido, mostra as subtarefas e as ações. Tasks do Oráculo aparecem em roxo.
+ * Cartão de uma Task. Expandido, mostra as subtarefas e as ações. Tasks do Oráculo aparecem em roxo. A Task
+ * finalizada fica travada: a alça vira o botão verde da conclusão, sem nova subtarefa e com os detalhes só para
+ * leitura.
  */
 class TaskCard extends Cartao {
 
@@ -34,7 +40,8 @@ class TaskCard extends Cartao {
 
     /**
      * @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão
-     * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem
+     * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem; null
+     *                   na Task finalizada, que não muda de ordem
      */
     TaskCard(Task task, boolean expandido, Consumer<Boolean> aoExpandir, ProjetoPanel.Ouvinte ouvinte,
              JComponent alca) {
@@ -63,6 +70,11 @@ class TaskCard extends Cartao {
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
                         : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
                         seta, alca);
+            } else if (task.finalizada()) {
+                // No lugar da alça, que não move mais a Task, a mesma barra em verde mostra a conclusão.
+                cabecalho.comDireita(seta, botaoConclusao(task.titulo(), task.conclusao()));
+            } else if (alca == null) {
+                cabecalho.comDireita(seta);
             } else {
                 cabecalho.comDireita(seta, alca);
             }
@@ -95,14 +107,45 @@ class TaskCard extends Cartao {
         return botao;
     }
 
+    /**
+     * Botão de três barras com borda verde, no lugar da alça de um item finalizado: mostra a mensagem de
+     * conclusão do agente.
+     */
+    static BotaoIcone botaoConclusao(String titulo, String mensagem) {
+        BotaoIcone botao = new BotaoIcone(Ui.icone("arrastar", 14, Tema.VERDE), "Finalizada; clique para ver a conclusão",
+                24);
+        botao.setBorda(Tema.VERDE);
+        botao.addActionListener(e -> {
+            JTextArea texto = new JTextArea(mensagem == null || mensagem.isBlank()
+                    ? "O agente não deixou mensagem de conclusão." : mensagem.strip(), 12, 48);
+            texto.setEditable(false);
+            texto.setLineWrap(true);
+            texto.setWrapStyleWord(true);
+            texto.setFont(Tema.corpo());
+            texto.setCaretPosition(0);
+            JScrollPane rolagem = new JScrollPane(texto);
+            rolagem.setBorder(BorderFactory.createLineBorder(Tema.VERDE));
+            JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(botao), rolagem, "Conclusão: " + titulo,
+                    JOptionPane.PLAIN_MESSAGE);
+        });
+        return botao;
+    }
+
     private JComponent acoes(ProjetoPanel.Ouvinte ouvinte) {
+        JPanel linha = new JPanel(new BorderLayout());
+        linha.setOpaque(false);
+        linha.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
+        if (task.finalizada()) {
+            // Finalizada: travada, só dá para ver os detalhes.
+            JButton ver = Ui.botaoSecundario("Ver detalhes");
+            ver.addActionListener(e -> ouvinte.editarTask(task));
+            linha.add(ver, BorderLayout.WEST);
+            return Ui.largo(linha);
+        }
         JButton novaSubtarefa = Ui.botaoSecundario("+ Subtarefa");
         novaSubtarefa.addActionListener(e -> ouvinte.novaSubtarefa(task));
         JButton editar = Ui.botaoSecundario("Editar");
         editar.addActionListener(e -> ouvinte.editarTask(task));
-        JPanel linha = new JPanel(new BorderLayout());
-        linha.setOpaque(false);
-        linha.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
         linha.add(Ui.linha(8, novaSubtarefa, editar), BorderLayout.WEST);
         task.subtarefas().stream().filter(s -> s.estado() == Estado.ATENCAO).findFirst().ifPresent(s -> {
             JButton revisar = Ui.botaoSecundario("Revisar verificação");

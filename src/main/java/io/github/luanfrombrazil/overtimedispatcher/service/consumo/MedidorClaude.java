@@ -21,8 +21,8 @@ import java.util.List;
  * Uso da assinatura do Claude, o mesmo que o {@code /usage} do Claude Code mostra.
  * <p>
  * Usa o token OAuth que o Claude Code guarda em {@code ~/.claude/.credentials.json} (ou em
- * {@code $CLAUDE_CONFIG_DIR}) e consulta o endpoint de uso da Anthropic. A porcentagem é a da janela de
- * 5 horas; a da semana vai no detalhe.
+ * {@code $CLAUDE_CONFIG_DIR}) e consulta o endpoint de uso da Anthropic. A sessão é a janela de 5 horas
+ * e o semanal é a janela de 7 dias.
  */
 public class MedidorClaude implements Medidor {
 
@@ -90,15 +90,17 @@ public class MedidorClaude implements Medidor {
             return Consumo.desconhecido(provedor, "O Claude não informou o uso.");
         }
         List<String> detalhe = new ArrayList<>();
-        int porcentagem = 0;
+        int usoSessao = Consumo.DESCONHECIDO;
+        int usoSemana = Consumo.DESCONHECIDO;
         if (sessao.hasNonNull("utilization")) {
-            porcentagem = (int) Math.round(sessao.get("utilization").asDouble());
-            detalhe.add("Janela de 5 h: " + porcentagem + "%" + renova(sessao));
+            usoSessao = (int) Math.round(sessao.get("utilization").asDouble());
+            detalhe.add("Janela de 5 h: " + usoSessao + "%" + renova(sessao));
         }
         if (semana.hasNonNull("utilization")) {
-            detalhe.add("Semana: " + Math.round(semana.get("utilization").asDouble()) + "%" + renova(semana));
+            usoSemana = (int) Math.round(semana.get("utilization").asDouble());
+            detalhe.add("Semana: " + usoSemana + "%" + renova(semana));
         }
-        return new Consumo(provedor, porcentagem, String.join(" · ", detalhe));
+        return new Consumo(provedor, usoSessao, usoSemana, String.join(" · ", detalhe));
     }
 
     private static String renova(JsonNode janela) {

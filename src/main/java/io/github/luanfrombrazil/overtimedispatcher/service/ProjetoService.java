@@ -110,6 +110,7 @@ public class ProjetoService {
             tasks.add(task);
         } else {
             Task antiga = tasks.get(indice);
+            exigirAberta(antiga);
             tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
                     .comExecucao(antiga.execucao(), antiga.resultado()));
         }
@@ -122,27 +123,35 @@ public class ProjetoService {
     }
 
     /**
-     * Move a Task {@code deslocamento} posições (-1 sobe, +1 desce), limitado às pontas da lista. As Tasks rodam
-     * na ordem da lista, a mesma mostrada na tela.
+     * Move a Task {@code deslocamento} posições (-1 sobe, +1 desce) entre as Tasks ainda não finalizadas, limitado
+     * às pontas. As finalizadas ficam onde estão e não mudam de ordem. As Tasks rodam na ordem da lista, a mesma
+     * mostrada na tela.
      */
     public synchronized Projeto moverTask(Projeto projeto, Task task, int deslocamento) {
         Projeto atual = atual(projeto);
-        List<Task> tasks = new ArrayList<>(atual.tasks());
-        int indice = indiceDaTask(tasks, task.id());
-        if (indice < 0) {
+        int geral = indiceDaTask(atual.tasks(), task.id());
+        if (geral < 0) {
             throw new IllegalArgumentException("Task não encontrada.");
         }
-        int destino = Math.max(0, Math.min(tasks.size() - 1, indice + deslocamento));
+        exigirAberta(atual.tasks().get(geral));
+        List<Task> abertas = new ArrayList<>(atual.tasks().stream().filter(t -> !t.finalizada()).toList());
+        int indice = indiceDaTask(abertas, task.id());
+        int destino = Math.max(0, Math.min(abertas.size() - 1, indice + deslocamento));
         if (destino == indice) {
             return atual;
         }
-        tasks.add(destino, tasks.remove(indice));
+        abertas.add(destino, abertas.remove(indice));
+        List<Task> tasks = new ArrayList<>();
+        int proxima = 0;
+        for (Task t : atual.tasks()) {
+            tasks.add(t.finalizada() ? t : abertas.get(proxima++));
+        }
         return gravar(atual.comTasks(tasks));
     }
 
     /**
      * Move a subtarefa {@code deslocamento} posições dentro da Task, limitado às pontas da lista. Uma subtarefa
-     * precisa continuar abaixo das que ela espera.
+     * precisa continuar abaixo das que ela espera. Subtarefas finalizadas não mudam de ordem.
      */
     public synchronized Projeto moverSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa, int deslocamento) {
         return alterarSubtarefas(projeto, task, subtarefas -> {
@@ -151,6 +160,7 @@ public class ProjetoService {
             if (indice < 0) {
                 throw new IllegalArgumentException("Subtarefa não encontrada.");
             }
+            exigirAberta(novas.get(indice));
             int destino = Math.max(0, Math.min(novas.size() - 1, indice + deslocamento));
             novas.add(destino, novas.remove(indice));
             Set<String> acima = new HashSet<>();
@@ -168,13 +178,17 @@ public class ProjetoService {
         });
     }
 
-    /** Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. */
+    /**
+     * Adiciona a subtarefa ao fim da Task, ou substitui a de mesmo id mantendo o estado e o resultado. A Task
+     * finalizada não recebe subtarefas novas, e a subtarefa finalizada não pode ser editada.
+     */
     public synchronized Projeto salvarSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
         exigir(subtarefa.titulo(), "Dê um título à subtarefa.");
         Task atual = atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id())).findFirst().orElse(task);
         if (atual.inteira() && atual.execucao() == Estado.EM_ANDAMENTO) {
             throw new IllegalArgumentException("A task está em andamento; espere o agente terminar.");
         }
+        exigirAberta(atual);
         return alterarSubtarefas(projeto, task, subtarefas -> {
             List<Subtarefa> novas = new ArrayList<>(subtarefas);
             int indice = indiceDaSubtarefa(novas, subtarefa.id());
@@ -182,6 +196,7 @@ public class ProjetoService {
                 novas.add(subtarefa.comEstado(Estado.PENDENTE, null));
             } else {
                 Subtarefa antiga = novas.get(indice);
+                exigirAberta(antiga);
                 novas.set(indice, subtarefa.comEstado(antiga.estado(), antiga.resultado()));
             }
             return novas;
@@ -300,8 +315,11 @@ public class ProjetoService {
         return Optional.of(alterado);
     }
 
-    /** Remove a subtarefa e as dependências que apontavam para ela. */
+    /** Remove a subtarefa e as dependências que apontavam para ela. A subtarefa finalizada não pode ser excluída. */
     public synchronized Projeto excluirSubtarefa(Projeto projeto, Task task, Subtarefa subtarefa) {
+        atual(projeto).tasks().stream().filter(t -> t.id().equals(task.id()))
+                .flatMap(t -> t.subtarefas().stream()).filter(s -> s.id().equals(subtarefa.id()))
+                .findFirst().ifPresent(ProjetoService::exigirAberta);
         return alterarSubtarefas(projeto, task, subtarefas -> subtarefas.stream()
                 .filter(s -> !s.id().equals(subtarefa.id()))
                 .map(s -> s.comDependencias(s.dependeDe().stream().filter(d -> !d.equals(subtarefa.id())).toList()))
@@ -310,7 +328,7 @@ public class ProjetoService {
 
     /**
      * Amarra ou desamarra duas subtarefas: a que está mais abaixo na lista passa a depender
-     * (ou deixa de depender) da que está mais acima.
+     * (ou deixa de depender) da que está mais acima. A de baixo não pode estar finalizada.
      */
     public synchronized Projeto alternarDependencia(Projeto projeto, Task task, Subtarefa uma, Subtarefa outra) {
         if (uma.id().equals(outra.id())) {
@@ -324,6 +342,7 @@ public class ProjetoService {
             }
             Subtarefa anterior = subtarefas.get(Math.min(a, b));
             Subtarefa posterior = subtarefas.get(Math.max(a, b));
+            exigirAberta(posterior);
             List<String> dependencias = new ArrayList<>(posterior.dependeDe());
             if (!dependencias.remove(anterior.id())) {
                 dependencias.add(anterior.id());
@@ -413,6 +432,19 @@ public class ProjetoService {
             }
         }
         return -1;
+    }
+
+    private static void exigirAberta(Task task) {
+        if (task.finalizada()) {
+            throw new IllegalArgumentException("\"" + task.titulo() + "\" foi finalizada e não pode mais ser alterada.");
+        }
+    }
+
+    private static void exigirAberta(Subtarefa subtarefa) {
+        if (subtarefa.finalizada()) {
+            throw new IllegalArgumentException("\"" + subtarefa.titulo()
+                    + "\" foi finalizada e não pode mais ser alterada.");
+        }
     }
 
     private static void exigir(String valor, String mensagem) {
