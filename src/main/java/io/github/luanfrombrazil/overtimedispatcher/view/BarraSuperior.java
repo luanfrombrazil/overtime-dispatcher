@@ -3,12 +3,12 @@ package io.github.luanfrombrazil.overtimedispatcher.view;
 import io.github.luanfrombrazil.overtimedispatcher.model.Consumo;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.BarraProgresso;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.BotaoIcone;
+import io.github.luanfrombrazil.overtimedispatcher.view.comum.IndicadorAgendador;
 import io.github.luanfrombrazil.overtimedispatcher.view.comum.Ui;
 import io.github.luanfrombrazil.overtimedispatcher.view.tema.Tema;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ public class BarraSuperior extends JPanel {
     private final BotaoIcone notificacoes = new BotaoIcone(Ui.icone("sino", 18, Tema.TEXTO), "Notificações");
     private final BotaoIcone configuracoes = new BotaoIcone(Ui.icone("engrenagem", 18, Tema.TEXTO), "Configurações");
     private final JButton agendador = Ui.comIcone(Ui.botaoPrimario("Iniciar agendador"), "play");
-    private final JLabel estado = Ui.texto("Pausado · intervalo 5 min", Tema.corpo(), Tema.TEXTO_SECUNDARIO);
+    private final IndicadorAgendador estado = new IndicadorAgendador();
 
     public BarraSuperior(List<Consumo> consumo, int naoLidas) {
         super(new BorderLayout());
@@ -64,13 +64,15 @@ public class BarraSuperior extends JPanel {
         agendador.addActionListener(e -> acao.run());
     }
 
-    /** Mostra se o agendador está rodando e o que ele está fazendo. */
+    /**
+     * Mostra se o agendador está rodando: o símbolo de pausa ou o círculo girando. O que ele está fazendo só
+     * aparece ao passar o mouse.
+     */
     public void setAgendador(boolean rodando, String situacao) {
         agendador.setText(rodando ? "Pausar agendador" : "Iniciar agendador");
         agendador.setIcon(Ui.icone(rodando ? "pausa" : "play", 12, Tema.TEXTO));
         agendador.setMaximumSize(agendador.getPreferredSize());
-        estado.setText(situacao.length() > 70 ? situacao.substring(0, 69) + "…" : situacao);
-        estado.setToolTipText(situacao);
+        estado.setEstado(rodando, situacao);
         revalidate();
         repaint();
     }
