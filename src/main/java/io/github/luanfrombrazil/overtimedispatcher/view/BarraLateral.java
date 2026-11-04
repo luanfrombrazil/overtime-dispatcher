@@ -113,6 +113,10 @@ public class BarraLateral extends JScrollPane {
 
     private static JPanel cabecalho(String titulo, String rotuloBotao, Runnable acao) {
         JButton botao = Ui.botaoPrimario(rotuloBotao);
+        // Os três botões ficam com a largura do maior rótulo, "+ Protocolo".
+        Dimension tamanho = Ui.botaoPrimario("+ Protocolo").getPreferredSize();
+        botao.setPreferredSize(tamanho);
+        botao.setMaximumSize(tamanho);
         botao.addActionListener(e -> acao.run());
         JPanel linha = new JPanel(new BorderLayout());
         linha.setOpaque(false);
