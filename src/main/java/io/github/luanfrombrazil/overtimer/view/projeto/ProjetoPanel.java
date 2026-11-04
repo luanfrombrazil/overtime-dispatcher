@@ -86,6 +86,8 @@ public class ProjetoPanel extends JPanel {
     private int alturaConsole = ALTURA_CONSOLE;
     private final Set<String> expandidas = new HashSet<>();
     private Console console;
+    /** Console com o puxador acima, mantido entre os redesenhos do mesmo projeto. */
+    private JPanel areaLog;
     private final Set<String> conhecidas = new HashSet<>();
     private final Set<String> finalizadas = new HashSet<>();
     private String projetoId;
@@ -107,6 +109,8 @@ public class ProjetoPanel extends JPanel {
     /**
      * Redesenha a tela com o projeto e o log do agente. Tasks novas aparecem abertas; ao trocar de projeto,
      * só a primeira.
+     *
+     * @param log histórico do log, usado só quando o projeto mostrado muda
      */
     public void mostrar(Projeto projeto, List<String> log) {
         boolean outro = !projeto.id().equals(projetoId);
@@ -135,8 +139,16 @@ public class ProjetoPanel extends JPanel {
         add(cabecalho(projeto), BorderLayout.NORTH);
         rolagem = tasks(projeto.tasks());
         add(rolagem, BorderLayout.CENTER);
-        console = null;
-        log.forEach(this::adicionarLog);
+        // O histórico só é carregado ao trocar de projeto; no mesmo projeto o console continua e recebe as linhas
+        // novas por adicionarLog. Recarregar aqui duplicava a linha que chega logo depois do redesenho (ex.: o
+        // início de uma Task, que redesenha a tela e escreve no log quase ao mesmo tempo).
+        if (outro) {
+            console = null;
+            areaLog = null;
+            log.forEach(this::adicionarLog);
+        } else if (areaLog != null) {
+            add(areaLog, BorderLayout.SOUTH);
+        }
         revalidate();
         repaint();
         JScrollPane atual = rolagem;
@@ -147,11 +159,11 @@ public class ProjetoPanel extends JPanel {
     public void adicionarLog(String linha) {
         if (console == null) {
             console = new Console(List.of("Log"), List.of(), alturaConsole);
-            JPanel envoltorio = new JPanel(new BorderLayout());
-            envoltorio.setOpaque(false);
-            envoltorio.add(puxador(), BorderLayout.NORTH);
-            envoltorio.add(console, BorderLayout.CENTER);
-            add(envoltorio, BorderLayout.SOUTH);
+            areaLog = new JPanel(new BorderLayout());
+            areaLog.setOpaque(false);
+            areaLog.add(puxador(), BorderLayout.NORTH);
+            areaLog.add(console, BorderLayout.CENTER);
+            add(areaLog, BorderLayout.SOUTH);
             revalidate();
         }
         console.adicionar(linha);
