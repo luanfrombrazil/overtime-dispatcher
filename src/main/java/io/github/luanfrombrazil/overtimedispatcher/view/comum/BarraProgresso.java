@@ -14,16 +14,28 @@ import java.awt.RenderingHints;
  */
 public class BarraProgresso extends JComponent {
 
-    private final int porcentagem;
+    private int porcentagem;
     private final Color cor;
 
     public BarraProgresso(int porcentagem, Color cor, int largura) {
-        this.porcentagem = porcentagem;
+        this.porcentagem = limitar(porcentagem);
         this.cor = cor;
         Dimension d = new Dimension(largura, 6);
         setPreferredSize(d);
         setMinimumSize(d);
         setMaximumSize(d);
+    }
+
+    public int getPorcentagem() {
+        return porcentagem;
+    }
+
+    public void setPorcentagem(int porcentagem) {
+        int nova = limitar(porcentagem);
+        if (nova != this.porcentagem) {
+            this.porcentagem = nova;
+            repaint();
+        }
     }
 
     @Override
@@ -35,5 +47,9 @@ public class BarraProgresso extends JComponent {
         g2.setColor(cor);
         g2.fillRoundRect(0, 0, getWidth() * porcentagem / 100, getHeight(), 6, 6);
         g2.dispose();
+    }
+
+    private static int limitar(int porcentagem) {
+        return Math.clamp(porcentagem, 0, 100);
     }
 }

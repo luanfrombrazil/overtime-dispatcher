@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimedispatcher.model.Protocolo;
 import io.github.luanfrombrazil.overtimedispatcher.model.Trilha;
 import io.github.luanfrombrazil.overtimedispatcher.service.DadosService;
 import io.github.luanfrombrazil.overtimedispatcher.service.ProjetoService;
+import io.github.luanfrombrazil.overtimedispatcher.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimedispatcher.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimedispatcher.service.scheduler.Agendador;
 import io.github.luanfrombrazil.overtimedispatcher.view.BarraLateral;
@@ -37,11 +38,11 @@ public class MainController implements BarraLateral.Ouvinte {
     private final ProjetoController projetoController;
     private String projetoAberto;
 
-    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador) {
+    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo) {
         this.dados = dados;
         this.projetos = projetos;
         this.agendador = agendador;
-        this.barraSuperior = new BarraSuperior(dados.consumo(), dados.notificacoesNaoLidas());
+        this.barraSuperior = new BarraSuperior(consumo.consumo(), dados.notificacoesNaoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
         this.frame = new MainFrame(barraSuperior, barraLateral);
@@ -58,6 +59,8 @@ public class MainController implements BarraLateral.Ouvinte {
             @Override
             public void situacao(Agendador.Situacao situacao) {
                 SwingUtilities.invokeLater(() -> barraSuperior.setAgendador(situacao.rodando(), situacao.texto()));
+                // Começo e fim de uma execução mexem no uso do provedor: mede de novo sem esperar o intervalo.
+                consumo.atualizar();
             }
 
             @Override
@@ -65,6 +68,7 @@ public class MainController implements BarraLateral.Ouvinte {
                 SwingUtilities.invokeLater(() -> projetoController.adicionarLog(projetoId, linha));
             }
         });
+        consumo.aoMudar(medido -> SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido)));
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {
