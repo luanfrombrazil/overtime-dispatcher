@@ -183,13 +183,12 @@ public final class Formulario {
         return rodape;
     }
 
-    /** Impede a edição dos campos, que continuam legíveis. */
+    /** Desabilita os campos, que aparecem acinzentados e continuam legíveis; as áreas de texto ainda rolam. */
     public static void travar(JComponent... campos) {
         for (JComponent campo : campos) {
             if (campo instanceof JScrollPane rolagem && rolagem.getViewport().getView() instanceof JTextArea area) {
                 area.setEditable(false);
-            } else if (campo instanceof JTextField texto) {
-                texto.setEditable(false);
+                area.setEnabled(false);
             } else {
                 campo.setEnabled(false);
             }
