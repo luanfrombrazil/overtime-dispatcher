@@ -27,6 +27,10 @@ public record Projeto(String id, String nome, String sigla, String descricao, St
         return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks);
     }
 
+    public Projeto comNome(String nome, String sigla) {
+        return new Projeto(id, nome, sigla, descricao, pasta, branch, provedor, esforco, permissoes, tasks);
+    }
+
     public boolean usaGit() {
         return branch != null;
     }

@@ -37,6 +37,9 @@ public class ProjetoPanel extends JPanel {
     public interface Ouvinte {
         void editarProjeto();
 
+        /** Troca o nome do projeto, editado direto no título. */
+        void renomearProjeto(String nome);
+
         void novaTask();
 
         void editarTask(Task task);
@@ -140,7 +143,7 @@ public class ProjetoPanel extends JPanel {
         novaTask.addActionListener(e -> ouvinte.novaTask());
         String local = projeto.usaGit() ? projeto.pasta() + " · " + projeto.branch() : projeto.pasta();
         return Ui.coluna(10,
-                Ui.cabecalho(Ui.titulo(projeto.nome()),
+                Ui.cabecalho(new TituloEditavel(projeto.nome(), ouvinte::renomearProjeto),
                         Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), editar, novaTask)),
                 Ui.legenda(local));
     }
