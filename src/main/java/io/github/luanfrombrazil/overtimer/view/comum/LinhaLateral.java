@@ -4,6 +4,8 @@ import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.view.tema.Tema;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
@@ -46,12 +48,14 @@ public class LinhaLateral extends JPanel {
         JPanel icone = new JPanel(new java.awt.GridBagLayout());
         icone.setOpaque(false);
         icone.add(new Iniciais(sigla, imagem, 28));
+        // A folga de 1 px embaixo é a linha divisória pintada em paintComponent: sem ela o conteúdo seria
+        // centralizado contando a linha e ficaria meio pixel acima do meio da área visível.
         if (compacta) {
-            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA, 0, 0));
+            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA, 1, 0));
             setToolTipText(detalhe == null ? nome : nome + " · " + detalhe);
             add(icone, BorderLayout.CENTER);
         } else {
-            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA + 10, 0, 12));
+            setBorder(BorderFactory.createEmptyBorder(0, ItemStatus.LARGURA_BORDA + 10, 1, 12));
             add(icone, BorderLayout.WEST);
             add(textos(nome, detalhe), BorderLayout.CENTER);
         }
@@ -75,18 +79,28 @@ public class LinhaLateral extends JPanel {
         });
     }
 
+    /**
+     * Nome e motivo empilhados, centralizados na vertical e alinhados à esquerda. Coluna com folgas elásticas em
+     * cima e embaixo: diferente do GridBagLayout, que com um nome mais largo que a linha passa a posicionar pelo
+     * tamanho mínimo e desloca o texto, aqui o rótulo só é cortado com reticências.
+     */
     private JPanel textos(String nome, String detalhe) {
-        JLabel rotulo = Ui.secao(nome);
-        JPanel textos = detalhe == null
-                ? Ui.coluna(0, rotulo)
-                : Ui.coluna(1, rotulo, Ui.texto(detalhe, Tema.legenda(), Tema.corDetalhe(estado)));
-        JPanel centro = new JPanel(new java.awt.GridBagLayout());
-        centro.setOpaque(false);
-        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-        c.weightx = 1;
-        c.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        centro.add(textos, c);
-        return centro;
+        JPanel coluna = new JPanel();
+        coluna.setLayout(new BoxLayout(coluna, BoxLayout.Y_AXIS));
+        coluna.setOpaque(false);
+        coluna.add(Box.createVerticalGlue());
+        coluna.add(aEsquerda(Ui.secao(nome)));
+        if (detalhe != null) {
+            coluna.add(Box.createVerticalStrut(1));
+            coluna.add(aEsquerda(Ui.texto(detalhe, Tema.legenda(), Tema.corDetalhe(estado))));
+        }
+        coluna.add(Box.createVerticalGlue());
+        return coluna;
+    }
+
+    private static JLabel aEsquerda(JLabel rotulo) {
+        rotulo.setAlignmentX(LEFT_ALIGNMENT);
+        return rotulo;
     }
 
     public void setSelecionada(boolean selecionada) {

@@ -18,12 +18,15 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import javax.swing.ToolTipManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
@@ -96,7 +99,7 @@ public class BarraLateral extends JPanel {
         conteudo.setBackground(Tema.PAINEL);
         atualizar(projetos, protocolos, trilhas, sugestoes);
 
-        JPanel envoltorio = new JPanel(new BorderLayout());
+        JPanel envoltorio = new LarguraDaBarra();
         envoltorio.setBackground(Tema.PAINEL);
         envoltorio.add(conteudo, BorderLayout.NORTH);
 
@@ -290,6 +293,42 @@ public class BarraLateral extends JPanel {
         linha.add(Ui.secao(titulo), BorderLayout.WEST);
         linha.add(botao, BorderLayout.EAST);
         return Ui.largo(linha);
+    }
+
+    /**
+     * Conteúdo rolável que acompanha a largura visível da barra: sem isso, um nome comprido alargaria o conteúdo
+     * além da borda e o texto seria cortado fora de vista, em vez de terminar em reticências.
+     */
+    private static class LarguraDaBarra extends JPanel implements Scrollable {
+
+        LarguraDaBarra() {
+            super(new BorderLayout());
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visivel, int orientacao, int direcao) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visivel, int orientacao, int direcao) {
+            return orientacao == SwingConstants.VERTICAL ? visivel.height : visivel.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() != null && getParent().getHeight() > getPreferredSize().height;
+        }
     }
 
     /** Botão do Oráculo, com fundo levemente roxo e o símbolo detalhado. Compacto, só o símbolo, centralizado. */
