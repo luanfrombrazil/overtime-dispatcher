@@ -153,7 +153,11 @@ public class MainController implements BarraLateral.Ouvinte {
 
     @Override
     public void novoProtocolo() {
-        new NovoProtocoloDialog(frame).abrir();
+        new NovoProtocoloDialog(frame, p -> {
+            Protocolo salvo = protocolos.salvar(p);
+            atualizarBarraLateral();
+            protocolo(salvo);
+        }).abrir();
     }
 
     @Override

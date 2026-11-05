@@ -54,6 +54,9 @@ public class ProtocoloService {
         if (protocolo.nome() == null || protocolo.nome().isBlank()) {
             throw new IllegalArgumentException("Dê um nome ao protocolo.");
         }
+        if (protocolo.passos() == null || protocolo.passos().isBlank()) {
+            throw new IllegalArgumentException("Escreva o passo a passo do protocolo.");
+        }
         synchronized (this) {
             gravar(protocolo);
         }

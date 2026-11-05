@@ -75,6 +75,15 @@ class ProtocoloServiceTest {
     }
 
     @Test
+    void exigePassos() {
+        Protocolo semPassos = Protocolo.novo("Agenda", "AG", " ", Agenda.aCada(60), Provedor.CLAUDE_CODE,
+                Esforco.MEDIUM, Acessos.nenhum(), List.of());
+        assertThrows(IllegalArgumentException.class, () -> servico.salvar(semPassos));
+        assertTrue(servico.protocolos().isEmpty());
+        assertTrue(reaberto().protocolos().isEmpty());
+    }
+
+    @Test
     void desligaELigaSalvando() {
         Protocolo protocolo = servico.salvar(novo("Agenda"));
         assertTrue(protocolo.ativo());
