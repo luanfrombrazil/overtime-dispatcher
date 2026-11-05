@@ -9,6 +9,7 @@ import io.github.luanfrombrazil.overtimer.service.ProjetoService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
+import io.github.luanfrombrazil.overtimer.view.Bandeja;
 import io.github.luanfrombrazil.overtimer.view.BarraLateral;
 import io.github.luanfrombrazil.overtimer.view.BarraSuperior;
 import io.github.luanfrombrazil.overtimer.view.MainFrame;
@@ -31,6 +32,7 @@ public class MainController implements BarraLateral.Ouvinte {
     private final DadosService dados;
     private final ProjetoService projetos;
     private final Agendador agendador;
+    private final ConsumoService consumo;
     private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
     private final BarraLateral barraLateral;
@@ -42,6 +44,7 @@ public class MainController implements BarraLateral.Ouvinte {
         this.dados = dados;
         this.projetos = projetos;
         this.agendador = agendador;
+        this.consumo = consumo;
         this.barraSuperior = new BarraSuperior(consumo.consumo(), dados.notificacoesNaoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
@@ -53,6 +56,7 @@ public class MainController implements BarraLateral.Ouvinte {
         barraLateral.aoClicarAgendador(this::alternarAgendador);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
         barraSuperior.aoClicarNotificacoes(() -> configuracoes("Notificações"));
+        frame.bandeja().ifPresent(b -> b.aoSair(this::sair));
 
         // O agendador e o serviço avisam na thread do agendador; a tela só muda na thread do Swing.
         agendador.aoMudar(new Agendador.Ouvinte() {
@@ -164,6 +168,15 @@ public class MainController implements BarraLateral.Ouvinte {
         }
         // Mesmo sem conseguir gravar, o que foi escolhido vale para esta sessão.
         agendador.aplicar(configuracoes);
+    }
+
+    /** "Sair" da bandeja: para o agendador (e o agente em execução) e a medição de consumo, e fecha a app. */
+    private void sair() {
+        agendador.encerrar();
+        consumo.encerrar();
+        frame.bandeja().ifPresent(Bandeja::remover);
+        frame.dispose();
+        System.exit(0);
     }
 
     private void alternarAgendador() {
