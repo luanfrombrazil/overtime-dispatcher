@@ -20,7 +20,8 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
     public Configuracoes {
         horarioFuncionamento = horarioFuncionamento.copia();
         EnumMap<Provedor, LimiteDeUso> completos = new EnumMap<>(Provedor.class);
-        PROVEDORES_COM_LIMITE.forEach(p -> completos.put(p, limitesDeUso.getOrDefault(p, LimiteDeUso.padrao())));
+        Map<Provedor, LimiteDeUso> salvos = limitesDeUso == null ? Map.of() : limitesDeUso;
+        PROVEDORES_COM_LIMITE.forEach(p -> completos.put(p, salvos.getOrDefault(p, LimiteDeUso.padrao())));
         limitesDeUso = Map.copyOf(completos);
     }
 
