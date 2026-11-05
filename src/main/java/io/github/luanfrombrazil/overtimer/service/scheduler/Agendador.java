@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -133,6 +134,8 @@ public class Agendador {
     private volatile String noLimiteDeUso;
     /** Onde registrar os avisos do fim das execuções; null para não avisar. */
     private volatile NotificacaoService notificacoes;
+    /** Provedores no limite de uso que já foram avisados; saem daqui quando o uso baixa. */
+    private final Set<Provedor> avisadosNoLimite = ConcurrentHashMap.newKeySet();
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
@@ -237,7 +240,29 @@ public class Agendador {
             return true;
         }
         Provedor provedor = agente.get().provedor();
-        return limitesDeUso.getOrDefault(provedor, SEM_LIMITE_DE_USO).permite(usoDe(provedor));
+        return limiteDeUso(provedor).permite(usoDe(provedor));
+    }
+
+    private LimiteDeUso limiteDeUso(Provedor provedor) {
+        return limitesDeUso.getOrDefault(provedor, SEM_LIMITE_DE_USO);
+    }
+
+    /** Avisa que o provedor chegou ao limite de uso, uma vez só até ele sair do limite. */
+    private void avisarLimiteDeUso(Provedor provedor) {
+        if (!avisadosNoLimite.add(provedor)) {
+            return;
+        }
+        NotificacaoService servico = notificacoes;
+        if (servico == null) {
+            return;
+        }
+        try {
+            servico.registrar(Aviso.LIMITE_DE_USO, provedor + " no limite de uso",
+                    "Uso em " + usoDe(provedor) + "%, limite da automação em " + limiteDeUso(provedor).automacao()
+                            + "%. As Tasks dele esperam o uso baixar.", null, null);
+        } catch (RuntimeException e) {
+            System.err.println("Agendador: notificação não registrada: " + e);
+        }
     }
 
     private int usoDe(Provedor provedor) {
@@ -399,15 +424,20 @@ public class Agendador {
     void ciclo() {
         try {
             noLimiteDeUso = null;
+            // Quem saiu do limite volta a poder ser avisado na próxima vez que entrar.
+            avisadosNoLimite.removeIf(provedor -> limiteDeUso(provedor).permite(usoDe(provedor)));
             while (rodando && dentroDoHorario() && !limiteAtingido()) {
                 Optional<ProjetoService.Proxima> proxima =
                         projetos.proxima(task -> liberada(task) && dentroDoLimiteDeUso(task));
                 if (proxima.isEmpty()) {
                     // Sobrou trabalho só em provedores no limite: a barra superior diz qual.
-                    noLimiteDeUso = projetos.proxima(this::liberada)
+                    Optional<Provedor> bloqueado = projetos.proxima(this::liberada)
                             .flatMap(p -> agentes.para(p.task().provedor()))
-                            .map(a -> a.provedor() + " no limite de uso (" + usoDe(a.provedor()) + "%)")
+                            .map(Agente::provedor);
+                    noLimiteDeUso = bloqueado
+                            .map(p -> p + " no limite de uso (" + usoDe(p) + "%)")
                             .orElse(null);
+                    bloqueado.ifPresent(this::avisarLimiteDeUso);
                     break;
                 }
                 executar(proxima.get());

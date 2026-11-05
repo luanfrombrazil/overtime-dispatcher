@@ -338,6 +338,50 @@ class AgendadorTest {
     }
 
     @Test
+    void avisaOLimiteDeUsoUmaVezPorEntrada() throws InterruptedException {
+        NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
+                new Notificacoes(false, false, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
+                        EnumSet.of(Aviso.LIMITE_DE_USO)));
+        agendador.usarNotificacoes(notificacoes);
+        AtomicInteger uso = new AtomicInteger(95);
+        agendador.usarConsumo(p -> uso.get());
+        agendador.aplicar(Configuracoes.padrao()); // automação até 90%
+        Projeto projeto = projetos.salvarTask(projeto(), Task.nova("T1", "", Provedor.CLAUDE_CODE, Esforco.MEDIUM));
+
+        agendador.iniciar();
+        Thread.sleep(200);
+        // Vários ciclos com o provedor ainda no limite: não repete o aviso.
+        agendador.agora();
+        agendador.agora();
+        Thread.sleep(300);
+        assertEquals(1, limitesAvisados(notificacoes));
+        Notificacao aviso = notificacoes.listar().getFirst();
+        assertTrue(aviso.titulo().contains(Provedor.CLAUDE_CODE.toString()), aviso.titulo());
+        assertNull(aviso.projetoId());
+
+        // Sai do limite e roda; depois entra de novo com outra Task esperando: avisa outra vez.
+        uso.set(40);
+        agendador.agora();
+        esperarFilaVazia();
+        assertEquals(1, agente.execucoes.size());
+        projetos.salvarTask(projetos.buscar(projeto.id()).orElseThrow(),
+                Task.nova("T2", "", Provedor.CLAUDE_CODE, Esforco.MEDIUM));
+        uso.set(95);
+        agendador.pausar();
+        agendador.iniciar();
+        Thread.sleep(300);
+        agendador.agora();
+        Thread.sleep(200);
+
+        assertEquals(2, limitesAvisados(notificacoes));
+        assertEquals(1, agente.execucoes.size());
+    }
+
+    private static long limitesAvisados(NotificacaoService notificacoes) {
+        return notificacoes.listar().stream().filter(n -> n.tipo() == Aviso.LIMITE_DE_USO).count();
+    }
+
+    @Test
     void semAgenteAvisaFalha() throws InterruptedException {
         NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
                 Notificacoes.padrao());
