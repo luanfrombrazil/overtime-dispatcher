@@ -5,6 +5,7 @@ import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
+import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
@@ -448,7 +449,8 @@ public class Agendador {
             String prompt = continuar ? Prompt.continuar(task, subtarefa, respondido)
                     : Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task));
             Execucao execucao = new Execucao(pasta, prompt,
-                    sessao, sessaoNova, task.esforco(), projeto.permissoes(), projeto.usaGit(),
+                    sessao, sessaoNova, subtarefa == null ? task.esforco() : subtarefa.esforcoOu(task.esforco()),
+                    subtarefa == null ? Modelo.PADRAO : subtarefa.modelo(), projeto.permissoes(), projeto.usaGit(),
                     subtarefa != null && subtarefa.push(), LIMITE_DA_EXECUCAO);
             resultado = agente.get().executar(execucao, linha -> registrar(projetoId, taskId, "  " + linha));
         } catch (IOException | RuntimeException e) {

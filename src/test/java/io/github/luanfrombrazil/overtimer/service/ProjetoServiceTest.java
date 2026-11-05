@@ -225,8 +225,8 @@ class ProjetoServiceTest {
 
     @Test
     void estadoDoProjetoVemDasSubtarefas() {
-        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null, true, false, null);
-        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null, true, false, null);
+        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null, true, false, null, null, null);
+        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null, true, false, null, null, null);
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM).comSubtarefas(List.of(feita, verificar));
         Projeto projeto = Projeto.novo("P", "P", "", "", null, Provedor.AUTOMATICO, Esforco.MEDIUM, Permissoes.padrao())
                 .comTasks(List.of(task));
@@ -254,7 +254,7 @@ class ProjetoServiceTest {
         assertFalse(relidas.get(2).commit());
         assertFalse(relidas.get(2).push());
         // Arquivos de antes desses campos: commit ligado, push desligado.
-        Subtarefa antiga = new Subtarefa("1", "A", "", "", false, Estado.PENDENTE, List.of(), null, null, null, null);
+        Subtarefa antiga = new Subtarefa("1", "A", "", "", false, Estado.PENDENTE, List.of(), null, null, null, null, null, null);
         assertTrue(antiga.commit());
         assertFalse(antiga.push());
     }
@@ -439,7 +439,7 @@ class ProjetoServiceTest {
         // Refazer devolve a subtarefa à fila e destrava.
         projeto = servico.definirEstado(projeto, task, a, Estado.PENDENTE);
         projeto = servico.salvarSubtarefa(projeto, task, new Subtarefa(a.id(), "A editada", "", "", false,
-                Estado.PENDENTE, List.of(), null, true, false, null));
+                Estado.PENDENTE, List.of(), null, true, false, null, null, null));
         assertEquals("A editada", projeto.tasks().getFirst().subtarefas().getFirst().titulo());
     }
 

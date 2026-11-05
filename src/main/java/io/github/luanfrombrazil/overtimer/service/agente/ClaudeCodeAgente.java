@@ -168,6 +168,9 @@ public class ClaudeCodeAgente implements Agente {
         linha.addAll(List.of("-p", "--output-format", "stream-json", "--verbose",
                 "--permission-mode", "dontAsk",
                 "--effort", execucao.esforco().name().toLowerCase(Locale.ROOT)));
+        if (execucao.modelo().apelido() != null) {
+            linha.addAll(List.of("--model", execucao.modelo().apelido()));
+        }
         linha.addAll(execucao.sessaoNova()
                 ? List.of("--session-id", execucao.sessao())
                 : List.of("--resume", execucao.sessao()));

@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.agente;
 
 import io.github.luanfrombrazil.overtimer.model.Esforco;
+import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -18,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ClaudeCodeAgenteTest {
 
     private static Execucao execucao(boolean sessaoNova, Permissoes permissoes, boolean usaGit) {
-        return new Execucao(Path.of("."), "prompt", "abc", sessaoNova, Esforco.XHIGH, permissoes, usaGit, false,
-                Duration.ofMinutes(1));
+        return new Execucao(Path.of("."), "prompt", "abc", sessaoNova, Esforco.XHIGH, Modelo.PADRAO, permissoes, usaGit,
+                false, Duration.ofMinutes(1));
     }
 
     @Test
@@ -32,6 +33,16 @@ class ClaudeCodeAgenteTest {
         assertEquals("abc", nova.get(nova.indexOf("--session-id") + 1));
         assertEquals("abc", seguinte.get(seguinte.indexOf("--resume") + 1));
         assertEquals("xhigh", nova.get(nova.indexOf("--effort") + 1));
+        assertFalse(nova.contains("--model"), "o modelo padrão fica a cargo do agente");
+    }
+
+    @Test
+    void modeloEscolhidoVaiParaOAgente() {
+        Execucao comModelo = new Execucao(Path.of("."), "prompt", "abc", true, Esforco.MEDIUM, Modelo.OPUS,
+                Permissoes.padrao(), false, false, Duration.ofMinutes(1));
+        List<String> linha = ClaudeCodeAgente.linhaDeComando(List.of("claude"), comModelo);
+
+        assertEquals("opus", linha.get(linha.indexOf("--model") + 1));
     }
 
     @Test

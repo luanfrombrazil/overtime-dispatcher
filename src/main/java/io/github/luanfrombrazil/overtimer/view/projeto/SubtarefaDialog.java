@@ -1,6 +1,8 @@
 package io.github.luanfrombrazil.overtimer.view.projeto;
 
+import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.view.comum.Cartao;
@@ -13,21 +15,25 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSlider;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, verificação, commit e push. As
+ * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, esforço e modelo do agente, verificação,
+ * commit e push. As
  * dependências não ficam aqui: são os fios arrastados entre as subtarefas no cartão da Task. A subtarefa finalizada
  * abre travada, só para leitura.
  */
@@ -37,6 +43,8 @@ public class SubtarefaDialog extends Dialogo {
     private final JTextField titulo;
     private final JScrollPane instrucao;
     private final JScrollPane criterio;
+    private final JSlider esforco;
+    private final JComboBox<Modelo> modelo;
     private final JCheckBox verificacao;
     private final JCheckBox commit;
     private final JCheckBox push;
@@ -75,6 +83,11 @@ public class SubtarefaDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(12));
         criterio = Formulario.area(nova ? "" : existente.criterioDeAceite(), 2);
         corpo.add(Formulario.campo("Critério de aceite", criterio));
+        corpo.add(Box.createVerticalStrut(12));
+        esforco = esforco(nova ? Esforco.MEDIUM : existente.esforcoOu(task.esforco()));
+        modelo = Formulario.opcoes(140, Modelo.values());
+        modelo.setSelectedItem(nova ? Modelo.PADRAO : existente.modelo());
+        corpo.add(Formulario.campo("Esforço · modelo", esforcoEModelo(esforco, modelo)));
         corpo.add(Box.createVerticalStrut(10));
         verificacao = Formulario.caixa("Exige verificação manual", !nova && existente.requerVerificacao());
         corpo.add(Ui.cabecalho(verificacao, null));
@@ -94,7 +107,7 @@ public class SubtarefaDialog extends Dialogo {
         raiz.add(corpo, BorderLayout.CENTER);
         if (travada) {
             // A subtarefa finalizada só pode ser vista; "Refazer", na situação, a devolve à fila.
-            Formulario.travar(titulo, instrucao, criterio, verificacao, commit, push);
+            Formulario.travar(titulo, instrucao, criterio, esforco, modelo, verificacao, commit, push);
             raiz.add(Formulario.rodapeSomenteLeitura(this, null, null), BorderLayout.SOUTH);
         } else {
             raiz.add(Formulario.rodape(this, nova || rascunho ? "Criar subtarefa" : "Salvar",
@@ -124,7 +137,37 @@ public class SubtarefaDialog extends Dialogo {
             return s;
         }
         return new Subtarefa(s.id(), "Rascunho", s.instrucao(), s.criterioDeAceite(), s.requerVerificacao(),
-                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push(), s.direcionamento());
+                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push(), s.esforco(), s.modelo(),
+                s.direcionamento());
+    }
+
+    /** Barra de esforço com uma marca por nível, de Baixo a Máximo. */
+    private static JSlider esforco(Esforco inicial) {
+        Esforco[] niveis = Esforco.values();
+        JSlider barra = new JSlider(0, niveis.length - 1, inicial.ordinal());
+        barra.setOpaque(false);
+        barra.setMajorTickSpacing(1);
+        barra.setSnapToTicks(true);
+        barra.setPaintTicks(true);
+        Hashtable<Integer, JComponent> rotulos = new Hashtable<>();
+        for (Esforco nivel : niveis) {
+            rotulos.put(nivel.ordinal(), Ui.legenda(nivel.toString()));
+        }
+        barra.setLabelTable(rotulos);
+        barra.setPaintLabels(true);
+        return barra;
+    }
+
+    /** A barra de esforço ocupa a largura e a lista de modelos fica ao lado, à direita. */
+    private static JComponent esforcoEModelo(JSlider esforco, JComboBox<Modelo> modelo) {
+        JPanel lado = new JPanel(new BorderLayout());
+        lado.setOpaque(false);
+        lado.add(modelo, BorderLayout.NORTH);
+        JPanel linha = new JPanel(new BorderLayout(16, 0));
+        linha.setOpaque(false);
+        linha.add(esforco, BorderLayout.CENTER);
+        linha.add(lado, BorderLayout.EAST);
+        return Ui.largo(linha);
     }
 
     /**
@@ -185,10 +228,16 @@ public class SubtarefaDialog extends Dialogo {
     private Subtarefa subtarefa() {
         if (existente == null) {
             return Subtarefa.nova(titulo.getText().strip(), Formulario.textoDa(instrucao), Formulario.textoDa(criterio),
-                    verificacao.isSelected(), List.of()).comGit(commit.isSelected(), push.isSelected());
+                    verificacao.isSelected(), List.of()).comGit(commit.isSelected(), push.isSelected())
+                    .comModelo(esforcoEscolhido(), (Modelo) modelo.getSelectedItem());
         }
         return new Subtarefa(existente.id(), titulo.getText().strip(), Formulario.textoDa(instrucao),
                 Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), existente.dependeDe(),
-                existente.resultado(), commit.isSelected(), push.isSelected(), existente.direcionamento());
+                existente.resultado(), commit.isSelected(), push.isSelected(), esforcoEscolhido(),
+                (Modelo) modelo.getSelectedItem(), existente.direcionamento());
+    }
+
+    private Esforco esforcoEscolhido() {
+        return Esforco.values()[esforco.getValue()];
     }
 }
