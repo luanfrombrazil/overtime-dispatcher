@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimer.service;
 import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Agenda;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -165,6 +167,50 @@ class ProtocoloServiceTest {
         assertFalse(editado.ativo(), "o desligamento feito com o pop-up aberto fica");
         assertEquals(List.of(chegou), editado.filaDeEntrada(), "o item que chegou fica");
         assertEquals(editado, reaberto().buscar(aberto.id()).orElseThrow());
+    }
+
+    private static ExecucaoProtocolo execucao(int minuto, boolean sucesso) {
+        LocalDateTime inicio = LocalDateTime.of(2026, 11, 5, 8, minuto);
+        return ExecucaoProtocolo.de(inicio, inicio.plusSeconds(40), sucesso, "Resultado " + minuto,
+                List.of("08:" + minuto + " Agenda · Claude Code", "  › Read notas.md"));
+    }
+
+    @Test
+    void historicoGuardaAsUltimasExecucoesESobreviveAReabrir() {
+        Protocolo protocolo = servico.salvar(novo("Agenda"));
+        avisos.clear();
+        for (int minuto = 0; minuto < ProtocoloService.EXECUCOES_NO_HISTORICO + 5; minuto++) {
+            servico.registrarExecucao(protocolo.id(), execucao(minuto, minuto % 2 == 0));
+        }
+
+        List<ExecucaoProtocolo> historico = servico.historico(protocolo.id());
+        assertEquals(ProtocoloService.EXECUCOES_NO_HISTORICO, historico.size());
+        assertEquals(execucao(24, true), historico.getFirst(), "a mais recente primeiro");
+        assertEquals(execucao(5, false), historico.getLast());
+        assertEquals(historico, reaberto().historico(protocolo.id()));
+        assertEquals(execucao(24, true), reaberto().ultimaExecucao(protocolo.id()).orElseThrow());
+        assertEquals(ProtocoloService.EXECUCOES_NO_HISTORICO + 5, avisos.size(), "a tela é avisada a cada uma");
+    }
+
+    @Test
+    void historicoDeProtocoloExcluidoNaoVolta() {
+        Protocolo protocolo = servico.salvar(novo("Agenda"));
+        servico.registrarExecucao(protocolo.id(), execucao(0, true));
+        servico.excluir(protocolo.id());
+
+        servico.registrarExecucao(protocolo.id(), execucao(1, true));
+
+        assertTrue(servico.historico(protocolo.id()).isEmpty());
+        assertFalse(Files.exists(dados.resolve("protocolos-rotina").resolve(protocolo.id())),
+                "a execução que termina depois da exclusão não recria a pasta");
+    }
+
+    @Test
+    void resumoDaExecucao() {
+        ExecucaoProtocolo ok = execucao(3, true);
+        assertEquals("05/11 08:03 → 08:03 · Concluída", ok.resumo());
+        assertEquals("Resultado 3", ok.primeiraLinha());
+        assertEquals("05/11 08:03 → 08:03 · Falhou", execucao(3, false).resumo());
     }
 
     @Test

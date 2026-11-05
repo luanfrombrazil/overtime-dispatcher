@@ -4,6 +4,7 @@ import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Modelo;
@@ -32,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
@@ -83,6 +86,8 @@ public class Agendador {
     private static final LimiteDeUso SEM_LIMITE_DE_USO = new LimiteDeUso(100, 0);
     public static final Duration LIMITE_DA_EXECUCAO = Duration.ofMinutes(60);
     private static final int LINHAS_EM_MEMORIA = 300;
+    /** Linhas de log guardadas por execução de protocolo no histórico. */
+    private static final int LINHAS_NO_HISTORICO = 500;
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     /** O que a barra superior mostra. */
@@ -144,8 +149,8 @@ public class Agendador {
     private volatile String noLimiteDeUso;
 
     /**
-     * Início da conta da agenda de cada protocolo, pelo id: a última execução ou, se ainda não rodou nesta sessão da
-     * app, quando o agendador o viu ligado pela primeira vez. Desligado, acompanha o relógio, para não rodar o que
+     * Início da conta da agenda de cada protocolo, pelo id: a última execução (a do histórico, ao abrir a app) ou, se
+     * ele nunca rodou, quando o agendador o viu ligado pela primeira vez. Desligado, acompanha o relógio, para não rodar o que
      * passou enquanto estava desligado.
      */
     private final Map<String, LocalDateTime> contaDaAgenda = new ConcurrentHashMap<>();
@@ -363,7 +368,9 @@ public class Agendador {
         LocalDateTime agora = LocalDateTime.now(relogio);
         for (Protocolo protocolo : protocolos.protocolos()) {
             if (protocolo.ativo()) {
-                contaDaAgenda.putIfAbsent(protocolo.id(), agora);
+                // Ao abrir a app, conta da última execução salva: o horário que passou com ela fechada roda uma vez.
+                contaDaAgenda.computeIfAbsent(protocolo.id(), id -> protocolos.ultimaExecucao(id)
+                        .map(ExecucaoProtocolo::inicioEm).orElse(agora));
             } else {
                 contaDaAgenda.put(protocolo.id(), agora);
             }
@@ -549,34 +556,44 @@ public class Agendador {
 
     /**
      * Roda o protocolo numa sessão nova, na pasta de trabalho dele. A agenda conta a partir do início, mesmo que a
-     * execução falhe: o horário não fica sendo tentado a cada ciclo. Com sucesso, a fila de entrada enviada sai.
+     * execução falhe: o horário não fica sendo tentado a cada ciclo. Com sucesso, a fila de entrada enviada sai. Cada
+     * execução, mesmo a que não chegou a um agente, vai para o histórico do protocolo.
      */
     private void executar(Protocolo protocolo) throws InterruptedException {
         String id = protocolo.id();
+        LocalDateTime inicio = LocalDateTime.now(relogio);
         pedidos.remove(id);
-        contaDaAgenda.put(id, LocalDateTime.now(relogio));
+        contaDaAgenda.put(id, inicio);
         // Uma Task interrompida por um protocolo conta como um começo novo quando voltar.
         ultimaTaskIniciada = null;
+        List<String> log = new ArrayList<>();
+        Consumer<String> anotar = linha -> {
+            if (log.size() < LINHAS_NO_HISTORICO) {
+                log.add(linha);
+            }
+            registrarProtocolo(id, linha);
+        };
 
         Optional<Agente> agente = agentes.para(protocolo.provedor());
         if (agente.isEmpty()) {
             String motivo = protocolo.provedor() == Provedor.AUTOMATICO
                     ? "Nenhum agente disponível: instale o Claude Code."
                     : protocolo.provedor() + " ainda não é suportado ou não está instalado.";
-            registrarProtocolo(id, hora() + " " + protocolo.nome() + " · " + motivo);
+            anotar.accept(hora() + " " + protocolo.nome() + " · " + motivo);
+            guardarExecucao(id, inicio, false, motivo, log);
             return;
         }
         execucoesNoIntervalo++;
         emExecucao = agente.get().provedor() + " em " + protocolo.nome();
         avisarSituacao();
-        registrarProtocolo(id, hora() + " " + protocolo.nome() + " · " + agente.get().provedor());
+        anotar.accept(hora() + " " + protocolo.nome() + " · " + agente.get().provedor());
 
         ResultadoExecucao resultado;
         try {
             Path pasta = areaDeTrabalho.preparar(protocolo);
             Execucao execucao = Execucao.doProtocolo(pasta, PromptProtocolo.montar(protocolo, this::nomeDe),
                     UUID.randomUUID().toString(), true, protocolo.esforco(), protocolo.acessos(), LIMITE_DA_EXECUCAO);
-            resultado = agente.get().executar(execucao, linha -> registrarProtocolo(id, "  " + linha));
+            resultado = agente.get().executar(execucao, linha -> anotar.accept("  " + linha));
         } catch (IOException | RuntimeException e) {
             resultado = ResultadoExecucao.falha(e.getMessage() == null ? e.toString() : e.getMessage());
         } finally {
@@ -584,15 +601,26 @@ public class Agendador {
         }
 
         boolean sucesso = resultado.sucesso() && !Prompt.falhou(resultado.resposta());
-        registrarProtocolo(id, hora() + " " + (sucesso ? "Concluído" : "Falhou: " + primeiraLinha(resultado.resposta())));
+        anotar.accept(hora() + " " + (sucesso ? "Concluído" : "Falhou: " + primeiraLinha(resultado.resposta())));
         // Só os itens que foram no prompt: os que chegaram durante a execução ficam para a próxima.
         if (sucesso && !protocolo.filaDeEntrada().isEmpty()) {
             try {
                 protocolos.tirarDaFila(id, protocolo.filaDeEntrada().stream().map(ItemFila::id)
                         .collect(Collectors.toSet()));
             } catch (RuntimeException e) {
-                registrarProtocolo(id, hora() + " Fila de entrada não atualizada: " + e.getMessage());
+                anotar.accept(hora() + " Fila de entrada não atualizada: " + e.getMessage());
             }
+        }
+        guardarExecucao(id, inicio, sucesso, resultado.resposta(), log);
+    }
+
+    private void guardarExecucao(String id, LocalDateTime inicio, boolean sucesso, String resultado,
+                                 List<String> log) {
+        try {
+            protocolos.registrarExecucao(id,
+                    ExecucaoProtocolo.de(inicio, LocalDateTime.now(relogio), sucesso, resultado, log));
+        } catch (RuntimeException e) {
+            registrarProtocolo(id, hora() + " Histórico não gravado: " + e.getMessage());
         }
     }
 

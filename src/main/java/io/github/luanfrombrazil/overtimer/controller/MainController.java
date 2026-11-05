@@ -40,6 +40,8 @@ public class MainController implements BarraLateral.Ouvinte {
     private final ProjetoController projetoController;
     private String projetoAberto;
     private String protocoloAberto;
+    /** Tela do protocolo aberto, para receber o log da execução em andamento; só vale com {@code protocoloAberto}. */
+    private ProtocoloPanel painelProtocolo;
 
     public MainController(DadosService dados, ProjetoService projetos, ProtocoloService protocolos,
                           Agendador agendador, ConsumoService consumo) {
@@ -74,7 +76,13 @@ public class MainController implements BarraLateral.Ouvinte {
 
             @Override
             public void log(String projetoId, String linha) {
-                SwingUtilities.invokeLater(() -> projetoController.adicionarLog(projetoId, linha));
+                SwingUtilities.invokeLater(() -> {
+                    projetoController.adicionarLog(projetoId, linha);
+                    // O log dos protocolos vem pelo id deles.
+                    if (painelProtocolo != null && projetoId.equals(protocoloAberto)) {
+                        painelProtocolo.adicionarLog(linha);
+                    }
+                });
             }
         });
         consumo.aoMudar(medido -> {
@@ -136,9 +144,10 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     private void mostrarProtocolo(Protocolo protocolo) {
-        frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem,
+        painelProtocolo = new ProtocoloPanel(protocolo, protocolos.historico(protocolo.id()), this::nomeDaOrigem,
                 ativo -> ligarProtocolo(protocolo, ativo), () -> agendador.rodarAgora(protocolo.id()),
-                () -> editarProtocolo(protocolo.id())));
+                () -> editarProtocolo(protocolo.id()));
+        frame.mostrar(painelProtocolo);
     }
 
     /** Abre o pop-up com o protocolo como está salvo agora, com o Excluir. */

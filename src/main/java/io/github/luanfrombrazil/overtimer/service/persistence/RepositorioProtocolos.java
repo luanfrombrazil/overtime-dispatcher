@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimer.service.persistence;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 
 import java.io.IOException;
@@ -19,11 +20,17 @@ import java.util.stream.Stream;
  * Lê e grava os protocolos em JSON:
  * <pre>
  * protocolos-rotina/&lt;id do protocolo&gt;/protocolo.json  o protocolo com a agenda, os acessos e as filas
+ * protocolos-rotina/&lt;id do protocolo&gt;/historico.json  as últimas execuções
  * </pre>
  */
 public class RepositorioProtocolos {
 
     private static final String ARQUIVO_PROTOCOLO = "protocolo.json";
+    private static final String ARQUIVO_HISTORICO = "historico.json";
+
+    /** Conteúdo de historico.json. */
+    private record ArquivoHistorico(List<ExecucaoProtocolo> execucoes) {
+    }
 
     private final Path raiz;
     private final ObjectMapper json = new ObjectMapper()
@@ -60,6 +67,33 @@ public class RepositorioProtocolos {
             gravar(pasta.resolve(ARQUIVO_PROTOCOLO), protocolo);
         } catch (IOException e) {
             throw new UncheckedIOException("Não foi possível salvar o protocolo " + protocolo.nome(), e);
+        }
+    }
+
+    /** Execuções guardadas do protocolo, da mais recente para a mais antiga; vazia se não há histórico. */
+    public List<ExecucaoProtocolo> carregarHistorico(String id) {
+        Path arquivo = pastaDo(id).resolve(ARQUIVO_HISTORICO);
+        if (!Files.isRegularFile(arquivo)) {
+            return List.of();
+        }
+        try {
+            ArquivoHistorico lido = json.readValue(arquivo.toFile(), ArquivoHistorico.class);
+            return lido.execucoes() == null ? List.of() : lido.execucoes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Não foi possível ler o histórico do protocolo " + id, e);
+        }
+    }
+
+    /** Grava o histórico ao lado do protocolo; não faz nada se a pasta dele não existe mais. */
+    public void salvarHistorico(String id, List<ExecucaoProtocolo> execucoes) {
+        Path pasta = pastaDo(id);
+        if (!Files.isDirectory(pasta)) {
+            return;
+        }
+        try {
+            gravar(pasta.resolve(ARQUIVO_HISTORICO), new ArquivoHistorico(execucoes));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Não foi possível salvar o histórico do protocolo " + id, e);
         }
     }
 

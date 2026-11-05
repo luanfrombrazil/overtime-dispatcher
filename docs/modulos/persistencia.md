@@ -31,8 +31,11 @@ worktrees/<id da task>/                                 worktree git da Task (pr
 
 ```
 protocolos-rotina/<id do protocolo>/protocolo.json    o protocolo inteiro
+protocolos-rotina/<id do protocolo>/historico.json    as últimas 20 execuções
 protocolos-rotina/<id do protocolo>/trabalho/         pasta onde o agente do protocolo roda
 ```
+
+- `historico.json` guarda `{ "execucoes": [...] }`, da mais recente para a mais antiga; cada execução tem `inicio` e `fim` (ISO, ex.: `2026-11-05T08:00:12`), `sucesso`, `resultado` (resposta do agente ou motivo da falha) e `log` (até 500 linhas). Ao abrir a app, a agenda conta a partir do início da última execução: o horário que passou com a app fechada roda uma vez.
 
 - A pasta `trabalho` é criada na primeira execução e mantida entre uma execução e outra; o agente pode deixar nela o que precisar consultar na próxima.
 

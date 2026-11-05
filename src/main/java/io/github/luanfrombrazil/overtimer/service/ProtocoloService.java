@@ -1,9 +1,11 @@
 package io.github.luanfrombrazil.overtimer.service;
 
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -25,11 +27,49 @@ public class ProtocoloService {
     private final Map<String, Protocolo> protocolos = new HashMap<>();
     private final List<Consumer<Protocolo>> ouvintes = new CopyOnWriteArrayList<>();
 
+    /** Execuções guardadas no histórico de cada protocolo, pelo id. */
+    public static final int EXECUCOES_NO_HISTORICO = 20;
+
+    private final Map<String, List<ExecucaoProtocolo>> historicos = new HashMap<>();
+
     public ProtocoloService(RepositorioProtocolos repositorio) {
         this.repositorio = repositorio;
         for (Protocolo p : repositorio.carregar()) {
             protocolos.put(p.id(), p);
+            historicos.put(p.id(), repositorio.carregarHistorico(p.id()));
         }
+    }
+
+    /** Últimas execuções do protocolo, da mais recente para a mais antiga. */
+    public synchronized List<ExecucaoProtocolo> historico(String id) {
+        return historicos.getOrDefault(id, List.of());
+    }
+
+    /** A última execução do protocolo, se ele já rodou. */
+    public synchronized Optional<ExecucaoProtocolo> ultimaExecucao(String id) {
+        return historico(id).stream().findFirst();
+    }
+
+    /**
+     * Guarda a execução no começo do histórico, que fica com as {@link #EXECUCOES_NO_HISTORICO} mais recentes. Não
+     * faz nada se o protocolo foi excluído durante a execução.
+     */
+    public void registrarExecucao(String id, ExecucaoProtocolo execucao) {
+        Protocolo protocolo;
+        synchronized (this) {
+            protocolo = protocolos.get(id);
+            if (protocolo == null) {
+                return;
+            }
+            List<ExecucaoProtocolo> novo = new ArrayList<>();
+            novo.add(execucao);
+            novo.addAll(historico(id));
+            List<ExecucaoProtocolo> guardado = List.copyOf(novo.subList(0, Math.min(novo.size(),
+                    EXECUCOES_NO_HISTORICO)));
+            repositorio.salvarHistorico(id, guardado);
+            historicos.put(id, guardado);
+        }
+        avisar(protocolo);
     }
 
     /**
@@ -117,6 +157,7 @@ public class ProtocoloService {
         synchronized (this) {
             repositorio.excluir(id);
             removido = protocolos.remove(id);
+            historicos.remove(id);
         }
         if (removido != null) {
             avisar(removido);

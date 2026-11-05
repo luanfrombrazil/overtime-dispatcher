@@ -4,6 +4,7 @@ import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Agenda;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
@@ -37,6 +38,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -281,6 +283,48 @@ class AgendadorProtocolosTest {
         esperarCiclo();
 
         assertEquals(List.of(durante), filaDe(protocolo));
+    }
+
+    @Test
+    void cadaExecucaoVaiParaOHistoricoComOLog() throws InterruptedException {
+        Protocolo ok = protocoloAs8();
+        Protocolo quebrado = comFila("Esta execução deve falhar");
+        iniciar();
+
+        relogio.ir(DIA.withHour(7).withMinute(59).withSecond(10));
+        agendador.rodarAgora(ok.id());
+        agendador.rodarAgora(quebrado.id());
+        esperar(() -> protocolos.historico(ok.id()).size() == 1 && protocolos.historico(quebrado.id()).size() == 1);
+
+        ExecucaoProtocolo execucao = protocolos.historico(ok.id()).getFirst();
+        assertTrue(execucao.sucesso());
+        assertEquals("Pronto", execucao.resultado());
+        assertEquals(DIA.withHour(7).withMinute(59).withSecond(10), execucao.inicioEm());
+        assertTrue(execucao.log().stream().anyMatch(l -> l.contains("› Edit arquivo.txt")));
+        assertTrue(execucao.log().getLast().contains("Concluído"));
+        ExecucaoProtocolo falha = protocolos.historico(quebrado.id()).getFirst();
+        assertFalse(falha.sucesso());
+        assertEquals("FALHOU: não deu", falha.resultado());
+
+        ProtocoloService reaberto = new ProtocoloService(new RepositorioProtocolos(dados));
+        assertEquals(List.of(execucao), reaberto.historico(ok.id()), "o histórico sobrevive a reabrir a app");
+    }
+
+    @Test
+    void aoAbrirAAppAAgendaContaDaUltimaExecucaoSalva() throws InterruptedException {
+        Protocolo protocolo = protocoloAs8();
+        LocalDateTime ontem = DIA.minusDays(1).withHour(8);
+        protocolos.registrarExecucao(protocolo.id(),
+                ExecucaoProtocolo.de(ontem, ontem.plusMinutes(2), true, "ok", List.of()));
+        // Abre a app às 9h: o horário das 8h de hoje passou com ela fechada e roda uma vez.
+        relogio.ir(DIA.withHour(9));
+        iniciar();
+        esperar(() -> agente.execucoes.size() >= 1);
+        esperarCiclo();
+        assertEquals(1, agente.execucoes.size());
+
+        rodarAs(DIA.withHour(9).withMinute(30));
+        assertEquals(1, agente.execucoes.size());
     }
 
     @Test
