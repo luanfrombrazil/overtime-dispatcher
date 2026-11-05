@@ -15,6 +15,7 @@ import io.github.luanfrombrazil.overtimer.view.Bandeja;
 import io.github.luanfrombrazil.overtimer.view.BarraLateral;
 import io.github.luanfrombrazil.overtimer.view.BarraSuperior;
 import io.github.luanfrombrazil.overtimer.view.MainFrame;
+import io.github.luanfrombrazil.overtimer.view.Som;
 import io.github.luanfrombrazil.overtimer.view.config.ConfiguracoesDialog;
 import io.github.luanfrombrazil.overtimer.view.home.HomePanel;
 import io.github.luanfrombrazil.overtimer.view.notificacoes.NotificacoesDialog;
@@ -92,9 +93,17 @@ public class MainController implements BarraLateral.Ouvinte {
             public void registrada(Notificacao notificacao) {
                 Configuracoes.Notificacoes canais = notificacoes.configuracoes();
                 // Em silêncio a notificação fica só no sino.
-                if (canais.desktop() && !canais.silenciado(notificacao.instante(), notificacao.tipo())) {
-                    SwingUtilities.invokeLater(() -> frame.bandeja().ifPresent(b -> b.mostrar(notificacao)));
+                if (canais.silenciado(notificacao.instante(), notificacao.tipo())) {
+                    return;
                 }
+                SwingUtilities.invokeLater(() -> {
+                    if (canais.desktop()) {
+                        frame.bandeja().ifPresent(b -> b.mostrar(notificacao));
+                    }
+                    if (canais.som()) {
+                        Som.tocar();
+                    }
+                });
             }
 
             @Override
