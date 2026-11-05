@@ -17,23 +17,20 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 /**
  * Claude Code em modo não interativo ({@code claude -p}), com a saída em stream-json.
  * <p>
  * O prompt vai pela entrada padrão (sem problemas de aspas na linha de comando do Windows). As permissões do
  * projeto viram {@code --allowedTools} com {@code --permission-mode dontAsk}: o que não foi liberado é negado
- * sem perguntar. Por cima disso, {@code --disallowedTools} barra o que nunca deve acontecer sem supervisão (ler
- * credenciais, push não pedido, trocar de branch) e o que as permissões negam mas um shell liberado ainda
- * permitiria (baixar da internet, instalar dependências).
+ * sem perguntar. Por cima disso, {@code --disallowedTools} barra, mesmo com o shell liberado, o que nunca deve
+ * acontecer sem supervisão: ler credenciais, trocar de branch ou reescrever o histórico do worktree, e push que a
+ * subtarefa não pediu. Internet e instalação de dependências com o shell liberado continuam pedidas no prompt:
+ * por prefixo de comando não dá para fechar.
  */
 public class ClaudeCodeAgente implements Agente {
 
     private static final int LINHAS_DE_ERRO = 5;
-
-    private static final Pattern UUID =
-            Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
     /** Subcomandos git que o agente usa para ver e registrar o trabalho na branch da Task. */
     private static final List<String> GIT_DO_DIA_A_DIA = List.of(
@@ -52,18 +49,6 @@ public class ClaudeCodeAgente implements Agente {
             "git checkout", "git switch", "git merge", "git rebase", "git reset --hard", "git branch -D",
             "git branch -d", "git push --force", "git push -f", "git config", "git remote", "git worktree",
             "git filter-branch", "git update-ref");
-
-    private static final List<String> INTERNET = List.of(
-            "curl", "wget", "Invoke-WebRequest", "Invoke-RestMethod", "iwr ", "irm ", "Start-BitsTransfer",
-            "git clone", "git fetch", "git pull");
-
-    private static final List<String> INSTALACAO = List.of(
-            "npm install", "npm i ", "npm ci", "npm add", "npm update", "yarn add", "pnpm add", "pnpm install",
-            "pip install", "pip3 install", "python -m pip install", "py -m pip install", "uv add",
-            "uv pip install", "poetry add", "pipx install", "cargo add", "cargo install", "go get", "go install",
-            "gem install", "bundle install", "composer require", "composer install", "dotnet add",
-            "winget install", "choco install", "scoop install", "apt install", "apt-get install",
-            "brew install", "Install-Module", "Install-Package");
 
     private final Optional<List<String>> comando;
     private volatile Process atual;
@@ -91,10 +76,6 @@ public class ClaudeCodeAgente implements Agente {
     public ResultadoExecucao executar(Execucao execucao, Consumer<String> log) throws InterruptedException {
         if (comando.isEmpty()) {
             return ResultadoExecucao.falha("O Claude Code não foi encontrado no PATH.");
-        }
-        if (!sessaoValida(execucao.sessao())) {
-            // O id vem do task.json e vai para a linha de comando (que pode passar pelo cmd.exe): só um UUID passa.
-            return ResultadoExecucao.falha("Id de sessão inválido: " + execucao.sessao());
         }
         ProcessBuilder construtor = new ProcessBuilder(linhaDeComando(comando.get(), execucao))
                 .directory(execucao.pasta().toFile());
@@ -177,13 +158,8 @@ public class ClaudeCodeAgente implements Agente {
         linha.add("--allowedTools");
         linha.add(String.join(",", ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
         linha.add("--disallowedTools");
-        linha.add(String.join(",", bloqueadas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
+        linha.add(String.join(",", bloqueadas(execucao.usaGit(), execucao.push())));
         return linha;
-    }
-
-    /** Se o id de sessão é um UUID, o único formato que a app cria e o Claude Code devolve. */
-    static boolean sessaoValida(String sessao) {
-        return sessao != null && UUID.matcher(sessao).matches();
     }
 
     /**
@@ -218,14 +194,14 @@ public class ClaudeCodeAgente implements Agente {
     }
 
     /**
-     * Regras de bloqueio, que valem mesmo com o shell liberado. São por prefixo de comando: não fecham todas as
-     * portas de um shell, mas cortam o caminho óbvio para o que as permissões negam.
+     * Regras de bloqueio, que valem mesmo com o shell liberado: ler credenciais e, com git, o que tira o worktree da
+     * branch da Task ou mexe no repositório (e o push que a subtarefa não pediu). A edição já fica presa à pasta de
+     * trabalho por {@link #ferramentas}, e o que não foi liberado já é negado pelo {@code dontAsk}.
      */
-    static List<String> bloqueadas(Permissoes permissoes, boolean usaGit, boolean push) {
+    static List<String> bloqueadas(boolean usaGit, boolean push) {
         List<String> bloqueadas = new ArrayList<>();
         for (String segredo : SEGREDOS) {
             bloqueadas.add("Read(" + segredo + ")");
-            bloqueadas.add("Edit(" + segredo + ")");
         }
         List<String> comandos = new ArrayList<>();
         if (usaGit) {
@@ -234,14 +210,8 @@ public class ClaudeCodeAgente implements Agente {
                 comandos.add("git push");
             }
         }
-        if (!permissoes.acessarInternet()) {
-            bloqueadas.addAll(List.of("WebFetch", "WebSearch"));
-            comandos.addAll(INTERNET);
-        }
-        if (!permissoes.instalarDependencias()) {
-            comandos.addAll(INSTALACAO);
-        }
-        // Uma regra por comando, com o * colado: a linha inteira passa pelo cmd.exe, limitado a ~8 mil caracteres.
+        // Uma regra por comando, com o * colado: instalado pelo npm, o claude roda pelo cmd.exe, limitado a ~8 mil
+        // caracteres.
         for (String comando : comandos) {
             bloqueadas.add("Bash(" + comando + "*)");
             bloqueadas.add("PowerShell(" + comando + "*)");

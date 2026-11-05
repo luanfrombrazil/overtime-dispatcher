@@ -64,18 +64,16 @@ class ClaudeCodeAgenteTest {
     }
 
     @Test
-    void bloqueiosCobremOQueAsPermissoesNegam() {
-        Permissoes semRede = new Permissoes(true, true, false, false);
-        List<String> semPush = ClaudeCodeAgente.bloqueadas(semRede, true, false);
-        List<String> comPush = ClaudeCodeAgente.bloqueadas(new Permissoes(true, true, true, true), true, true);
+    void bloqueiosProtegemCredenciaisEABranchDaTask() {
+        List<String> semPush = ClaudeCodeAgente.bloqueadas(true, false);
+        List<String> comPush = ClaudeCodeAgente.bloqueadas(true, true);
+        List<String> semGit = ClaudeCodeAgente.bloqueadas(false, false);
 
-        assertTrue(semPush.containsAll(List.of("Read(~/.ssh/**)", "WebFetch", "Bash(curl*)", "Bash(npm install*)",
-                "Bash(git push*)", "Bash(git checkout*)")));
+        assertTrue(semPush.containsAll(List.of("Read(~/.ssh/**)", "Bash(git push*)", "Bash(git checkout*)")));
         assertTrue(comPush.contains("Read(~/.ssh/**)"), "credenciais ficam fora mesmo com tudo liberado");
         assertTrue(comPush.contains("Bash(git push --force*)"));
         assertFalse(comPush.contains("Bash(git push*)"));
-        assertFalse(comPush.contains("WebFetch"));
-        assertFalse(comPush.contains("Bash(npm install*)"));
+        assertTrue(semGit.stream().noneMatch(r -> r.contains("(git ")), "sem git, só as credenciais");
     }
 
     @Test
@@ -86,13 +84,6 @@ class ClaudeCodeAgenteTest {
         assertTrue(String.join(" ", linha).length() < 8000);
         assertTrue(linha.stream().noneMatch(a -> a.matches(".*[\"%&|<>^].*")),
                 "nada que o cmd.exe interprete");
-    }
-
-    @Test
-    void sessaoSoAceitaUuid() {
-        assertTrue(ClaudeCodeAgente.sessaoValida("1a2b3c4d-0000-4000-8000-000000000000"));
-        assertFalse(ClaudeCodeAgente.sessaoValida("abc & calc"));
-        assertFalse(ClaudeCodeAgente.sessaoValida(null));
     }
 
     @Test

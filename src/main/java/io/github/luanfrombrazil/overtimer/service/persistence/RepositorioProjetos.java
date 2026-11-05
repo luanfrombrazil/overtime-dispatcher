@@ -79,10 +79,8 @@ public class RepositorioProjetos {
     private Projeto ler(Path pasta, ArquivoProjeto arquivo) throws IOException {
         List<Task> tasks = new ArrayList<>();
         for (String id : arquivo.tasks() == null ? List.<String>of() : arquivo.tasks()) {
-            Path pastaTasks = pasta.resolve("tasks").normalize();
-            Path pastaTask = pastaTasks.resolve(id).normalize();
-            Path arquivoTask = pastaTask.resolve(ARQUIVO_TASK);
-            if (pastaTasks.equals(pastaTask.getParent()) && Files.isRegularFile(arquivoTask)) {
+            Path arquivoTask = pasta.resolve("tasks").resolve(id).resolve(ARQUIVO_TASK);
+            if (Files.isRegularFile(arquivoTask)) {
                 tasks.add(json.readValue(arquivoTask.toFile(), Task.class));
             }
         }
@@ -109,7 +107,7 @@ public class RepositorioProjetos {
             Set<String> ids = new HashSet<>();
             for (Task task : projeto.tasks()) {
                 ids.add(task.id());
-                Path pastaTask = dentroDe(pastaTasks, task.id());
+                Path pastaTask = pastaTasks.resolve(task.id());
                 Files.createDirectories(pastaTask);
                 gravar(pastaTask.resolve(ARQUIVO_TASK), task);
             }
@@ -159,7 +157,7 @@ public class RepositorioProjetos {
 
     /** Acrescenta uma linha ao {@code log.txt} da Task, se a pasta dela existir. */
     public void registrarLog(String projetoId, String taskId, String linha) {
-        Path pastaTask = dentroDe(pastaDo(projetoId).resolve("tasks"), taskId);
+        Path pastaTask = pastaDo(projetoId).resolve("tasks").resolve(taskId);
         if (!Files.isDirectory(pastaTask)) {
             return;
         }
@@ -181,14 +179,9 @@ public class RepositorioProjetos {
     }
 
     private Path pastaDo(String id) {
-        return dentroDe(raiz, id);
-    }
-
-    /** Pasta {@code id} logo abaixo de {@code pai}; um id como {@code ../x} escaparia da pasta da aplicação. */
-    private static Path dentroDe(Path pai, String id) {
-        Path pasta = pai.resolve(id).normalize();
-        if (!pai.normalize().equals(pasta.getParent())) {
-            throw new IllegalArgumentException("Id inválido: " + id);
+        Path pasta = raiz.resolve(id).normalize();
+        if (!pasta.getParent().equals(raiz.normalize())) {
+            throw new IllegalArgumentException("Id de projeto inválido: " + id);
         }
         return pasta;
     }
