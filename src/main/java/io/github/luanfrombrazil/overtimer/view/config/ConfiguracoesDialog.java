@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 public class ConfiguracoesDialog extends Dialogo {
 
     private static final List<String> SECOES =
-            List.of("Geral", "Provedores", "Notificações", "Projetos padrão", "Avançado");
+            List.of("Geral", "Modelos", "Notificações", "Projetos padrão", "Avançado");
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
