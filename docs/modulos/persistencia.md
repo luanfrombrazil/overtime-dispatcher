@@ -53,9 +53,21 @@ Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "S
     "falhasFuramSilencio": true,
     "canais": { "desktop": true, "whatsapp": false, "som": false },
     "avisos": ["VERIFICACAO", "DIRECIONAMENTO", "MERGE", "FALHAS"]
+  },
+  "prompts": {
+    "modelos": [
+      { "nome": "Padrão · subtarefas", "texto": "Você é um agente ... {regras.resposta}", "usadoEm": "SUBTAREFAS" },
+      { "nome": "Padrão · task inteira", "texto": "Você é um agente ... {regras.resposta}", "usadoEm": "TASK_INTEIRA" }
+    ],
+    "variaveis": [
+      { "nome": "regras.git", "descricao": "", "regra": "- Faça commit na branch `{branch}`." },
+      { "nome": "estilo", "descricao": "Estilo do código", "regra": "- Siga o estilo do projeto." }
+    ]
   }
 }
 ```
 
 - O horário de funcionamento é gravado como faixas de 30 em 30 minutos por dia.
 - O limite de uso é a porcentagem da janela de uso de cada provedor até onde a automação pode começar Tasks, mais a faixa do Oráculo; o resto é sua. A seção `reservas` de versões anteriores é ignorada.
+- Os prompts são os textos que o agente recebe. O agendador usa o primeiro modelo de `usadoEm` igual a `SUBTAREFAS` ou a `TASK_INTEIRA` (sem nenhum, o padrão da app) e troca cada `{variavel}` pelo texto dela. Some a linha que só tinha variáveis vazias e o parágrafo cujas variáveis estão todas vazias (ex.: "Critério de aceite:" sem critério). `{...}` que não é variável fica como está.
+- `variaveis` guarda só as regras editadas e as criadas. Sem entrada, `regras.permissoes`, `regras.git` e `regras.resposta` são geradas das permissões do projeto, do commit e do push da subtarefa e do critério de aceite; `regras.git` fica vazia em projeto sem git. Uma regra pode usar as outras variáveis; as criadas também podem usar as `regras.*`. A retomada depois de um direcionamento repete `regras.resposta`.

@@ -191,7 +191,7 @@ public class ConfiguracoesDialog extends Dialogo {
                 LocalTime.parse((String) silencioInicio.getSelectedItem()),
                 LocalTime.parse((String) silencioFim.getSelectedItem()), falhasFuramSilencio.isLigado(),
                 desktop.isLigado(), whatsapp.isLigado(), som.isLigado(), marcados);
-        return new Configuracoes(barras.horario(), limites, execucao, notificacoes);
+        return new Configuracoes(barras.horario(), limites, execucao, notificacoes, configuracoes.prompts());
     }
 
     // ---------- Geral ----------

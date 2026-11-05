@@ -1,5 +1,9 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.ModeloDePrompt;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.Uso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.VariavelEditavel;
 import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
@@ -70,11 +74,43 @@ class PromptTest {
         Projeto projeto = Projeto.novo("P", "P", "", "", null, Provedor.AUTOMATICO, Esforco.LOW, Permissoes.padrao());
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.LOW);
 
-        String prompt = Prompt.montar(projeto, task, null, "b");
+        String prompt = Prompt.montar(projeto, task, null, "b", Prompts.padrao());
 
         assertFalse(prompt.contains("Ninguém vai responder"));
         assertTrue(prompt.contains(Prompt.MARCA_DE_DIRECIONAMENTO + "\nPergunta:"));
         assertFalse(prompt.contains("Direcionamento já dado"));
+        assertFalse(prompt.contains("{"), prompt);
+    }
+
+    @Test
+    void padraoTiraOsTrechosSemConteudo() {
+        Projeto projeto = Projeto.novo("P", "P", "", "", null, Provedor.AUTOMATICO, Esforco.LOW, Permissoes.padrao());
+        Subtarefa s = Subtarefa.nova("Testes", "Migre os testes", "", false, List.of());
+        Task task = Task.nova("Migração", "", Provedor.AUTOMATICO, Esforco.LOW).comSubtarefas(List.of(s));
+
+        String prompt = Prompt.montar(projeto, task, s, "b", Prompts.padrao());
+
+        assertTrue(prompt.contains("## Subtarefa atual: Testes\n\nInstrução:\nMigre os testes\n\n## Regras\n"), prompt);
+        assertFalse(prompt.contains("Já concluído"), prompt);
+        assertFalse(prompt.contains("Critério de aceite:"), prompt);
+        assertFalse(prompt.contains("\n\n\n"), prompt);
+    }
+
+    @Test
+    void usaOModeloEAsRegrasDasConfiguracoes() {
+        Projeto projeto = Projeto.novo("Loja", "Loja", "", "", null, Provedor.AUTOMATICO, Esforco.LOW,
+                Permissoes.padrao());
+        Task task = Task.nova("Checkout", "", Provedor.AUTOMATICO, Esforco.LOW);
+        Prompts prompts = new Prompts(List.of(
+                new ModeloDePrompt("Curto", "Projeto {projeto.nome}: {task.titulo}.\n{estilo}\n{regras.resposta}\n"
+                        + "JSON fica: {\"a\": 1}", Uso.TASK_INTEIRA)),
+                List.of(new VariavelEditavel("regras.resposta", "", "- Responda só \"ok\" em {projeto.nome}."),
+                        new VariavelEditavel("estilo", "", "- Siga o estilo de {projeto.nome}.")));
+
+        String prompt = Prompt.montar(projeto, task, null, "b", prompts);
+
+        assertEquals("Projeto Loja: Checkout.\n- Siga o estilo de Loja.\n- Responda só \"ok\" em Loja.\n"
+                + "JSON fica: {\"a\": 1}\n", prompt);
     }
 
     @Test
@@ -86,8 +122,8 @@ class PromptTest {
         Subtarefa s = Subtarefa.nova("Integração", "Migre", "", false, List.of()).comDirecionamento(respondido);
         Task task = Task.nova("Migração", "", Provedor.AUTOMATICO, Esforco.LOW).comSubtarefas(List.of(s));
 
-        String retomada = Prompt.continuar(task, s, respondido);
-        String completo = Prompt.montar(projeto, task, s, "b");
+        String retomada = Prompt.continuar(projeto, task, s, respondido, "b", Prompts.padrao());
+        String completo = Prompt.montar(projeto, task, s, "b", Prompts.padrao());
 
         assertTrue(retomada.startsWith("Resposta ao seu pedido de direcionamento:"));
         assertTrue(retomada.contains("Pergunta: Runner?\nResposta: Manter o runner"));

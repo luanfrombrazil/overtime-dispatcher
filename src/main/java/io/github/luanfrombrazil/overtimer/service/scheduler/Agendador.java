@@ -123,6 +123,8 @@ public class Agendador {
     private volatile int execucoesNoIntervalo;
     /** Limite de uso de cada provedor; até receber as configurações, não limita. */
     private volatile Map<Provedor, LimiteDeUso> limitesDeUso = Map.of();
+    /** Modelos de prompt e regras das variáveis; até receber as configurações, os padrão. */
+    private volatile Configuracoes.Prompts prompts = Configuracoes.Prompts.padrao();
     /** Uso medido de cada provedor, de 0 a 100, ou negativo quando desconhecido. */
     private volatile ToIntFunction<Provedor> uso = provedor -> -1;
     /** Por que o último ciclo parou com trabalho na fila por causa do limite de uso; null se não parou por isso. */
@@ -186,9 +188,13 @@ public class Agendador {
         agora();
     }
 
-    /** Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo e máximo. */
+    /**
+     * Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo, máximo e os prompts
+     * das próximas execuções.
+     */
     public void aplicar(Configuracoes configuracoes) {
         limitesDeUso = configuracoes.limitesDeUso();
+        prompts = configuracoes.prompts();
         usarHorario(configuracoes.horarioFuncionamento());
         Configuracoes.Execucao execucao = configuracoes.execucao();
         usarIntervalo(Duration.ofMinutes(execucao.intervaloMinutos()), execucao.maximoPorIntervalo());
@@ -446,8 +452,9 @@ public class Agendador {
         try {
             Path pasta = areaDeTrabalho.preparar(projeto, task);
             String sessao = sessaoNova ? UUID.randomUUID().toString() : task.sessao();
-            String prompt = continuar ? Prompt.continuar(task, subtarefa, respondido)
-                    : Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task));
+            String branch = AreaDeTrabalho.branch(task);
+            String prompt = continuar ? Prompt.continuar(projeto, task, subtarefa, respondido, branch, prompts)
+                    : Prompt.montar(projeto, task, subtarefa, branch, prompts);
             Execucao execucao = new Execucao(pasta, prompt,
                     sessao, sessaoNova, subtarefa == null ? task.esforco() : subtarefa.esforcoOu(task.esforco()),
                     subtarefa == null ? Modelo.PADRAO : subtarefa.modelo(), projeto.permissoes(), projeto.usaGit(),

@@ -11,7 +11,7 @@ Executa o trabalho num agente de IA e devolve o resultado. Todos os provedores f
 
 Cada Task escolhe **provedor · modelo** (ex.: "Claude Code · Sonnet") e o **esforço**.
 
-O agente recebe uma Task inteira (quando ela não tem subtarefas) ou uma subtarefa por vez; nos dois casos, o prompt leva a instrução e o critério de aceite da Task.
+O agente recebe uma Task inteira (quando ela não tem subtarefas) ou uma subtarefa por vez; nos dois casos, o prompt leva a instrução e o critério de aceite da Task. O texto sai do modelo de prompt das configurações (ver [persistência](persistencia.md#configurações)).
 
 ## Claude Code
 

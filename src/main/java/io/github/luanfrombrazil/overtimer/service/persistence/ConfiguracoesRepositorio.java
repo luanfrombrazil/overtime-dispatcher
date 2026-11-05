@@ -10,6 +10,10 @@ import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Execucao;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.ModeloDePrompt;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.Uso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.VariavelEditavel;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento.Faixa;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -22,8 +26,10 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,7 +40,8 @@ import java.util.Set;
  * <pre>
  * { "horarioFuncionamento": { "seg": ["00:00-07:00", "22:00-24:00"], "sab": ["00:00-24:00"], ... } }
  * </pre>
- * As demais seções ({@code limitesDeUso}, {@code execucao}, {@code notificacoes}) estão em docs/modulos/persistencia.md.
+ * As demais seções ({@code limitesDeUso}, {@code execucao}, {@code notificacoes}, {@code prompts}) estão em
+ * docs/modulos/persistencia.md.
  */
 public class ConfiguracoesRepositorio {
 
@@ -70,7 +77,8 @@ public class ConfiguracoesRepositorio {
                     // A antiga "reservas" (protótipo, com automação em 0%) é ignorada de propósito.
                     lerLimitesDeUso(raiz.path("limitesDeUso")),
                     lerExecucao(raiz.path("execucao")),
-                    lerNotificacoes(raiz.path("notificacoes")));
+                    lerNotificacoes(raiz.path("notificacoes")),
+                    lerPrompts(raiz.path("prompts")));
         } catch (IOException | IllegalArgumentException | DateTimeParseException e) {
             System.err.println("Configurações inválidas em " + arquivo + "; usando os valores padrão: " + e.getMessage());
             return Configuracoes.padrao();
@@ -83,6 +91,7 @@ public class ConfiguracoesRepositorio {
         raiz.set("limitesDeUso", escreverLimitesDeUso(configuracoes));
         raiz.set("execucao", escreverExecucao(configuracoes.execucao()));
         raiz.set("notificacoes", escreverNotificacoes(configuracoes.notificacoes()));
+        raiz.set("prompts", escreverPrompts(configuracoes.prompts()));
         try {
             Files.createDirectories(arquivo.getParent());
             Path temporario = arquivo.resolveSibling(ARQUIVO + ".tmp");
@@ -199,6 +208,43 @@ public class ConfiguracoesRepositorio {
                 avisos.add(aviso.name());
             }
         }
+        return no;
+    }
+
+    private static Prompts lerPrompts(JsonNode no) {
+        if (!no.isObject()) {
+            return Prompts.padrao();
+        }
+        List<ModeloDePrompt> modelos = new ArrayList<>();
+        JsonNode lidos = no.path("modelos");
+        if (lidos.isArray()) {
+            for (JsonNode modelo : lidos) {
+                modelos.add(new ModeloDePrompt(modelo.path("nome").asText(), modelo.path("texto").asText(),
+                        Uso.valueOf(modelo.path("usadoEm").asText())));
+            }
+        } else {
+            modelos.addAll(Prompts.padrao().modelos());
+        }
+        List<VariavelEditavel> variaveis = new ArrayList<>();
+        for (JsonNode variavel : no.path("variaveis")) {
+            variaveis.add(new VariavelEditavel(variavel.path("nome").asText(), variavel.path("descricao").asText(),
+                    variavel.path("regra").asText()));
+        }
+        return new Prompts(modelos, variaveis);
+    }
+
+    private ObjectNode escreverPrompts(Prompts prompts) {
+        ObjectNode no = json.createObjectNode();
+        ArrayNode modelos = no.putArray("modelos");
+        prompts.modelos().forEach(m -> modelos.addObject()
+                .put("nome", m.nome())
+                .put("texto", m.texto())
+                .put("usadoEm", m.usadoEm().name()));
+        ArrayNode variaveis = no.putArray("variaveis");
+        prompts.variaveis().forEach(v -> variaveis.addObject()
+                .put("nome", v.nome())
+                .put("descricao", v.descricao())
+                .put("regra", v.regra()));
         return no;
     }
 
