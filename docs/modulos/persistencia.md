@@ -31,7 +31,10 @@ worktrees/<id da task>/                                 worktree git da Task (pr
 
 ```
 protocolos-rotina/<id do protocolo>/protocolo.json    o protocolo inteiro
+protocolos-rotina/<id do protocolo>/trabalho/         pasta onde o agente do protocolo roda
 ```
+
+- A pasta `trabalho` é criada na primeira execução e mantida entre uma execução e outra; o agente pode deixar nela o que precisar consultar na próxima.
 
 - `protocolo.json` guarda nome, sigla, passo a passo, a agenda, provedor e esforço, os acessos, os ids de quem entra direto (`aceitaDiretoDe`), se está ligado (`ativo`), a fila de entrada e as propostas.
 - A agenda é `{ "modo": "HORARIOS", "horarios": [480, 1110], "intervaloMinutos": 0 }` (minutos depois da meia-noite, todo dia) ou `{ "modo": "INTERVALO", "horarios": [], "intervaloMinutos": 45 }`.

@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.agente;
 
 import io.github.luanfrombrazil.overtimer.model.Projeto;
+import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.service.Git;
 
@@ -17,13 +18,27 @@ import java.util.Locale;
  * {@code <pasta da app>/worktrees/<id da task>}, na branch {@code overtime/<título>-<id>} criada a partir da
  * branch padrão do projeto: o agente nunca mexe na pasta do projeto nem na branch principal, e o merge fica
  * para depois da sua verificação.
+ * <p>
+ * Um protocolo não tem pasta no sistema: o agente dele roda em {@code <pasta da app>/protocolos-rotina/<id>/trabalho},
+ * ao lado do {@code protocolo.json}.
  */
 public class AreaDeTrabalho {
 
     private final Path worktrees;
+    private final Path protocolos;
 
     public AreaDeTrabalho(Path pastaDados) {
         this.worktrees = pastaDados.resolve("worktrees");
+        this.protocolos = pastaDados.resolve("protocolos-rotina");
+    }
+
+    /** Prepara a pasta de trabalho do protocolo, criando-a na primeira execução. */
+    public Path preparar(Protocolo protocolo) throws IOException {
+        Path pastaProtocolo = protocolos.resolve(protocolo.id()).normalize();
+        if (!protocolos.normalize().equals(pastaProtocolo.getParent())) {
+            throw new IOException("Id de protocolo inválido: " + protocolo.id());
+        }
+        return Files.createDirectories(pastaProtocolo.resolve("trabalho"));
     }
 
     /** Prepara a pasta da Task, criando o worktree e a branch na primeira vez. */
