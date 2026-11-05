@@ -116,7 +116,14 @@ public class MainController implements BarraLateral.Ouvinte {
     public void protocolo(Protocolo protocolo) {
         abrirItem(protocolo);
         projetoAberto = null;
-        frame.mostrar(new ProtocoloPanel(protocolo, this::novoProtocolo));
+        frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem, this::novoProtocolo));
+    }
+
+    /** Nome do protocolo ou projeto com o id dado; o próprio id se nenhum existe mais. */
+    private String nomeDaOrigem(String id) {
+        return dados.protocolos().stream().filter(p -> p.id().equals(id)).map(Protocolo::nome).findFirst()
+                .or(() -> projetos.buscar(id).map(Projeto::nome))
+                .orElse(id);
     }
 
     @Override

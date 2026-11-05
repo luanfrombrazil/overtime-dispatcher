@@ -5,7 +5,6 @@ import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.view.comum.Cartao;
 import io.github.luanfrombrazil.overtimer.view.comum.Chip;
-import io.github.luanfrombrazil.overtimer.view.comum.Console;
 import io.github.luanfrombrazil.overtimer.view.comum.Etiqueta;
 import io.github.luanfrombrazil.overtimer.view.comum.Interruptor;
 import io.github.luanfrombrazil.overtimer.view.comum.ItemStatus;
@@ -23,15 +22,19 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * Tela de um protocolo: passo a passo, acessos, fila de entrada, propostas e o console.
+ * Tela de um protocolo: passo a passo, acessos, fila de entrada e propostas.
  */
 public class ProtocoloPanel extends JPanel {
 
     private static final int LARGURA_COLUNA_DIREITA = 360;
 
-    public ProtocoloPanel(Protocolo protocolo, Runnable aoEditar) {
+    /**
+     * @param nomeDe nome do protocolo ou projeto com o id dado, para as origens das tasks injetadas
+     */
+    public ProtocoloPanel(Protocolo protocolo, Function<String, String> nomeDe, Runnable aoEditar) {
         super(new BorderLayout(0, 14));
         setBackground(Tema.APP);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
@@ -40,24 +43,22 @@ public class ProtocoloPanel extends JPanel {
         editar.addActionListener(e -> aoEditar.run());
         add(Ui.coluna(10,
                 Ui.cabecalho(Ui.titulo(protocolo.nome()), Ui.linha(8,
-                        Etiqueta.solida(protocolo.provedor(), Tema.BORDA),
-                        Etiqueta.solida(protocolo.esforco(), Tema.CINZA),
-                        new Interruptor(true), editar, Ui.comIcone(Ui.botaoPrimario("Rodar agora"), "play"))),
-                Ui.legenda(protocolo.horarios())), BorderLayout.NORTH);
+                        Etiqueta.solida(protocolo.provedor().toString(), Tema.BORDA),
+                        Etiqueta.solida(protocolo.esforco().toString(), Tema.CINZA),
+                        new Interruptor(protocolo.ativo()), editar,
+                        Ui.comIcone(Ui.botaoPrimario("Rodar agora"), "play"))),
+                Ui.legenda(protocolo.agenda().descricao())), BorderLayout.NORTH);
 
         JPanel colunas = new JPanel(new BorderLayout(14, 0));
         colunas.setOpaque(false);
-        colunas.add(alinharNoTopo(Ui.coluna(14, passos(protocolo), acessos(protocolo))), BorderLayout.CENTER);
-        JPanel direita = Ui.coluna(14, fila("Fila de entrada", protocolo.filaDeEntrada(), Estado.PENDENTE, false),
-                fila("Propostas", protocolo.propostas(), Estado.ATENCAO, true));
+        colunas.add(alinharNoTopo(Ui.coluna(14, passos(protocolo), acessos(protocolo, nomeDe))), BorderLayout.CENTER);
+        JPanel direita = Ui.coluna(14,
+                fila("Fila de entrada", protocolo.filaDeEntrada(), nomeDe, Estado.PENDENTE, false),
+                fila("Propostas", protocolo.propostas(), nomeDe, Estado.ATENCAO, true));
         JPanel envoltorioDireita = alinharNoTopo(direita);
         envoltorioDireita.setPreferredSize(new Dimension(LARGURA_COLUNA_DIREITA, 10));
         colunas.add(envoltorioDireita, BorderLayout.EAST);
         add(colunas, BorderLayout.CENTER);
-
-        if (!protocolo.ultimaExecucao().isEmpty()) {
-            add(new Console(List.of("Última execução", "Histórico"), protocolo.ultimaExecucao(), 150), BorderLayout.SOUTH);
-        }
     }
 
     private static JPanel passos(Protocolo protocolo) {
@@ -68,16 +69,16 @@ public class ProtocoloPanel extends JPanel {
         return Ui.largo(cartao);
     }
 
-    private static JPanel acessos(Protocolo protocolo) {
+    private static JPanel acessos(Protocolo protocolo, Function<String, String> nomeDe) {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, null);
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
         cartao.add(Ui.cabecalho(Ui.secao("Acessos"), null));
         cartao.add(Box.createVerticalStrut(8));
-        cartao.add(chips(protocolo.acessos(), false));
+        cartao.add(chips(protocolo.acessos().rotulos(), false));
         cartao.add(Box.createVerticalStrut(10));
         cartao.add(Ui.cabecalho(Ui.legenda("Aceita direto de"), null));
         cartao.add(Box.createVerticalStrut(6));
-        List<String> origens = new ArrayList<>(protocolo.aceitaDiretoDe());
+        List<String> origens = new ArrayList<>(protocolo.aceitaDiretoDe().stream().map(nomeDe).toList());
         origens.add("+");
         cartao.add(chips(origens, true));
         return Ui.largo(cartao);
@@ -93,7 +94,8 @@ public class ProtocoloPanel extends JPanel {
         return Ui.largo(linha);
     }
 
-    private static JPanel fila(String titulo, List<ItemFila> itens, Estado estado, boolean comAcoes) {
+    private static JPanel fila(String titulo, List<ItemFila> itens, Function<String, String> nomeDe,
+                               Estado estado, boolean comAcoes) {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, null);
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
         cartao.add(Ui.cabecalho(Ui.secao(titulo), null));
@@ -103,7 +105,7 @@ public class ProtocoloPanel extends JPanel {
         }
         for (ItemFila item : itens) {
             cartao.add(Box.createVerticalStrut(8));
-            cartao.add(new ItemStatus(estado, item.titulo(), item.origem(), Tema.SUTIL));
+            cartao.add(new ItemStatus(estado, item.titulo(), nomeDe.apply(item.origem()), Tema.SUTIL));
         }
         if (comAcoes && !itens.isEmpty()) {
             cartao.add(Box.createVerticalStrut(8));
