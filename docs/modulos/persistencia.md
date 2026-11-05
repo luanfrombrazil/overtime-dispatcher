@@ -71,3 +71,29 @@ Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "S
 - O limite de uso é a porcentagem da janela de uso de cada provedor até onde a automação pode começar Tasks, mais a faixa do Oráculo; o resto é sua. A seção `reservas` de versões anteriores é ignorada.
 - Os prompts são os textos que o agente recebe. O agendador usa o primeiro modelo de `usadoEm` igual a `SUBTAREFAS` ou a `TASK_INTEIRA` (sem nenhum, o padrão da app) e troca cada `{variavel}` pelo texto dela. Some a linha que só tinha variáveis vazias e o parágrafo cujas variáveis estão todas vazias (ex.: "Critério de aceite:" sem critério). `{...}` que não é variável fica como está.
 - `variaveis` guarda só as regras editadas e as criadas. Sem entrada, `regras.permissoes`, `regras.git` e `regras.resposta` são geradas das permissões do projeto, do commit e do push da subtarefa e do critério de aceite; `regras.git` fica vazia em projeto sem git. Uma regra pode usar as outras variáveis; as criadas também podem usar as `regras.*`. A retomada depois de um direcionamento repete `regras.resposta`.
+
+## Notificações
+
+Ficam em `notificacoes.json`, na pasta central, na ordem em que a app as guarda. Sem o arquivo, ou com ele inválido, a app começa sem notificações.
+
+```json
+{
+  "notificacoes": [
+    {
+      "id": "3f2a...",
+      "tipo": "FALHAS",
+      "titulo": "Task falhou",
+      "texto": "Timeout depois de 3 tentativas.",
+      "projetoId": "9c1e...",
+      "taskId": "b7d0...",
+      "instante": "2026-11-05T14:30:12",
+      "lida": false
+    }
+  ]
+}
+```
+
+- `tipo` é um dos avisos das configurações (`VERIFICACAO`, `DIRECIONAMENTO`, `MERGE`, `FALHAS`, `LIMITE_DE_USO`, `SESSAO_CONCLUIDA`).
+- `projetoId` e `taskId` ficam ausentes quando o aviso não é de um projeto ou de uma Task (ex.: limite de uso).
+- `instante` é a data e hora local, no formato ISO.
+- Uma notificação com tipo desconhecido, sem `id` ou sem `instante` válido é ignorada, sem afetar as outras.
