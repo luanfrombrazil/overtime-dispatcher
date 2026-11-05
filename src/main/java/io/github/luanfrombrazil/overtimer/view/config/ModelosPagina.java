@@ -64,7 +64,8 @@ class ModelosPagina extends JPanel {
     /** Nome de um modelo de prompt salvo com o campo Nome vazio. */
     private static final String SEM_NOME = "Sem nome";
 
-    private static final int LARGURA_EDITOR = 624;
+    private static final int LARGURA_EDITOR = 600;
+    private static final int LARGURA_EDITOR_MINIMA = 400;
     private static final int LARGURA_VARIAVEIS = 250;
 
     private static final Map<Provedor, String> COMANDO_PADRAO = Map.of(
@@ -371,7 +372,11 @@ class ModelosPagina extends JPanel {
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         rolagem.setBorder(BorderFactory.createLineBorder(Tema.ACENTO, 1));
         rolagem.getViewport().setBackground(Tema.LOG);
-        return tamanho(rolagem, LARGURA_EDITOR, altura);
+        // Ocupa a largura que sobra ao lado da coluna de variáveis.
+        rolagem.setPreferredSize(new Dimension(LARGURA_EDITOR, altura));
+        rolagem.setMinimumSize(new Dimension(LARGURA_EDITOR_MINIMA, altura));
+        rolagem.setMaximumSize(new Dimension(Integer.MAX_VALUE, altura));
+        return rolagem;
     }
 
     private static DocumentListener aoEditar(Runnable acao) {
@@ -412,6 +417,10 @@ class ModelosPagina extends JPanel {
                 painel.add(Box.createVerticalStrut(6));
             });
         });
+        // Tudo alinhado à esquerda: no BoxLayout vertical, alinhamentos misturados centralizam as linhas.
+        for (java.awt.Component filho : painel.getComponents()) {
+            ((JComponent) filho).setAlignmentX(LEFT_ALIGNMENT);
+        }
         return tamanho(painel, LARGURA_VARIAVEIS, painel.getPreferredSize().height);
     }
 
@@ -425,9 +434,18 @@ class ModelosPagina extends JPanel {
         return tamanho(botao, 16, 16);
     }
 
-    /** Editor à esquerda e variáveis à direita, alinhados pelo topo. */
+    /**
+     * Editor à esquerda e variáveis à direita, alinhados pelo topo. Fica com o alinhamento horizontal padrão, igual
+     * ao dos cabeçalhos: no BoxLayout vertical da página, alinhamentos misturados deslocam a linha para a direita.
+     */
     private static JComponent lado(JComponent editor, JComponent variaveis) {
-        JPanel linha = new JPanel();
+        // A altura máxima acompanha a preferida, que muda quando a coluna de variáveis é remontada.
+        JPanel linha = new JPanel() {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+        };
         linha.setLayout(new BoxLayout(linha, BoxLayout.X_AXIS));
         linha.setOpaque(false);
         editor.setAlignmentY(TOP_ALIGNMENT);
@@ -435,9 +453,7 @@ class ModelosPagina extends JPanel {
         linha.add(editor);
         linha.add(Box.createHorizontalStrut(16));
         linha.add(variaveis);
-        linha.add(Box.createHorizontalGlue());
-        linha.setAlignmentX(LEFT_ALIGNMENT);
-        return Ui.largo(linha);
+        return linha;
     }
 
     /** Distribui as variáveis em linhas que cabem na largura da coluna. */
