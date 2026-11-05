@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service;
 
+import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
 
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -76,6 +78,24 @@ public class ProtocoloService {
                 return Optional.of(atual);
             }
             alterado = gravar(atual.comAtivo(ativo));
+        }
+        avisar(alterado);
+        return Optional.of(alterado);
+    }
+
+    /** Tira da fila de entrada os itens já tratados por uma execução; vazio se o protocolo não existe mais. */
+    public Optional<Protocolo> tirarDaFila(String id, Set<String> itens) {
+        Protocolo alterado;
+        synchronized (this) {
+            Protocolo atual = protocolos.get(id);
+            if (atual == null) {
+                return Optional.empty();
+            }
+            List<ItemFila> restantes = atual.filaDeEntrada().stream().filter(i -> !itens.contains(i.id())).toList();
+            if (restantes.size() == atual.filaDeEntrada().size()) {
+                return Optional.of(atual);
+            }
+            alterado = gravar(atual.comFilas(restantes, atual.propostas()));
         }
         avisar(alterado);
         return Optional.of(alterado);

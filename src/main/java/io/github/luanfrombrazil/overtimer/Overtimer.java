@@ -31,7 +31,7 @@ public final class Overtimer {
         PastaDados.migrarDoNomeAntigo(pastaDados);
         ProjetoService projetos = new ProjetoService(new RepositorioProjetos(pastaDados));
         ProtocoloService protocolos = new ProtocoloService(new RepositorioProtocolos(pastaDados));
-        Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
+        Agendador agendador = new Agendador(projetos, protocolos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
         agendador.aplicar(new ConfiguracoesRepositorio(pastaDados).carregar());
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
