@@ -26,7 +26,11 @@ import io.github.luanfrombrazil.overtimer.view.trilha.TrilhaPanel;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.UncheckedIOException;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Liga as ações da janela principal: navegação entre telas e abertura dos pop-ups.
@@ -44,6 +48,8 @@ public class MainController implements BarraLateral.Ouvinte {
     private final MainFrame frame;
     private final ProjetoController projetoController;
     private String projetoAberto;
+    /** Quando a janela foi para a bandeja; null enquanto está aberta. */
+    private LocalDateTime escondidaEm;
 
     public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo,
                           NotificacaoService notificacoes) {
@@ -63,7 +69,16 @@ public class MainController implements BarraLateral.Ouvinte {
         barraLateral.aoClicarAgendador(this::alternarAgendador);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
         barraSuperior.aoClicarNotificacoes(this::notificacoes);
-        frame.bandeja().ifPresent(b -> b.aoSair(this::sair));
+        frame.bandeja().ifPresent(b -> {
+            b.aoSair(this::sair);
+            b.aoVoltar(this::enquantoVoceEstavaFora);
+        });
+        frame.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                escondidaEm = LocalDateTime.now();
+            }
+        });
 
         // O agendador e o serviço avisam na thread do agendador; a tela só muda na thread do Swing.
         agendador.aoMudar(new Agendador.Ouvinte() {
@@ -182,8 +197,24 @@ public class MainController implements BarraLateral.Ouvinte {
 
     /** Pop-up do sino. */
     private void notificacoes() {
-        new NotificacoesDialog(frame, notificacoes.listar(), this::abrirNotificacao,
+        new NotificacoesDialog(frame, "Notificações", notificacoes.listar(), this::abrirNotificacao,
                 () -> configuracoes("Notificações")).abrir();
+    }
+
+    /** Ao voltar da bandeja: as não lidas que chegaram com a janela escondida, se houver alguma. */
+    private void enquantoVoceEstavaFora() {
+        LocalDateTime desde = escondidaEm;
+        escondidaEm = null;
+        if (desde == null) {
+            return;
+        }
+        List<Notificacao> novas = notificacoes.listar().stream()
+                .filter(n -> !n.lida() && !n.instante().isBefore(desde))
+                .toList();
+        if (!novas.isEmpty()) {
+            new NotificacoesDialog(frame, "Enquanto você estava fora", novas, this::abrirNotificacao,
+                    () -> configuracoes("Notificações")).abrir();
+        }
     }
 
     /** Marca a notificação como lida e abre o projeto dela, se ainda existir. */

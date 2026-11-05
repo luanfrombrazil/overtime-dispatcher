@@ -4,6 +4,7 @@ import io.github.luanfrombrazil.overtimer.model.Notificacao;
 import io.github.luanfrombrazil.overtimer.view.comum.Ui;
 
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import java.awt.AWTException;
 import java.awt.Frame;
 import java.awt.MenuItem;
@@ -21,6 +22,8 @@ public final class Bandeja {
     private final TrayIcon icone;
     private volatile Runnable aoSair = () -> {
     };
+    private volatile Runnable aoVoltar = () -> {
+    };
 
     private Bandeja(TrayIcon icone) {
         this.icone = icone;
@@ -37,10 +40,10 @@ public final class Bandeja {
         icone.setImageAutoSize(true);
         Bandeja instalada = new Bandeja(icone);
         // No Windows, o ActionEvent do TrayIcon é o duplo clique.
-        icone.addActionListener(e -> reabrir(janela));
+        icone.addActionListener(e -> instalada.reabrir(janela));
         PopupMenu menu = new PopupMenu();
         MenuItem abrir = new MenuItem("Abrir");
-        abrir.addActionListener(e -> reabrir(janela));
+        abrir.addActionListener(e -> instalada.reabrir(janela));
         MenuItem sair = new MenuItem("Sair");
         sair.addActionListener(e -> instalada.aoSair.run());
         menu.add(abrir);
@@ -83,10 +86,20 @@ public final class Bandeja {
         SystemTray.getSystemTray().remove(icone);
     }
 
-    private static void reabrir(JFrame janela) {
+    /** O que fazer quando a janela, que estava escondida na bandeja, volta a aparecer. */
+    public void aoVoltar(Runnable acao) {
+        this.aoVoltar = acao;
+    }
+
+    private void reabrir(JFrame janela) {
+        boolean estavaEscondida = !janela.isVisible();
         janela.setExtendedState(janela.getExtendedState() & ~Frame.ICONIFIED);
         janela.setVisible(true);
         janela.toFront();
         janela.requestFocus();
+        if (estavaEscondida) {
+            // Depois de a janela aparecer, para o que for aberto ficar sobre ela.
+            SwingUtilities.invokeLater(aoVoltar);
+        }
     }
 }

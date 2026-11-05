@@ -29,7 +29,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Notificações do sino, da mais nova para a mais antiga. Clicar numa a abre; as não lidas têm fundo destacado.
+ * Lista de notificações, da mais nova para a mais antiga: a do sino e a de "Enquanto você estava fora". Clicar numa
+ * a abre; as não lidas têm fundo destacado.
  */
 public class NotificacoesDialog extends Dialogo {
 
@@ -42,12 +43,12 @@ public class NotificacoesDialog extends Dialogo {
      * @param aoAbrir      ao clicar numa notificação, depois de o pop-up fechar
      * @param aoConfigurar ao clicar em "Configurações", depois de o pop-up fechar
      */
-    public NotificacoesDialog(JFrame dono, List<Notificacao> notificacoes, Consumer<Notificacao> aoAbrir,
-                              Runnable aoConfigurar) {
+    public NotificacoesDialog(JFrame dono, String titulo, List<Notificacao> notificacoes,
+                              Consumer<Notificacao> aoAbrir, Runnable aoConfigurar) {
         super(dono, Tema.BORDA);
         aoClicarFora(this::fechar);
         JPanel raiz = (JPanel) getContentPane();
-        raiz.add(cabecalho(aoConfigurar), BorderLayout.NORTH);
+        raiz.add(cabecalho(titulo, aoConfigurar), BorderLayout.NORTH);
 
         JPanel lista = new JPanel();
         lista.setLayout(new BoxLayout(lista, BoxLayout.Y_AXIS));
@@ -69,12 +70,12 @@ public class NotificacoesDialog extends Dialogo {
         raiz.add(rolagem, BorderLayout.CENTER);
     }
 
-    private JComponent cabecalho(Runnable aoConfigurar) {
+    private JComponent cabecalho(String titulo, Runnable aoConfigurar) {
         JButton configurar = Ui.botaoSecundario("Configurações");
         configurar.addActionListener(e -> fecharE(aoConfigurar));
         BotaoIcone fechar = new BotaoIcone(Ui.icone("fechar", 14, Tema.TEXTO_SECUNDARIO), "Fechar");
         fechar.addActionListener(e -> fechar());
-        JPanel cabecalho = Ui.cabecalho(Ui.titulo("Notificações"), Ui.linha(8, configurar, fechar));
+        JPanel cabecalho = Ui.cabecalho(Ui.titulo(titulo), Ui.linha(8, configurar, fechar));
         cabecalho.setBorder(BorderFactory.createEmptyBorder(16, 22, 12, 16));
         return cabecalho;
     }
