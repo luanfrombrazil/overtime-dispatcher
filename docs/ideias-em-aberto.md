@@ -27,7 +27,7 @@ Propostas feitas durante o desenho que **ainda não foram confirmadas**. Nada aq
 - Menu do ícone da bandeja e opção de iniciar com o Windows.
 
 ## Dados
-- Estrutura de pastas e formato dos arquivos JSON dos protocolos, do consumo e das configurações (o dos projetos já está em [persistência](modulos/persistencia.md)).
+- Estrutura de pastas e formato dos arquivos JSON do consumo (os dos projetos, dos protocolos e das configurações já estão em [persistência](modulos/persistencia.md)).
 - Formato dos metadados das tarefas das Trilhas no vault (compatível com o plugin Tasks do Obsidian).
 
 ## Planejamento

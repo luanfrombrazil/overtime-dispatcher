@@ -5,14 +5,14 @@ import io.github.luanfrombrazil.overtimer.model.Consumo;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Estatistica;
 import io.github.luanfrombrazil.overtimer.model.ItemResumo;
-import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Sugestao;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 
 import java.util.List;
 
 /**
- * Fonte dos dados das telas que ainda não têm serviço próprio (os projetos já estão no {@link ProjetoService}).
+ * Fonte dos dados das telas que ainda não têm serviço próprio (os projetos e os protocolos já estão no
+ * {@link ProjetoService} e no {@link ProtocoloService}).
  * Por enquanto começa vazia e nada é salvo; cada módulo vai substituindo uma parte deste serviço.
  */
 public class DadosService {
@@ -25,10 +25,6 @@ public class DadosService {
 
     public int sugestoesDoOraculo() {
         return 0;
-    }
-
-    public List<Protocolo> protocolos() {
-        return List.of();
     }
 
     public List<Trilha> trilhas() {

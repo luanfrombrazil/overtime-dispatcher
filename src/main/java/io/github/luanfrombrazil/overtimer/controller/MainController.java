@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 import io.github.luanfrombrazil.overtimer.service.DadosService;
 import io.github.luanfrombrazil.overtimer.service.ProjetoService;
+import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
@@ -30,6 +31,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     private final DadosService dados;
     private final ProjetoService projetos;
+    private final ProtocoloService protocolos;
     private final Agendador agendador;
     private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
@@ -38,12 +40,14 @@ public class MainController implements BarraLateral.Ouvinte {
     private final ProjetoController projetoController;
     private String projetoAberto;
 
-    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo) {
+    public MainController(DadosService dados, ProjetoService projetos, ProtocoloService protocolos,
+                          Agendador agendador, ConsumoService consumo) {
         this.dados = dados;
         this.projetos = projetos;
+        this.protocolos = protocolos;
         this.agendador = agendador;
         this.barraSuperior = new BarraSuperior(consumo.consumo(), dados.notificacoesNaoLidas());
-        this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
+        this.barraLateral = new BarraLateral(projetos.projetos(), protocolos.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
         this.frame = new MainFrame(barraSuperior, barraLateral);
         this.projetoController = new ProjetoController(frame, projetos, agendador::log,
@@ -121,7 +125,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     /** Nome do protocolo ou projeto com o id dado; o próprio id se nenhum existe mais. */
     private String nomeDaOrigem(String id) {
-        return dados.protocolos().stream().filter(p -> p.id().equals(id)).map(Protocolo::nome).findFirst()
+        return protocolos.buscar(id).map(Protocolo::nome)
                 .or(() -> projetos.buscar(id).map(Projeto::nome))
                 .orElse(id);
     }
@@ -194,7 +198,7 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     private void atualizarBarraLateral() {
-        barraLateral.atualizar(projetos.projetos(), dados.protocolos(), dados.trilhas(), dados.sugestoesDoOraculo());
+        barraLateral.atualizar(projetos.projetos(), protocolos.protocolos(), dados.trilhas(), dados.sugestoesDoOraculo());
     }
 
     private void abrirItem(Object item) {
