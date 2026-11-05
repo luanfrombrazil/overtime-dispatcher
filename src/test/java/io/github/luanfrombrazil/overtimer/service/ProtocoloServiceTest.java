@@ -6,11 +6,13 @@ import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
+import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -129,11 +131,48 @@ class ProtocoloServiceTest {
     }
 
     @Test
-    void excluirTiraDaListaEDoDisco() {
+    void excluirTiraDaListaEDoDisco() throws Exception {
         Protocolo protocolo = servico.salvar(novo("Agenda"));
+        Path pasta = dados.resolve("protocolos-rotina").resolve(protocolo.id());
+        new AreaDeTrabalho(dados).preparar(protocolo);
+        Files.writeString(pasta.resolve("trabalho").resolve("notas.md"), "anotações");
+
         servico.excluir(protocolo.id());
+
         assertTrue(servico.protocolos().isEmpty());
         assertTrue(reaberto().protocolos().isEmpty());
+        assertFalse(Files.exists(pasta), "sai junto a pasta de trabalho");
+    }
+
+    @Test
+    void editarTrocaADefinicaoEMantemOQueMudouComOPopUpAberto() {
+        Protocolo aberto = servico.salvar(novo("Agenda"));
+        // Com o pop-up aberto, o protocolo é desligado e recebe um item na fila.
+        ItemFila chegou = ItemFila.novo("Marcar a prova", null, null);
+        servico.definirAtivo(aberto.id(), false);
+        Protocolo atual = servico.buscar(aberto.id()).orElseThrow();
+        servico.salvar(atual.comFilas(List.of(chegou), List.of()));
+
+        Protocolo editado = servico.editar(aberto.comDefinicao("Calendário", "CA", "Novos passos",
+                Agenda.aCada(15), Provedor.CODEX, Esforco.HIGH,
+                new Acessos(List.of(), false, true, null, "claude_ai_Google_Calendar"), List.of()));
+
+        assertEquals("Calendário", editado.nome());
+        assertEquals("Novos passos", editado.passos());
+        assertEquals(Agenda.aCada(15), editado.agenda());
+        assertEquals(Provedor.CODEX, editado.provedor());
+        assertEquals("claude_ai_Google_Calendar", editado.acessos().conectorCalendario());
+        assertFalse(editado.ativo(), "o desligamento feito com o pop-up aberto fica");
+        assertEquals(List.of(chegou), editado.filaDeEntrada(), "o item que chegou fica");
+        assertEquals(editado, reaberto().buscar(aberto.id()).orElseThrow());
+    }
+
+    @Test
+    void editarProtocoloExcluidoAvisa() {
+        Protocolo protocolo = servico.salvar(novo("Agenda"));
+        servico.excluir(protocolo.id());
+        assertThrows(IllegalArgumentException.class, () -> servico.editar(protocolo));
+        assertTrue(reaberto().protocolos().isEmpty(), "não volta a existir");
     }
 
     @Test

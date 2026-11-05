@@ -35,12 +35,13 @@ import java.util.TreeSet;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação de protocolo: passo a passo, quando roda, acessos e execução.
+ * Pop-up de criação e edição de protocolo: passo a passo, quando roda, acessos e execução.
  */
-public class NovoProtocoloDialog extends Dialogo {
+public class ProtocoloDialog extends Dialogo {
 
     private static final int INTERVALO_PADRAO = 60;
 
+    private final Protocolo existente;
     private final JTextField nome;
     private final JScrollPane passos;
     private final JToggleButton fixos;
@@ -57,22 +58,32 @@ public class NovoProtocoloDialog extends Dialogo {
     private final JComboBox<Provedor> provedor;
     private final JComboBox<Esforco> esforco;
 
-    /** @param aoSalvar recebe o protocolo preenchido; uma IllegalArgumentException mantém o pop-up aberto */
-    public NovoProtocoloDialog(JFrame dono, Consumer<Protocolo> aoSalvar) {
+    /**
+     * @param existente protocolo a editar, ou null para criar um novo
+     * @param aoSalvar  recebe o protocolo preenchido; uma IllegalArgumentException mantém o pop-up aberto
+     * @param aoExcluir ação de excluir, mostrada só na edição
+     */
+    public ProtocoloDialog(JFrame dono, Protocolo existente, Consumer<Protocolo> aoSalvar, Runnable aoExcluir) {
         super(dono, Tema.BORDA);
+        this.existente = existente;
+        boolean novo = existente == null;
+        Agenda agenda = novo ? Agenda.vazia() : existente.agenda();
+        Acessos acessos = novo ? Acessos.nenhum() : existente.acessos();
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo("Novo protocolo"), null));
+        corpo.add(Ui.cabecalho(Ui.titulo(novo ? "Novo protocolo" : "Editar protocolo"), null));
         corpo.add(Box.createVerticalStrut(14));
 
-        nome = Formulario.texto("");
+        nome = Formulario.texto(novo ? "" : existente.nome());
         corpo.add(Formulario.identidade(nome));
         corpo.add(Box.createVerticalStrut(12));
-        passos = Formulario.area("", 4);
+        passos = Formulario.area(novo || existente.passos() == null ? "" : existente.passos(), 4);
         corpo.add(Formulario.campo("Passo a passo", passos));
 
         Formulario.secao(corpo, "Quando");
-        fixos = new JToggleButton("Horários fixos", true);
-        JToggleButton aCada = new JToggleButton("Intervalo");
+        boolean porIntervalo = agenda.modo() == Agenda.Modo.INTERVALO;
+        fixos = new JToggleButton("Horários fixos", !porIntervalo);
+        JToggleButton aCada = new JToggleButton("Intervalo", porIntervalo);
+        horas.addAll(agenda.horas());
         ButtonGroup modo = new ButtonGroup();
         modo.add(fixos);
         modo.add(aCada);
@@ -83,7 +94,8 @@ public class NovoProtocoloDialog extends Dialogo {
         horarios = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         horarios.setOpaque(false);
         corpo.add(Ui.largo(horarios));
-        intervalo = new JSpinner(new SpinnerNumberModel(INTERVALO_PADRAO, 1, 24 * 60, 5));
+        int minutos = porIntervalo ? Math.min(agenda.intervaloMinutos(), 24 * 60) : INTERVALO_PADRAO;
+        intervalo = new JSpinner(new SpinnerNumberModel(minutos, 1, 24 * 60, 5));
         intervalo.setFont(Tema.corpo());
         linhaIntervalo = Ui.cabecalho(Ui.linha(8, intervalo, Ui.legenda("minutos")), null);
         corpo.add(linhaIntervalo);
@@ -93,18 +105,19 @@ public class NovoProtocoloDialog extends Dialogo {
         mostrarModo();
 
         Formulario.secao(corpo, "Acessos");
-        sites = Formulario.caixa("Sites", false);
+        sites = Formulario.caixa("Sites", !acessos.sites().isEmpty());
         sites.setPreferredSize(new Dimension(100, sites.getPreferredSize().height));
-        enderecos = Formulario.texto("https://");
+        enderecos = Formulario.texto(acessos.sites().isEmpty() ? "https://" : String.join(", ", acessos.sites()));
         JPanel linhaSites = new JPanel(new BorderLayout(8, 0));
         linhaSites.setOpaque(false);
         linhaSites.add(sites, BorderLayout.WEST);
         linhaSites.add(enderecos, BorderLayout.CENTER);
         corpo.add(Ui.largo(linhaSites));
-        email = Formulario.caixa("E-mail", false);
-        calendario = Formulario.caixa("Calendário", false);
-        conectorEmail = Formulario.texto("");
-        conectorCalendario = Formulario.texto("");
+        email = Formulario.caixa("E-mail", acessos.email());
+        calendario = Formulario.caixa("Calendário", acessos.calendario());
+        conectorEmail = Formulario.texto(acessos.conectorEmail() == null ? "" : acessos.conectorEmail());
+        conectorCalendario = Formulario.texto(acessos.conectorCalendario() == null ? ""
+                : acessos.conectorCalendario());
         corpo.add(Box.createVerticalStrut(6));
         corpo.add(acesso(email, conectorEmail, "leitura e rascunhos"));
         corpo.add(Box.createVerticalStrut(6));
@@ -113,15 +126,16 @@ public class NovoProtocoloDialog extends Dialogo {
         Formulario.secao(corpo, "Execução");
         provedor = Formulario.opcoes(210, Provedor.values());
         esforco = Formulario.opcoes(140, Esforco.values());
-        provedor.setSelectedItem(Provedor.AUTOMATICO);
-        esforco.setSelectedItem(Esforco.MEDIUM);
+        provedor.setSelectedItem(novo ? Provedor.AUTOMATICO : existente.provedor());
+        esforco.setSelectedItem(novo ? Esforco.MEDIUM : existente.esforco());
         corpo.add(Ui.cabecalho(Ui.linha(12,
                 Formulario.campo("Provedor", provedor),
                 Formulario.campo("Esforço", esforco)), null));
 
         JPanel raiz = (JPanel) getContentPane();
         raiz.add(corpo, BorderLayout.CENTER);
-        raiz.add(Formulario.rodape(this, "Criar protocolo", () -> aoSalvar.accept(protocolo()), null, null),
+        raiz.add(Formulario.rodape(this, novo ? "Criar protocolo" : "Salvar", () -> aoSalvar.accept(protocolo()),
+                novo ? null : aoExcluir, "Excluir o protocolo, a fila e a pasta de trabalho dele?"),
                 BorderLayout.SOUTH);
         raiz.setPreferredSize(new Dimension(600, raiz.getPreferredSize().height));
     }
@@ -130,7 +144,7 @@ public class NovoProtocoloDialog extends Dialogo {
     private static JComponent acesso(JCheckBox caixa, JTextField conector, String limite) {
         caixa.setPreferredSize(new Dimension(100, caixa.getPreferredSize().height));
         conector.setToolTipText("Conector MCP");
-        conector.setEnabled(false);
+        conector.setEnabled(caixa.isSelected());
         caixa.addActionListener(e -> conector.setEnabled(caixa.isSelected()));
         JPanel linha = new JPanel(new BorderLayout(8, 0));
         linha.setOpaque(false);
@@ -199,7 +213,14 @@ public class NovoProtocoloDialog extends Dialogo {
         }
         Acessos acessos = new Acessos(listaSites, email.isSelected(), calendario.isSelected(),
                 conectorDe(email, conectorEmail), conectorDe(calendario, conectorCalendario));
-        return Protocolo.novo(nomeDigitado, Iniciais.de(nomeDigitado), Formulario.textoDa(passos), agenda,
-                (Provedor) provedor.getSelectedItem(), (Esforco) esforco.getSelectedItem(), acessos, List.of());
+        Provedor p = (Provedor) provedor.getSelectedItem();
+        Esforco e = (Esforco) esforco.getSelectedItem();
+        String sigla = Iniciais.de(nomeDigitado);
+        if (existente == null) {
+            return Protocolo.novo(nomeDigitado, sigla, Formulario.textoDa(passos), agenda, p, e, acessos, List.of());
+        }
+        // As origens aceitas direto vêm da injeção de tasks, que este pop-up ainda não edita.
+        return existente.comDefinicao(nomeDigitado, sigla, Formulario.textoDa(passos), agenda, p, e, acessos,
+                existente.aceitaDiretoDe());
     }
 }

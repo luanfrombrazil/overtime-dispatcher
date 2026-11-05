@@ -16,7 +16,7 @@ import io.github.luanfrombrazil.overtimer.view.MainFrame;
 import io.github.luanfrombrazil.overtimer.view.config.ConfiguracoesDialog;
 import io.github.luanfrombrazil.overtimer.view.home.HomePanel;
 import io.github.luanfrombrazil.overtimer.view.oraculo.OraculoDialog;
-import io.github.luanfrombrazil.overtimer.view.protocolo.NovoProtocoloDialog;
+import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloPanel;
 import io.github.luanfrombrazil.overtimer.view.trilha.TrilhaPanel;
 
@@ -138,7 +138,25 @@ public class MainController implements BarraLateral.Ouvinte {
     private void mostrarProtocolo(Protocolo protocolo) {
         frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem,
                 ativo -> ligarProtocolo(protocolo, ativo), () -> agendador.rodarAgora(protocolo.id()),
-                this::novoProtocolo));
+                () -> editarProtocolo(protocolo.id())));
+    }
+
+    /** Abre o pop-up com o protocolo como está salvo agora, com o Excluir. */
+    private void editarProtocolo(String id) {
+        protocolos.buscar(id).ifPresent(atual -> new ProtocoloDialog(frame, atual, editado -> {
+            Protocolo salvo = protocolos.editar(editado);
+            atualizarBarraLateral();
+            protocolo(salvo);
+        }, () -> {
+            try {
+                protocolos.excluir(id);
+            } catch (UncheckedIOException e) {
+                JOptionPane.showMessageDialog(frame, e.getMessage(), atual.nome(), JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            atualizarBarraLateral();
+            home();
+        }).abrir());
     }
 
     /** Grava o interruptor; se não der, volta a tela ao que está salvo. */
@@ -178,11 +196,11 @@ public class MainController implements BarraLateral.Ouvinte {
 
     @Override
     public void novoProtocolo() {
-        new NovoProtocoloDialog(frame, p -> {
+        new ProtocoloDialog(frame, null, p -> {
             Protocolo salvo = protocolos.salvar(p);
             atualizarBarraLateral();
             protocolo(salvo);
-        }).abrir();
+        }, null).abrir();
     }
 
     @Override

@@ -66,6 +66,17 @@ public class ProtocoloService {
         return protocolo;
     }
 
+    /**
+     * Grava o que se edita no pop-up por cima do protocolo salvo, mantendo o estado ligado e as filas atuais: o
+     * agendador pode ter consumido a fila ou alguém ter desligado o protocolo com o pop-up aberto.
+     */
+    public Protocolo editar(Protocolo editado) {
+        Protocolo atual = buscar(editado.id())
+                .orElseThrow(() -> new IllegalArgumentException("O protocolo não existe mais."));
+        return salvar(atual.comDefinicao(editado.nome(), editado.sigla(), editado.passos(), editado.agenda(),
+                editado.provedor(), editado.esforco(), editado.acessos(), editado.aceitaDiretoDe()));
+    }
+
     /** Liga ou desliga o protocolo no agendador; vazio se ele não existe mais. */
     public Optional<Protocolo> definirAtivo(String id, boolean ativo) {
         Protocolo alterado;
