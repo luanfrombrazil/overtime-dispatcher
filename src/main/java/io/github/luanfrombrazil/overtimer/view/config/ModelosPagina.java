@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.view.config;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.view.comum.Chip;
 import io.github.luanfrombrazil.overtimer.view.comum.Interruptor;
@@ -9,6 +10,7 @@ import io.github.luanfrombrazil.overtimer.view.tema.Tema;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -20,6 +22,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.BorderLayout;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -36,6 +39,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Seção Modelos das configurações: linha de comando e prompt de cada modelo, com as variáveis disponíveis.
@@ -44,6 +48,12 @@ import java.util.Map;
 class ModelosPagina extends JPanel {
 
     private static final List<Provedor> MODELOS = List.of(Provedor.CLAUDE_CODE, Provedor.CODEX, Provedor.GEMINI);
+
+    /** Grupo das variáveis cuja regra pode ser editada, onde também entram as criadas. */
+    private static final String GRUPO_EDITAVEIS = "Variáveis editáveis";
+
+    /** Nome de variável: letras, números, "_" e ".". */
+    private static final Pattern NOME_DE_VARIAVEL = Pattern.compile("[\\w.]+");
 
     private static final int LARGURA_EDITOR = 624;
     private static final int LARGURA_VARIAVEIS = 250;
@@ -143,7 +153,7 @@ class ModelosPagina extends JPanel {
                     fixa("concluidas", "Subtarefas já concluídas nesta Task")),
             "Direcionamento", List.of(
                     fixa("direcionamento", "Respostas já dadas a pedidos de direcionamento")),
-            "Regras prontas", List.of(
+            GRUPO_EDITAVEIS, List.of(
                     new Variavel("regras.permissoes", "Regras das permissões do projeto", """
                             - Você pode criar e editar arquivos do projeto.
                             - Não rode comandos de teste nem de build.
@@ -178,7 +188,12 @@ class ModelosPagina extends JPanel {
 
     private final Interruptor ativo = new Interruptor(true);
     private final EditorDeVariaveis comando = new EditorDeVariaveis(todas(VARIAVEIS_COMANDO), this::editarRegra);
-    private final EditorDeVariaveis prompt = new EditorDeVariaveis(todas(VARIAVEIS_PROMPT), this::editarRegra);
+    /** Variáveis editáveis criadas pela pessoa, que entram no fim do grupo das editáveis do prompt. */
+    private final List<Variavel> criadas = new ArrayList<>();
+    /** Todas as variáveis do prompt, incluindo as criadas; o editor lê esta lista ao sugerir e colorir. */
+    private final List<Variavel> variaveisDoPrompt = new ArrayList<>(todas(VARIAVEIS_PROMPT));
+    private final EditorDeVariaveis prompt = new EditorDeVariaveis(variaveisDoPrompt, this::editarRegra);
+    private final JPanel colunaDoPrompt = new JPanel(new BorderLayout());
     private final JComboBox<ModeloDePrompt> modeloDePrompt = new JComboBox<>();
     private final JTextField nome = new JTextField();
     private final JComboBox<String> usadoEm = new JComboBox<>(new String[]{"Subtarefas", "Tasks inteiras"});
@@ -194,7 +209,7 @@ class ModelosPagina extends JPanel {
         add(Box.createVerticalStrut(20));
         add(Ui.cabecalho(Ui.secao("Linha de comando"), Ui.botaoSecundario("Prévia")));
         add(Box.createVerticalStrut(10));
-        add(lado(rolagem(comando, 202), variaveis(VARIAVEIS_COMANDO, comando)));
+        add(lado(rolagem(comando, 202), variaveis(VARIAVEIS_COMANDO, comando, null)));
 
         add(Box.createVerticalStrut(28));
         add(Ui.cabecalho(Ui.secao("Prompt"), Ui.botaoSecundario("Prévia")));
@@ -205,7 +220,9 @@ class ModelosPagina extends JPanel {
                 campo("Usado por padrão em", tamanho(usadoEm, 170))), null));
         add(Box.createVerticalStrut(10));
         JPanel textoDoPrompt = Ui.coluna(8, rolagem(prompt, 472), Ui.linha(0, Box.createHorizontalGlue(), tokens));
-        add(lado(textoDoPrompt, variaveis(VARIAVEIS_PROMPT, prompt)));
+        colunaDoPrompt.setOpaque(false);
+        mostrarVariaveisDoPrompt();
+        add(lado(textoDoPrompt, colunaDoPrompt));
 
         ativo.addPropertyChangeListener("ligado", e -> ativos.put(selecionado, ativo.isLigado()));
         comando.getDocument().addDocumentListener(aoEditar(() -> comandos.put(selecionado, comando.getText())));
@@ -225,7 +242,38 @@ class ModelosPagina extends JPanel {
         comandos.put(selecionado, COMANDO_PADRAO.get(selecionado));
         mostrar(selecionado);
         carregarModelosDePrompt();
+        criadas.clear();
+        variaveisDoPrompt.clear();
+        variaveisDoPrompt.addAll(todas(VARIAVEIS_PROMPT));
+        mostrarVariaveisDoPrompt();
         carregarRegras();
+    }
+
+    /** Pede nome e regra de uma variável editável nova e a coloca no grupo das editáveis do prompt. */
+    private void criarVariavel() {
+        RegraDialog.criar(this, nome -> NOME_DE_VARIAVEL.matcher(nome).matches()
+                        && variaveisDoPrompt.stream().noneMatch(v -> v.nome().equals(nome))
+                        && todas(VARIAVEIS_COMANDO).stream().noneMatch(v -> v.nome().equals(nome)))
+                .ifPresent(nova -> {
+                    criadas.add(nova);
+                    variaveisDoPrompt.add(nova);
+                    regras.put(nova.nome(), nova.regra());
+                    mostrarVariaveisDoPrompt();
+                });
+    }
+
+    /** Remonta a coluna de variáveis do prompt, com as criadas no fim do grupo das editáveis. */
+    private void mostrarVariaveisDoPrompt() {
+        Map<String, List<Variavel>> grupos = new LinkedHashMap<>(VARIAVEIS_PROMPT);
+        List<Variavel> editaveis = new ArrayList<>(VARIAVEIS_PROMPT.get(GRUPO_EDITAVEIS));
+        editaveis.addAll(criadas);
+        grupos.put(GRUPO_EDITAVEIS, editaveis);
+        JComponent coluna = variaveis(grupos, prompt, this::criarVariavel);
+        colunaDoPrompt.removeAll();
+        colunaDoPrompt.add(coluna, BorderLayout.NORTH);
+        tamanho(colunaDoPrompt, LARGURA_VARIAVEIS, coluna.getPreferredSize().height);
+        colunaDoPrompt.revalidate();
+        colunaDoPrompt.repaint();
     }
 
     private void carregarRegras() {
@@ -314,14 +362,17 @@ class ModelosPagina extends JPanel {
 
     // ---------- Variáveis ----------
 
-    private JComponent variaveis(Map<String, List<Variavel>> grupos, EditorDeVariaveis destino) {
+    /** @param criar ação do botão "+" ao lado do grupo das editáveis, ou null para não mostrá-lo */
+    private JComponent variaveis(Map<String, List<Variavel>> grupos, EditorDeVariaveis destino, Runnable criar) {
         JPanel painel = new JPanel();
         painel.setLayout(new BoxLayout(painel, BoxLayout.Y_AXIS));
         painel.setOpaque(false);
         painel.add(Ui.secao("Variáveis"));
         grupos.forEach((grupo, doGrupo) -> {
             painel.add(Box.createVerticalStrut(14));
-            painel.add(Ui.legenda(grupo));
+            painel.add(grupo.equals(GRUPO_EDITAVEIS) && criar != null
+                    ? Ui.linha(6, Ui.legenda(grupo), botaoNovaVariavel(criar))
+                    : Ui.legenda(grupo));
             painel.add(Box.createVerticalStrut(6));
             linhasDeVariaveis(doGrupo, destino).forEach(linha -> {
                 painel.add(linha);
@@ -329,6 +380,16 @@ class ModelosPagina extends JPanel {
             });
         });
         return tamanho(painel, LARGURA_VARIAVEIS, painel.getPreferredSize().height);
+    }
+
+    /** Botão pequeno "+" que cria uma variável editável. */
+    private static JButton botaoNovaVariavel(Runnable criar) {
+        JButton botao = Ui.botaoSecundario("+");
+        botao.putClientProperty(FlatClientProperties.STYLE, botao.getClientProperty(FlatClientProperties.STYLE)
+                + "; arc:4; margin:0,0,0,0; foreground:#9DA0A8");
+        botao.setFont(Tema.legenda());
+        botao.addActionListener(e -> criar.run());
+        return tamanho(botao, 16, 16);
     }
 
     /** Editor à esquerda e variáveis à direita, alinhados pelo topo. */
