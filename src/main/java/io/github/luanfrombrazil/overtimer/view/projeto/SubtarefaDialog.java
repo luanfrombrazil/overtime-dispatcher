@@ -90,8 +90,8 @@ public class SubtarefaDialog extends Dialogo {
         modelo.setSelectedItem(nova ? Modelo.PADRAO : existente.modelo());
         corpo.add(Formulario.campo("Esforço · modelo", esforcoEModelo(esforco, modelo)));
         corpo.add(Box.createVerticalStrut(10));
-        commit = Formulario.caixa("Commit ao terminar", nova || existente.commit());
-        push = Formulario.caixa("Push depois do commit", !nova && existente.push());
+        commit = Formulario.caixa("Commit", nova || existente.commit());
+        push = Formulario.caixa("Push", !nova && existente.push());
         // Push só faz sentido depois de um commit.
         push.setEnabled(commit.isSelected());
         commit.addItemListener(e -> {
