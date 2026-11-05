@@ -52,10 +52,10 @@ public class ConsumoService {
         this.ultimaAtividade = relogio.instant();
     }
 
-    /** Claude, Codex e Gemini (este ainda sem leitura). */
+    /** Claude (Claude Code), Codex e Gemini (Antigravity). */
     public static ConsumoService padrao(BooleanSupplier ocupado) {
-        return new ConsumoService(List.of(new MedidorClaude(), new MedidorCodex(),
-                Medidor.semLeitura("Gemini", "O uso do Gemini ainda não é medido.")), ocupado, Clock.systemDefaultZone());
+        return new ConsumoService(List.of(new MedidorClaude(), new MedidorCodex(), new MedidorAntigravity()),
+                ocupado, Clock.systemDefaultZone());
     }
 
     /** Avisado na thread do consumo; quem atualiza a tela deve passar para a thread do Swing. */
