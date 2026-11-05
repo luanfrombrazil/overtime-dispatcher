@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -148,6 +149,8 @@ public class Agendador {
      * passou enquanto estava desligado.
      */
     private final Map<String, LocalDateTime> contaDaAgenda = new ConcurrentHashMap<>();
+    /** Protocolos pedidos pelo "Rodar agora", pelo id, que rodam no próximo ciclo mesmo fora da agenda. */
+    private final Set<String> pedidos = ConcurrentHashMap.newKeySet();
     /** Ciclo marcado para o próximo horário de protocolo; null se não há nenhum. */
     private ScheduledFuture<?> proximoProtocolo;
     /** Relógio da agenda dos protocolos; trocado nos testes. */
@@ -367,12 +370,33 @@ public class Agendador {
         }
     }
 
-    /** O protocolo ligado cuja agenda já chegou e cujo provedor não está no limite de uso, se houver. */
+    /**
+     * Pede para o protocolo rodar no próximo ciclo, mesmo fora da agenda ou desligado, e faz esse ciclo já. Valem o
+     * horário de funcionamento, o limite de uso e o máximo por intervalo; com o agendador pausado, o pedido espera
+     * ele ser ligado.
+     */
+    public void rodarAgora(String protocoloId) {
+        pedidos.add(protocoloId);
+        agora();
+    }
+
+    /**
+     * O protocolo pedido pelo "Rodar agora" ou, se não há, o ligado cuja agenda já chegou; em ambos, só se o provedor
+     * não estiver no limite de uso.
+     */
     private Optional<Protocolo> protocoloDaVez() {
         if (protocolos == null) {
             return Optional.empty();
         }
         acompanharAgendas();
+        for (String id : List.copyOf(pedidos)) {
+            Optional<Protocolo> pedido = protocolos.buscar(id);
+            if (pedido.isEmpty()) {
+                pedidos.remove(id);
+            } else if (dentroDoLimiteDeUso(pedido.get().provedor())) {
+                return pedido;
+            }
+        }
         LocalDateTime agora = LocalDateTime.now(relogio);
         for (Protocolo protocolo : protocolos.protocolos()) {
             if (!protocolo.ativo()) {
@@ -529,6 +553,7 @@ public class Agendador {
      */
     private void executar(Protocolo protocolo) throws InterruptedException {
         String id = protocolo.id();
+        pedidos.remove(id);
         contaDaAgenda.put(id, LocalDateTime.now(relogio));
         // Uma Task interrompida por um protocolo conta como um começo novo quando voltar.
         ultimaTaskIniciada = null;

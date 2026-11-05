@@ -167,6 +167,51 @@ class AgendadorProtocolosTest {
     }
 
     @Test
+    void rodarAgoraRodaLogoForaDaAgendaEUmaVezSo() throws InterruptedException {
+        Protocolo protocolo = protocoloAs8();
+        iniciar();
+        assertEquals(0, agente.execucoes.size());
+
+        agendador.rodarAgora(protocolo.id());
+        esperar(() -> agente.execucoes.size() >= 1);
+        esperarCiclo();
+        assertEquals(1, agente.execucoes.size(), "às 7h59, fora da agenda");
+
+        agendador.agora();
+        esperarCiclo();
+        assertEquals(1, agente.execucoes.size(), "o pedido vale uma execução");
+
+        rodarAs(DIA.withHour(8).withSecond(30));
+        assertEquals(2, agente.execucoes.size(), "o horário da agenda continua valendo");
+    }
+
+    @Test
+    void rodarAgoraRodaMesmoDesligado() throws InterruptedException {
+        Protocolo protocolo = protocolos.salvar(protocoloAs8().comAtivo(false));
+        iniciar();
+
+        agendador.rodarAgora(protocolo.id());
+        esperar(() -> agente.execucoes.size() >= 1);
+        esperarCiclo();
+        assertEquals(1, agente.execucoes.size());
+
+        rodarAs(DIA.withHour(8).withSecond(30));
+        assertEquals(1, agente.execucoes.size(), "desligado, a agenda não roda");
+    }
+
+    @Test
+    void rodarAgoraComOAgendadorPausadoEsperaEleLigar() throws InterruptedException {
+        Protocolo protocolo = protocoloAs8();
+        agendador.rodarAgora(protocolo.id());
+        Thread.sleep(200);
+        assertEquals(0, agente.execucoes.size());
+
+        iniciar();
+        esperar(() -> agente.execucoes.size() >= 1);
+        assertEquals(1, agente.execucoes.size());
+    }
+
+    @Test
     void intervaloContaDaUltimaExecucao() throws InterruptedException {
         protocolos.salvar(Protocolo.novo("E-mail", "EM", "Ler a caixa", Agenda.aCada(30), Provedor.CLAUDE_CODE,
                 Esforco.LOW, Acessos.nenhum(), List.of()));

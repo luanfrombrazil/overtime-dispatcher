@@ -34,9 +34,10 @@ public class ProtocoloPanel extends JPanel {
     /**
      * @param nomeDe  nome do protocolo ou projeto com o id dado, para as origens das tasks injetadas
      * @param aoLigar chamado com o novo estado quando o interruptor muda
+     * @param aoRodar pede a execução do protocolo no próximo ciclo do agendador
      */
     public ProtocoloPanel(Protocolo protocolo, Function<String, String> nomeDe, Consumer<Boolean> aoLigar,
-                          Runnable aoEditar) {
+                          Runnable aoRodar, Runnable aoEditar) {
         super(new BorderLayout(0, 14));
         setBackground(Tema.APP);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
@@ -45,12 +46,13 @@ public class ProtocoloPanel extends JPanel {
         editar.addActionListener(e -> aoEditar.run());
         Interruptor ativo = new Interruptor(protocolo.ativo());
         ativo.addPropertyChangeListener("ligado", e -> aoLigar.accept((Boolean) e.getNewValue()));
+        JButton rodar = Ui.comIcone(Ui.botaoPrimario("Rodar agora"), "play");
+        rodar.addActionListener(e -> aoRodar.run());
         add(Ui.coluna(10,
                 Ui.cabecalho(Ui.titulo(protocolo.nome()), Ui.linha(8,
                         Etiqueta.solida(protocolo.provedor().toString(), Tema.BORDA),
                         Etiqueta.solida(protocolo.esforco().toString(), Tema.CINZA),
-                        ativo, editar,
-                        Ui.comIcone(Ui.botaoPrimario("Rodar agora"), "play"))),
+                        ativo, editar, rodar)),
                 Ui.legenda(protocolo.agenda().descricao())), BorderLayout.NORTH);
 
         JPanel colunas = new JPanel(new BorderLayout(14, 0));

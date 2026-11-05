@@ -137,7 +137,8 @@ public class MainController implements BarraLateral.Ouvinte {
 
     private void mostrarProtocolo(Protocolo protocolo) {
         frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem,
-                ativo -> ligarProtocolo(protocolo, ativo), this::novoProtocolo));
+                ativo -> ligarProtocolo(protocolo, ativo), () -> agendador.rodarAgora(protocolo.id()),
+                this::novoProtocolo));
     }
 
     /** Grava o interruptor; se não der, volta a tela ao que está salvo. */
