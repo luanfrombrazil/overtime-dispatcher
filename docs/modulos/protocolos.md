@@ -15,6 +15,8 @@ Exemplos:
 | **E-mail** | Conector | Ler e criar rascunhos; nunca enviar, apagar ou modificar |
 | **Calendário** | Conector | Agir sozinho na **agenda própria do agente** |
 
+O agente roda na pasta de trabalho do protocolo e só lê e edita ali, sem shell. Sites liberam o `WebFetch` apenas nos domínios cadastrados; e-mail e calendário liberam o servidor MCP escolhido (`mcp__<servidor>`). O que cada conector pode fazer dentro do serviço (só rascunhos, só a agenda do agente) vai no prompt.
+
 ## Injeção de tasks
 
 Um agente pode criar trabalho para outro. Exemplo: o protocolo da faculdade encontra uma entrega e injeta no protocolo **Agenda** uma task para colocar a data no calendário, com a descrição.

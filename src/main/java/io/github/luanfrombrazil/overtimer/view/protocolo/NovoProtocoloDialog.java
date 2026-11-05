@@ -52,6 +52,8 @@ public class NovoProtocoloDialog extends Dialogo {
     private final JTextField enderecos;
     private final JCheckBox email;
     private final JCheckBox calendario;
+    private final JTextField conectorEmail;
+    private final JTextField conectorCalendario;
     private final JComboBox<Provedor> provedor;
     private final JComboBox<Esforco> esforco;
 
@@ -101,8 +103,12 @@ public class NovoProtocoloDialog extends Dialogo {
         corpo.add(Ui.largo(linhaSites));
         email = Formulario.caixa("E-mail", false);
         calendario = Formulario.caixa("Calendário", false);
-        corpo.add(acesso(email, "leitura e rascunhos"));
-        corpo.add(acesso(calendario, "só a agenda Overtimer"));
+        conectorEmail = Formulario.texto("");
+        conectorCalendario = Formulario.texto("");
+        corpo.add(Box.createVerticalStrut(6));
+        corpo.add(acesso(email, conectorEmail, "leitura e rascunhos"));
+        corpo.add(Box.createVerticalStrut(6));
+        corpo.add(acesso(calendario, conectorCalendario, "só a agenda Overtimer"));
 
         Formulario.secao(corpo, "Execução");
         provedor = Formulario.opcoes(210, Provedor.values());
@@ -120,11 +126,29 @@ public class NovoProtocoloDialog extends Dialogo {
         raiz.setPreferredSize(new Dimension(600, raiz.getPreferredSize().height));
     }
 
-    private static JComponent acesso(JCheckBox caixa, String limite) {
-        Dimension d = new Dimension(100, caixa.getPreferredSize().height);
-        caixa.setPreferredSize(d);
-        caixa.setMaximumSize(d);
-        return Ui.cabecalho(Ui.linha(8, caixa, Ui.legenda(limite)), null);
+    /** Caixa do acesso, nome do servidor MCP (habilitado só com a caixa marcada) e o limite do acesso. */
+    private static JComponent acesso(JCheckBox caixa, JTextField conector, String limite) {
+        caixa.setPreferredSize(new Dimension(100, caixa.getPreferredSize().height));
+        conector.setToolTipText("Conector MCP");
+        conector.setEnabled(false);
+        caixa.addActionListener(e -> conector.setEnabled(caixa.isSelected()));
+        JPanel linha = new JPanel(new BorderLayout(8, 0));
+        linha.setOpaque(false);
+        linha.add(caixa, BorderLayout.WEST);
+        linha.add(conector, BorderLayout.CENTER);
+        linha.add(Ui.legenda(limite), BorderLayout.EAST);
+        return Ui.largo(linha);
+    }
+
+    private static String conectorDe(JCheckBox caixa, JTextField conector) {
+        if (!caixa.isSelected()) {
+            return null;
+        }
+        if (conector.getText().isBlank()) {
+            throw new IllegalArgumentException("Informe o conector MCP de " + caixa.getText()
+                    + " ou desmarque o acesso.");
+        }
+        return conector.getText().strip();
     }
 
     private void mostrarModo() {
@@ -173,7 +197,8 @@ public class NovoProtocoloDialog extends Dialogo {
         if (sites.isSelected() && listaSites.stream().allMatch(String::isBlank)) {
             throw new IllegalArgumentException("Informe o endereço do site ou desmarque \"Sites\".");
         }
-        Acessos acessos = new Acessos(listaSites, email.isSelected(), calendario.isSelected());
+        Acessos acessos = new Acessos(listaSites, email.isSelected(), calendario.isSelected(),
+                conectorDe(email, conectorEmail), conectorDe(calendario, conectorCalendario));
         return Protocolo.novo(nomeDigitado, Iniciais.de(nomeDigitado), Formulario.textoDa(passos), agenda,
                 (Provedor) provedor.getSelectedItem(), (Esforco) esforco.getSelectedItem(), acessos, List.of());
     }

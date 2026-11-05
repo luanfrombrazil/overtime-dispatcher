@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service.agente;
 
+import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
@@ -71,6 +72,63 @@ class ClaudeCodeAgenteTest {
         Permissoes comFigma = new Permissoes(false, false, false, false, List.of("claude_ai_Figma"));
 
         assertTrue(ClaudeCodeAgente.ferramentas(comFigma, false, false).contains("mcp__claude_ai_Figma"));
+    }
+
+    @Test
+    void protocoloSemAcessoSoLeEEditaAPastaDeTrabalho() {
+        List<String> ferramentas = ClaudeCodeAgente.ferramentas(Acessos.nenhum());
+
+        assertEquals(List.of("Read(./**)", "Glob", "Grep", "TodoWrite", "Edit(./**)", "Write(./**)"), ferramentas);
+        assertFalse(ferramentas.contains("Read"), "a leitura fica presa à pasta de trabalho");
+        assertTrue(ferramentas.stream().noneMatch(f -> f.startsWith("Bash") || f.startsWith("PowerShell")));
+        assertTrue(ferramentas.stream().noneMatch(f -> f.startsWith("Web") || f.startsWith("mcp__")));
+    }
+
+    @Test
+    void sitesLiberamOWebFetchSoNosDominiosDeles() {
+        Acessos sites = new Acessos(List.of("https://Portal.Exemplo.edu/aluno", "portal.exemplo.edu",
+                "outro.com.br", "não é site"), false, false);
+        List<String> ferramentas = ClaudeCodeAgente.ferramentas(sites);
+
+        assertTrue(ferramentas.containsAll(List.of("WebFetch(domain:portal.exemplo.edu)",
+                "WebFetch(domain:outro.com.br)")));
+        assertEquals(2, ferramentas.stream().filter(f -> f.startsWith("WebFetch")).count());
+        assertFalse(ferramentas.contains("WebFetch"), "sem WebFetch genérico");
+        assertFalse(ferramentas.contains("WebSearch"));
+    }
+
+    @Test
+    void emailECalendarioLiberamOConectorEscolhido() {
+        Acessos acessos = new Acessos(List.of(), true, true, "mcp__claude_ai_Gmail", "claude_ai_Google_Calendar");
+        List<String> ferramentas = ClaudeCodeAgente.ferramentas(acessos);
+
+        assertTrue(ferramentas.containsAll(List.of("mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar")));
+        assertTrue(ferramentas.stream().noneMatch(f -> f.startsWith("Bash")));
+    }
+
+    @Test
+    void conectorDeAcessoDesmarcadoFicaDeFora() {
+        Acessos desmarcado = new Acessos(List.of(), false, false, "claude_ai_Gmail", "claude_ai_Google_Calendar");
+        Acessos semConector = new Acessos(List.of(), true, true);
+
+        assertTrue(ClaudeCodeAgente.ferramentas(desmarcado).stream().noneMatch(f -> f.startsWith("mcp__")));
+        assertTrue(ClaudeCodeAgente.ferramentas(semConector).stream().noneMatch(f -> f.startsWith("mcp__")));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Acessos(List.of(), true, false, "Bash(rm *)", null));
+    }
+
+    @Test
+    void execucaoDoProtocoloUsaOsAcessosESemGit() {
+        Execucao execucao = Execucao.doProtocolo(Path.of("."), "prompt", "abc", true, Esforco.MEDIUM,
+                new Acessos(List.of("exemplo.com"), true, false, "claude_ai_Gmail", null), Duration.ofMinutes(1));
+        List<String> linha = ClaudeCodeAgente.linhaDeComando(List.of("claude"), execucao);
+        String liberadas = linha.get(linha.indexOf("--allowedTools") + 1);
+        String bloqueadas = linha.get(linha.indexOf("--disallowedTools") + 1);
+
+        assertTrue(liberadas.contains("WebFetch(domain:exemplo.com)"));
+        assertTrue(liberadas.contains("mcp__claude_ai_Gmail"));
+        assertFalse(liberadas.contains("git "), "a pasta de trabalho não é um repositório");
+        assertTrue(bloqueadas.contains("Read(~/.ssh/**)"), "credenciais ficam fora também no protocolo");
     }
 
     @Test
