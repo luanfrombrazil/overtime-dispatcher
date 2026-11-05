@@ -35,7 +35,14 @@ public class AreaDeTrabalho {
         if (!projeto.usaGit()) {
             return pastaProjeto;
         }
-        Path pasta = worktrees.resolve(task.id());
+        Path pasta = worktrees.resolve(task.id()).normalize();
+        if (!worktrees.normalize().equals(pasta.getParent())) {
+            throw new IOException("Id de task inválido: " + task.id());
+        }
+        // A branch vem do projeto.json e vai como argumento do git: começando com "-", viraria uma opção.
+        if (projeto.branch().startsWith("-")) {
+            throw new IOException("Branch inválida: " + projeto.branch());
+        }
         if (Files.isDirectory(pasta.resolve(".git")) || Files.isRegularFile(pasta.resolve(".git"))) {
             return pasta;
         }

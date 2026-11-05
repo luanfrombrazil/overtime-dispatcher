@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -28,14 +30,26 @@ public final class Git {
     public static Saida executar(Path pasta, String... argumentos) throws IOException, InterruptedException {
         List<String> comando = new ArrayList<>(List.of("git", "-C", pasta.toString()));
         comando.addAll(List.of(argumentos));
-        Process processo = new ProcessBuilder(comando).redirectErrorStream(true).start();
+        ProcessBuilder construtor = new ProcessBuilder(comando).redirectErrorStream(true);
+        // Sem terminal para responder: um pedido de usuário e senha travaria a chamada até o limite.
+        construtor.environment().put("GIT_TERMINAL_PROMPT", "0");
+        Process processo = construtor.start();
         processo.getOutputStream().close();
-        byte[] saida = processo.getInputStream().readAllBytes();
+        // Lida à parte, para o limite valer mesmo que o git trave sem fechar a saída.
+        FutureTask<byte[]> saida = new FutureTask<>(() -> processo.getInputStream().readAllBytes());
+        Thread.ofVirtual().start(saida);
         if (!processo.waitFor(LIMITE_SEGUNDOS, TimeUnit.SECONDS)) {
+            processo.descendants().forEach(ProcessHandle::destroyForcibly);
             processo.destroyForcibly();
             throw new IOException("O git não respondeu: " + String.join(" ", argumentos));
         }
-        return new Saida(processo.exitValue(), new String(saida, StandardCharsets.UTF_8).strip());
+        byte[] texto;
+        try {
+            texto = saida.get();
+        } catch (ExecutionException e) {
+            throw new IOException("Não foi possível ler a saída do git", e.getCause());
+        }
+        return new Saida(processo.exitValue(), new String(texto, StandardCharsets.UTF_8).strip());
     }
 
     /** Se a pasta é a raiz de um repositório git. */

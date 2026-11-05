@@ -448,7 +448,8 @@ public class Agendador {
             String prompt = continuar ? Prompt.continuar(task, subtarefa, respondido)
                     : Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task));
             Execucao execucao = new Execucao(pasta, prompt,
-                    sessao, sessaoNova, task.esforco(), projeto.permissoes(), projeto.usaGit(), LIMITE_DA_EXECUCAO);
+                    sessao, sessaoNova, task.esforco(), projeto.permissoes(), projeto.usaGit(),
+                    subtarefa != null && subtarefa.push(), LIMITE_DA_EXECUCAO);
             resultado = agente.get().executar(execucao, linha -> registrar(projetoId, taskId, "  " + linha));
         } catch (IOException | RuntimeException e) {
             resultado = ResultadoExecucao.falha(e.getMessage() == null ? e.toString() : e.getMessage());
