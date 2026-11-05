@@ -5,6 +5,10 @@ import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Execucao;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.ModeloDePrompt;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.Uso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.VariavelEditavel;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import org.junit.jupiter.api.Test;
@@ -15,6 +19,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -73,13 +78,24 @@ class ConfiguracoesRepositorioTest {
                 Map.of(Provedor.CLAUDE_CODE, new LimiteDeUso(60, 10), Provedor.GEMINI, new LimiteDeUso(0, 0)),
                 new Execucao(15, 2, 60, 4),
                 new Notificacoes(true, false, LocalTime.of(22, 0), LocalTime.of(6, 30), false, false, true, true,
-                        EnumSet.of(Aviso.MERGE, Aviso.SESSAO_CONCLUIDA)));
+                        EnumSet.of(Aviso.MERGE, Aviso.SESSAO_CONCLUIDA)),
+                new Prompts(List.of(new ModeloDePrompt("Curto", "Faça {task.titulo}.\n\n{regras.resposta}",
+                        Uso.TASK_INTEIRA)),
+                        List.of(new VariavelEditavel("regras.git", "", "- Commit na `{branch}`."),
+                                new VariavelEditavel("estilo", "Estilo do código", "Siga o estilo do projeto."))));
 
         new ConfiguracoesRepositorio(pasta).salvar(configuracoes);
         Configuracoes carregadas = new ConfiguracoesRepositorio(pasta).carregar();
 
         assertEquals(configuracoes, carregadas);
         assertEquals(LimiteDeUso.padrao(), carregadas.limiteDeUso(Provedor.CODEX));
+    }
+
+    @Test
+    void arquivoSemPromptsUsaOsPadrao() throws Exception {
+        Files.writeString(pasta.resolve("configuracoes.json"), "{\"execucao\": {\"intervaloMinutos\": 10}}");
+
+        assertEquals(Prompts.padrao(), new ConfiguracoesRepositorio(pasta).carregar().prompts());
     }
 
     @Test

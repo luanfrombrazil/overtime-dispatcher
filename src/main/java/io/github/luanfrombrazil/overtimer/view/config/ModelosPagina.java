@@ -1,6 +1,10 @@
 package io.github.luanfrombrazil.overtimer.view.config;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.ModeloDePrompt;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.Uso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Prompts.VariavelEditavel;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.view.comum.Chip;
 import io.github.luanfrombrazil.overtimer.view.comum.Interruptor;
@@ -39,11 +43,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
- * Seção Modelos das configurações: linha de comando e prompt de cada modelo, com as variáveis disponíveis.
- * Por enquanto os textos ficam só na tela; ainda não são salvos nem usados pelo agente.
+ * Seção Modelos das configurações: linha de comando e prompt de cada modelo, com as variáveis disponíveis. Os
+ * modelos de prompt e as regras das variáveis editáveis vão para as configurações ({@link #prompts()}); a linha de
+ * comando por enquanto fica só na tela.
  */
 class ModelosPagina extends JPanel {
 
@@ -54,6 +60,9 @@ class ModelosPagina extends JPanel {
 
     /** Nome de variável: letras, números, "_" e ".". */
     private static final Pattern NOME_DE_VARIAVEL = Pattern.compile("[\\w.]+");
+
+    /** Nome de um modelo de prompt salvo com o campo Nome vazio. */
+    private static final String SEM_NOME = "Sem nome";
 
     private static final int LARGURA_EDITOR = 624;
     private static final int LARGURA_VARIAVEIS = 250;
@@ -82,47 +91,6 @@ class ModelosPagina extends JPanel {
                     --output-format stream-json
                     --model {modelo}
                     {sessao}""");
-
-    private static final String PROMPT_SUBTAREFAS = """
-            Você é um agente executando trabalho automatizado no projeto "{projeto.nome}".
-            {projeto.descricao}
-
-            ## Task: {task.titulo}
-            {task.descricao}
-
-            Já concluído nesta task:
-            {concluidas}
-
-            ## Subtarefa atual: {subtarefa.titulo}
-
-            Instrução:
-            {subtarefa.instrucao}
-
-            Critério de aceite:
-            {subtarefa.criterio}
-
-            {direcionamento}
-
-            ## Regras
-            - Faça só esta subtarefa; as próximas chegarão em mensagens seguintes desta mesma conversa.
-            {regras.permissoes}
-            {regras.git}
-            {regras.resposta}""";
-
-    private static final String PROMPT_TASK_INTEIRA = """
-            Você é um agente executando trabalho automatizado no projeto "{projeto.nome}".
-            {projeto.descricao}
-
-            ## Task: {task.titulo}
-            {task.descricao}
-
-            {direcionamento}
-
-            ## Regras
-            - Faça a task inteira: o título e a descrição acima são a instrução.
-            {regras.permissoes}
-            {regras.git}
-            {regras.resposta}""";
 
     private static final Map<String, List<Variavel>> VARIAVEIS_COMANDO = grupos(
             "Execução", List.of(
@@ -170,11 +138,25 @@ class ModelosPagina extends JPanel {
                             o que não depende da resposta e pare pedindo direcionamento.
                             - Se não conseguir concluir, comece a resposta com "FALHOU:" e explique o motivo.""")));
 
-    /** Modelos de prompt: nome, texto e onde é usado por padrão. */
-    private record ModeloDePrompt(String nome, String texto, String usadoEm) {
+    /** Modelo de prompt sendo editado na tela: nome, texto e onde é usado por padrão. */
+    private static final class ModeloEditado {
+        private String nome;
+        private String texto;
+        private Uso usadoEm;
+
+        ModeloEditado(ModeloDePrompt modelo) {
+            nome = modelo.nome();
+            texto = modelo.texto();
+            usadoEm = modelo.usadoEm();
+        }
+
+        ModeloDePrompt salvo() {
+            return new ModeloDePrompt(nome.isBlank() ? SEM_NOME : nome.strip(), texto, usadoEm);
+        }
+
         @Override
         public String toString() {
-            return nome;
+            return nome.isBlank() ? SEM_NOME : nome;
         }
     }
 
@@ -194,12 +176,15 @@ class ModelosPagina extends JPanel {
     private final List<Variavel> variaveisDoPrompt = new ArrayList<>(todas(VARIAVEIS_PROMPT));
     private final EditorDeVariaveis prompt = new EditorDeVariaveis(variaveisDoPrompt, this::editarRegra);
     private final JPanel colunaDoPrompt = new JPanel(new BorderLayout());
-    private final JComboBox<ModeloDePrompt> modeloDePrompt = new JComboBox<>();
+    private final JComboBox<ModeloEditado> modeloDePrompt = new JComboBox<>();
     private final JTextField nome = new JTextField();
-    private final JComboBox<String> usadoEm = new JComboBox<>(new String[]{"Subtarefas", "Tasks inteiras"});
+    private final JComboBox<Uso> usadoEm = new JComboBox<>(Uso.values());
     private final JLabel tokens = Ui.legenda("");
+    /** Enquanto os campos mostram outro modelo de prompt, as mudanças neles não são edições. */
+    private boolean mostrandoModelo;
 
-    ModelosPagina() {
+    /** @param prompts os prompts salvos nas configurações */
+    ModelosPagina(Prompts prompts) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 12, 24));
@@ -221,32 +206,90 @@ class ModelosPagina extends JPanel {
         add(Box.createVerticalStrut(10));
         JPanel textoDoPrompt = Ui.coluna(8, rolagem(prompt, 472), Ui.linha(0, Box.createHorizontalGlue(), tokens));
         colunaDoPrompt.setOpaque(false);
-        mostrarVariaveisDoPrompt();
         add(lado(textoDoPrompt, colunaDoPrompt));
 
         ativo.addPropertyChangeListener("ligado", e -> ativos.put(selecionado, ativo.isLigado()));
         comando.getDocument().addDocumentListener(aoEditar(() -> comandos.put(selecionado, comando.getText())));
-        prompt.getDocument().addDocumentListener(aoEditar(this::contarTokens));
+        prompt.getDocument().addDocumentListener(aoEditar(() -> {
+            contarTokens();
+            editarModelo(m -> m.texto = prompt.getText());
+        }));
+        nome.getDocument().addDocumentListener(aoEditar(() -> editarModelo(m -> {
+            m.nome = nome.getText();
+            modeloDePrompt.repaint();
+        })));
+        usadoEm.addActionListener(e -> editarModelo(m -> m.usadoEm = (Uso) usadoEm.getSelectedItem()));
         nome.setFont(Tema.mono());
         modeloDePrompt.setFont(Tema.corpo());
         usadoEm.setFont(Tema.corpo());
         modeloDePrompt.addActionListener(e -> mostrarModeloDePrompt());
 
-        carregarRegras();
-        carregarModelosDePrompt();
+        carregar(prompts);
         mostrar(Provedor.CLAUDE_CODE);
+    }
+
+    /** Os modelos de prompt e as regras como estão na tela; das regras embutidas, só as que mudaram. */
+    Prompts prompts() {
+        List<ModeloDePrompt> modelos = new ArrayList<>();
+        for (int i = 0; i < modeloDePrompt.getItemCount(); i++) {
+            modelos.add(modeloDePrompt.getItemAt(i).salvo());
+        }
+        List<VariavelEditavel> variaveis = new ArrayList<>();
+        for (Variavel embutida : VARIAVEIS_PROMPT.get(GRUPO_EDITAVEIS)) {
+            String regra = regras.get(embutida.nome());
+            // A regra de exemplo da tela não vale para todo projeto: sem edição, o agendador gera a do projeto.
+            if (regra != null && !regra.equals(embutida.regra())) {
+                variaveis.add(new VariavelEditavel(embutida.nome(), embutida.descricao(), regra));
+            }
+        }
+        criadas.forEach(v -> variaveis.add(
+                new VariavelEditavel(v.nome(), v.descricao(), regras.getOrDefault(v.nome(), v.regra()))));
+        return new Prompts(modelos, variaveis);
     }
 
     /** Volta a linha de comando do modelo escolhido, os modelos de prompt e as regras ao padrão. */
     void restaurarPadrao() {
         comandos.put(selecionado, COMANDO_PADRAO.get(selecionado));
         mostrar(selecionado);
-        carregarModelosDePrompt();
+        carregar(Prompts.padrao());
+    }
+
+    /** Mostra os modelos de prompt, as regras editadas e as variáveis criadas. */
+    private void carregar(Prompts prompts) {
+        regras.clear();
         criadas.clear();
+        for (Map<String, List<Variavel>> grupos : List.of(VARIAVEIS_COMANDO, VARIAVEIS_PROMPT)) {
+            todas(grupos).stream().filter(Variavel::modificavel).forEach(v -> regras.put(v.nome(), v.regra()));
+        }
+        for (VariavelEditavel salva : prompts.variaveis()) {
+            if (regras.containsKey(salva.nome())) {
+                regras.put(salva.nome(), salva.regra());
+            } else if (todas(VARIAVEIS_PROMPT).stream().noneMatch(v -> v.nome().equals(salva.nome()))) {
+                criadas.add(new Variavel(salva.nome(), salva.descricao(), salva.regra()));
+                regras.put(salva.nome(), salva.regra());
+            }
+        }
         variaveisDoPrompt.clear();
         variaveisDoPrompt.addAll(todas(VARIAVEIS_PROMPT));
+        variaveisDoPrompt.addAll(criadas);
         mostrarVariaveisDoPrompt();
-        carregarRegras();
+
+        mostrandoModelo = true;
+        modeloDePrompt.removeAllItems();
+        prompts.modelos().forEach(m -> modeloDePrompt.addItem(new ModeloEditado(m)));
+        mostrandoModelo = false;
+        if (modeloDePrompt.getItemCount() > 0) {
+            modeloDePrompt.setSelectedIndex(0);
+        }
+        mostrarModeloDePrompt();
+    }
+
+    /** Aplica uma edição dos campos ao modelo de prompt escolhido. */
+    private void editarModelo(Consumer<ModeloEditado> edicao) {
+        ModeloEditado modelo = (ModeloEditado) modeloDePrompt.getSelectedItem();
+        if (!mostrandoModelo && modelo != null) {
+            edicao.accept(modelo);
+        }
     }
 
     /** Pede nome e regra de uma variável editável nova e a coloca no grupo das editáveis do prompt. */
@@ -276,13 +319,6 @@ class ModelosPagina extends JPanel {
         colunaDoPrompt.repaint();
     }
 
-    private void carregarRegras() {
-        regras.clear();
-        for (Map<String, List<Variavel>> grupos : List.of(VARIAVEIS_COMANDO, VARIAVEIS_PROMPT)) {
-            todas(grupos).stream().filter(Variavel::modificavel).forEach(v -> regras.put(v.nome(), v.regra()));
-        }
-    }
-
     /** Abre a caixa de edição da regra da variável, já com a regra atual. */
     private void editarRegra(Variavel variavel) {
         Variavel atual = variavel.comRegra(regras.getOrDefault(variavel.nome(), variavel.regra()));
@@ -307,23 +343,20 @@ class ModelosPagina extends JPanel {
         comando.setCaretPosition(0);
     }
 
-    private void carregarModelosDePrompt() {
-        modeloDePrompt.removeAllItems();
-        modeloDePrompt.addItem(new ModeloDePrompt("Padrão · subtarefas", PROMPT_SUBTAREFAS, "Subtarefas"));
-        modeloDePrompt.addItem(new ModeloDePrompt("Padrão · task inteira", PROMPT_TASK_INTEIRA, "Tasks inteiras"));
-        modeloDePrompt.setSelectedIndex(0);
-        mostrarModeloDePrompt();
-    }
-
     private void mostrarModeloDePrompt() {
-        ModeloDePrompt modelo = (ModeloDePrompt) modeloDePrompt.getSelectedItem();
-        if (modelo == null) {
+        ModeloEditado modelo = (ModeloEditado) modeloDePrompt.getSelectedItem();
+        if (modelo == null || mostrandoModelo) {
             return;
         }
-        nome.setText(modelo.nome());
-        usadoEm.setSelectedItem(modelo.usadoEm());
-        prompt.setText(modelo.texto());
-        prompt.setCaretPosition(0);
+        mostrandoModelo = true;
+        try {
+            nome.setText(modelo.nome);
+            usadoEm.setSelectedItem(modelo.usadoEm);
+            prompt.setText(modelo.texto);
+            prompt.setCaretPosition(0);
+        } finally {
+            mostrandoModelo = false;
+        }
     }
 
     private void contarTokens() {

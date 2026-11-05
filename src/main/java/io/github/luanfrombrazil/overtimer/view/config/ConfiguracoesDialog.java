@@ -77,7 +77,7 @@ public class ConfiguracoesDialog extends Dialogo {
     private Interruptor whatsapp;
     private Interruptor som;
     private final Map<Aviso, JCheckBox> avisos = new EnumMap<>(Aviso.class);
-    private final ModelosPagina modelos = new ModelosPagina();
+    private final ModelosPagina modelos;
     private final JButton restaurarPadrao = Ui.botaoSecundario("Restaurar padrão");
 
     /** Mostra as configurações recebidas; "Salvar" entrega a versão editada para {@code aoSalvar}. */
@@ -85,6 +85,7 @@ public class ConfiguracoesDialog extends Dialogo {
         super(dono, Tema.BORDA);
         this.configuracoes = configuracoes;
         this.aoSalvar = aoSalvar;
+        modelos = new ModelosPagina(configuracoes.prompts());
         JPanel raiz = (JPanel) getContentPane();
         raiz.setPreferredSize(new Dimension(1120, 740));
 
@@ -209,7 +210,7 @@ public class ConfiguracoesDialog extends Dialogo {
                 LocalTime.parse((String) silencioInicio.getSelectedItem()),
                 LocalTime.parse((String) silencioFim.getSelectedItem()), falhasFuramSilencio.isLigado(),
                 desktop.isLigado(), whatsapp.isLigado(), som.isLigado(), marcados);
-        return new Configuracoes(barras.horario(), limites, execucao, notificacoes);
+        return new Configuracoes(barras.horario(), limites, execucao, notificacoes, modelos.prompts());
     }
 
     // ---------- Geral ----------

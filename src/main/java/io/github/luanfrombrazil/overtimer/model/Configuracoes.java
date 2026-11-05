@@ -8,10 +8,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Configurações salvas da aplicação: horário de funcionamento, limite de uso por provedor, execução e notificações.
+ * Configurações salvas da aplicação: horário de funcionamento, limite de uso por provedor, execução, notificações e
+ * prompts dos agentes.
  */
 public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Provedor, LimiteDeUso> limitesDeUso,
-                            Execucao execucao, Notificacoes notificacoes) {
+                            Execucao execucao, Notificacoes notificacoes, Prompts prompts) {
 
     /** Provedores que têm limite de uso próprio (o automático usa o de quem for escolhido). */
     public static final List<Provedor> PROVEDORES_COM_LIMITE =
@@ -23,11 +24,12 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
         Map<Provedor, LimiteDeUso> salvos = limitesDeUso == null ? Map.of() : limitesDeUso;
         PROVEDORES_COM_LIMITE.forEach(p -> completos.put(p, salvos.getOrDefault(p, LimiteDeUso.padrao())));
         limitesDeUso = Map.copyOf(completos);
+        prompts = prompts == null ? Prompts.padrao() : prompts;
     }
 
     /** Só o horário escolhido; o resto com os valores padrão. */
     public Configuracoes(HorarioFuncionamento horarioFuncionamento) {
-        this(horarioFuncionamento, Map.of(), Execucao.padrao(), Notificacoes.padrao());
+        this(horarioFuncionamento, Map.of(), Execucao.padrao(), Notificacoes.padrao(), Prompts.padrao());
     }
 
     public static Configuracoes padrao() {
@@ -125,6 +127,114 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
         public static Notificacoes padrao() {
             return new Notificacoes(false, true, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
                     EnumSet.of(Aviso.VERIFICACAO, Aviso.DIRECIONAMENTO, Aviso.MERGE, Aviso.FALHAS));
+        }
+    }
+
+    /**
+     * Textos que o agente recebe. Cada modelo de prompt é usado por padrão em subtarefas ou em Tasks inteiras; as
+     * variáveis, escritas como {@code {nome}}, são trocadas pelo texto delas ao montar o pedido.
+     *
+     * @param variaveis regras das variáveis editáveis: as que mudam uma das {@link #REGRAS} e as criadas pela pessoa.
+     *                  Uma regra embutida sem entrada aqui é gerada a partir do projeto e da subtarefa.
+     */
+    public record Prompts(List<ModeloDePrompt> modelos, List<VariavelEditavel> variaveis) {
+
+        /** Variáveis editáveis que já vêm com a app. */
+        public static final List<String> REGRAS = List.of("regras.permissoes", "regras.git", "regras.resposta");
+
+        public static final String PADRAO_SUBTAREFAS = """
+                Você é um agente executando trabalho automatizado no projeto "{projeto.nome}".
+                {projeto.descricao}
+
+                ## Task: {task.titulo}
+                {task.descricao}
+
+                Já concluído nesta task:
+                {concluidas}
+
+                ## Subtarefa atual: {subtarefa.titulo}
+
+                Instrução:
+                {subtarefa.instrucao}
+
+                Critério de aceite:
+                {subtarefa.criterio}
+
+                {direcionamento}
+
+                ## Regras
+                - Faça só esta subtarefa; as próximas chegarão em mensagens seguintes desta mesma conversa.
+                {regras.permissoes}
+                {regras.git}
+                {regras.resposta}""";
+
+        public static final String PADRAO_TASK_INTEIRA = """
+                Você é um agente executando trabalho automatizado no projeto "{projeto.nome}".
+                {projeto.descricao}
+
+                ## Task: {task.titulo}
+                {task.descricao}
+
+                {direcionamento}
+
+                ## Regras
+                - Faça a task inteira: o título e a descrição acima são a instrução.
+                {regras.permissoes}
+                {regras.git}
+                {regras.resposta}""";
+
+        public Prompts {
+            modelos = List.copyOf(modelos);
+            variaveis = List.copyOf(variaveis);
+        }
+
+        public static Prompts padrao() {
+            return new Prompts(List.of(
+                    new ModeloDePrompt("Padrão · subtarefas", PADRAO_SUBTAREFAS, Uso.SUBTAREFAS),
+                    new ModeloDePrompt("Padrão · task inteira", PADRAO_TASK_INTEIRA, Uso.TASK_INTEIRA)), List.of());
+        }
+
+        /** O primeiro modelo usado em {@code uso}; sem nenhum, o padrão da app. */
+        public ModeloDePrompt modelo(Uso uso) {
+            return modelos.stream().filter(m -> m.usadoEm() == uso).findFirst()
+                    .orElseGet(() -> padrao().modelo(uso));
+        }
+
+        /** Onde um modelo de prompt é usado por padrão. */
+        public enum Uso {
+            SUBTAREFAS("Subtarefas"),
+            TASK_INTEIRA("Tasks inteiras");
+
+            private final String rotulo;
+
+            Uso(String rotulo) {
+                this.rotulo = rotulo;
+            }
+
+            @Override
+            public String toString() {
+                return rotulo;
+            }
+        }
+
+        public record ModeloDePrompt(String nome, String texto, Uso usadoEm) {
+
+            public ModeloDePrompt {
+                if (nome == null || nome.isBlank() || texto == null || usadoEm == null) {
+                    throw new IllegalArgumentException("modelo de prompt inválido: " + nome);
+                }
+            }
+        }
+
+        /** @param regra texto da variável, que pode usar as outras variáveis do prompt */
+        public record VariavelEditavel(String nome, String descricao, String regra) {
+
+            public VariavelEditavel {
+                if (nome == null || nome.isBlank() || regra == null) {
+                    throw new IllegalArgumentException("variável inválida: " + nome);
+                }
+                descricao = descricao == null ? "" : descricao;
+            }
         }
     }
 }
