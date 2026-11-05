@@ -20,7 +20,6 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -69,7 +68,8 @@ public class ProtocoloPanel extends JPanel {
     private static JPanel passos(Protocolo protocolo) {
         Cartao cartao = new Cartao(Tema.PAINEL, Tema.BORDA, new BorderLayout(0, 8));
         cartao.add(Ui.secao("Passo a passo"), BorderLayout.NORTH);
-        String html = protocolo.passos().replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>");
+        String passos = protocolo.passos() == null ? "" : protocolo.passos();
+        String html = passos.replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>");
         cartao.add(Ui.corpo("<html><div style='width:500px'>" + html + "</div></html>"), BorderLayout.CENTER);
         return Ui.largo(cartao);
     }
@@ -79,22 +79,26 @@ public class ProtocoloPanel extends JPanel {
         cartao.setLayout(new BoxLayout(cartao, BoxLayout.Y_AXIS));
         cartao.add(Ui.cabecalho(Ui.secao("Acessos"), null));
         cartao.add(Box.createVerticalStrut(8));
-        cartao.add(chips(protocolo.acessos().rotulos(), false));
-        cartao.add(Box.createVerticalStrut(10));
-        cartao.add(Ui.cabecalho(Ui.legenda("Aceita direto de"), null));
-        cartao.add(Box.createVerticalStrut(6));
-        List<String> origens = new ArrayList<>(protocolo.aceitaDiretoDe().stream().map(nomeDe).toList());
-        origens.add("+");
-        cartao.add(chips(origens, true));
+        List<String> acessos = protocolo.acessos().rotulos();
+        if (acessos.isEmpty()) {
+            cartao.add(Ui.cabecalho(Ui.legenda("Nenhum"), null));
+        } else {
+            cartao.add(chips(acessos));
+        }
+        if (!protocolo.aceitaDiretoDe().isEmpty()) {
+            cartao.add(Box.createVerticalStrut(10));
+            cartao.add(Ui.cabecalho(Ui.legenda("Aceita direto de"), null));
+            cartao.add(Box.createVerticalStrut(6));
+            cartao.add(chips(protocolo.aceitaDiretoDe().stream().map(nomeDe).toList()));
+        }
         return Ui.largo(cartao);
     }
 
-    private static JPanel chips(List<String> textos, boolean ultimoNeutro) {
+    private static JPanel chips(List<String> textos) {
         JPanel linha = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         linha.setOpaque(false);
-        for (int i = 0; i < textos.size(); i++) {
-            boolean neutro = ultimoNeutro && i == textos.size() - 1;
-            linha.add(new Chip(textos.get(i), !neutro));
+        for (String texto : textos) {
+            linha.add(new Chip(texto, true));
         }
         return Ui.largo(linha);
     }

@@ -39,6 +39,7 @@ public class MainController implements BarraLateral.Ouvinte {
     private final MainFrame frame;
     private final ProjetoController projetoController;
     private String projetoAberto;
+    private String protocoloAberto;
 
     public MainController(DadosService dados, ProjetoService projetos, ProtocoloService protocolos,
                           Agendador agendador, ConsumoService consumo) {
@@ -81,7 +82,12 @@ public class MainController implements BarraLateral.Ouvinte {
             // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
             agendador.agora();
         });
-        protocolos.aoMudar(p -> SwingUtilities.invokeLater(this::atualizarBarraLateral));
+        protocolos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
+            atualizarBarraLateral();
+            if (p.id().equals(protocoloAberto)) {
+                protocolos.buscar(p.id()).ifPresentOrElse(this::mostrarProtocolo, this::home);
+            }
+        }));
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {
@@ -103,6 +109,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     public void home() {
         projetoAberto = null;
+        protocoloAberto = null;
         barraLateral.selecionar(null);
         barraLateral.setHomeAtivo(true);
         frame.mostrar(new HomePanel(dados));
@@ -114,6 +121,7 @@ public class MainController implements BarraLateral.Ouvinte {
         Projeto atual = projetos.buscar(projeto.id()).orElse(projeto);
         abrirItem(atual);
         projetoAberto = atual.id();
+        protocoloAberto = null;
         frame.mostrar(projetoController.abrir(atual));
     }
 
@@ -123,8 +131,23 @@ public class MainController implements BarraLateral.Ouvinte {
         Protocolo atual = protocolos.buscar(protocolo.id()).orElse(protocolo);
         abrirItem(atual);
         projetoAberto = null;
-        frame.mostrar(new ProtocoloPanel(atual, this::nomeDaOrigem,
-                ativo -> protocolos.definirAtivo(atual.id(), ativo), this::novoProtocolo));
+        protocoloAberto = atual.id();
+        mostrarProtocolo(atual);
+    }
+
+    private void mostrarProtocolo(Protocolo protocolo) {
+        frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem,
+                ativo -> ligarProtocolo(protocolo, ativo), this::novoProtocolo));
+    }
+
+    /** Grava o interruptor; se não der, volta a tela ao que está salvo. */
+    private void ligarProtocolo(Protocolo protocolo, boolean ativo) {
+        try {
+            protocolos.definirAtivo(protocolo.id(), ativo);
+        } catch (UncheckedIOException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), protocolo.nome(), JOptionPane.ERROR_MESSAGE);
+            protocolos.buscar(protocolo.id()).ifPresent(this::mostrarProtocolo);
+        }
     }
 
     /** Nome do protocolo ou projeto com o id dado; o próprio id se nenhum existe mais. */
@@ -138,6 +161,7 @@ public class MainController implements BarraLateral.Ouvinte {
     public void trilha(Trilha trilha) {
         abrirItem(trilha);
         projetoAberto = null;
+        protocoloAberto = null;
         frame.mostrar(new TrilhaPanel(trilha));
     }
 
