@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimer.service.scheduler;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -113,9 +114,11 @@ class AgendadorTest {
 
     @Test
     void executaAsSubtarefasNaOrdemCompartilhandoASessao() throws InterruptedException {
-        Task task = Task.nova("Corrigir login", "", Provedor.AUTOMATICO, Esforco.HIGH);
+        Task task = Task.nova("Corrigir login", "", Provedor.AUTOMATICO, Esforco.LOW);
         Projeto projeto = projetos.salvarTask(projeto(), task);
-        Subtarefa a = Subtarefa.nova("Reproduzir", "Escreva o teste", "Falha", false, List.of());
+        // O esforço da subtarefa vale sobre o da Task.
+        Subtarefa a = Subtarefa.nova("Reproduzir", "Escreva o teste", "Falha", false, List.of())
+                .comModelo(Esforco.HIGH, Modelo.OPUS);
         projetos.salvarSubtarefa(projeto, task, a);
         projetos.salvarSubtarefa(projeto, task, Subtarefa.nova("Corrigir", "", "", false, List.of(a.id())));
 
@@ -129,6 +132,7 @@ class AgendadorTest {
         assertFalse(segunda.sessaoNova());
         assertEquals(primeira.sessao(), segunda.sessao());
         assertEquals(Esforco.HIGH, primeira.esforco());
+        assertEquals(Modelo.OPUS, primeira.modelo());
         assertEquals(pastaDoProjeto, primeira.pasta());
         assertTrue(primeira.prompt().contains("Escreva o teste"));
         assertTrue(segunda.prompt().contains("- Reproduzir"), "a segunda sabe o que já foi feito");
