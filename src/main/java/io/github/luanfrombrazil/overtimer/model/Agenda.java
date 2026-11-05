@@ -49,14 +49,15 @@ public record Agenda(Modo modo, List<Integer> horarios, int intervaloMinutos) {
     }
 
     /**
-     * Próxima execução depois de {@code ultima}; no modo de intervalo, sem execução anterior, roda já em
-     * {@code agora}. Vazio se a agenda não tem horários.
+     * Próxima execução estritamente depois de {@code instante} (a última execução ou, se nunca rodou, agora): o
+     * primeiro horário fixo seguinte, passando para o dia seguinte se os de hoje já passaram, ou o instante mais o
+     * intervalo. Vazio se a agenda não tem horários.
      */
-    public Optional<LocalDateTime> proxima(LocalDateTime ultima, LocalDateTime agora) {
+    public Optional<LocalDateTime> proxima(LocalDateTime instante) {
         if (modo == Modo.INTERVALO) {
-            return Optional.of(ultima == null ? agora : ultima.plusMinutes(intervaloMinutos));
+            return Optional.of(instante.plusMinutes(intervaloMinutos));
         }
-        LocalDateTime base = (ultima == null ? agora : ultima).truncatedTo(ChronoUnit.MINUTES);
+        LocalDateTime base = instante.truncatedTo(ChronoUnit.MINUTES);
         for (int dia = 0; dia <= 1; dia++) {
             for (LocalTime hora : horas()) {
                 LocalDateTime candidato = base.toLocalDate().plusDays(dia).atTime(hora);
