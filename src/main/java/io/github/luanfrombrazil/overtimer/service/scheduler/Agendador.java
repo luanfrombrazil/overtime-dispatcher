@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
@@ -16,6 +17,7 @@ import io.github.luanfrombrazil.overtimer.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.agente.Execucao;
 import io.github.luanfrombrazil.overtimer.service.agente.ResultadoExecucao;
+import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -129,6 +131,8 @@ public class Agendador {
     private volatile ToIntFunction<Provedor> uso = provedor -> -1;
     /** Por que o último ciclo parou com trabalho na fila por causa do limite de uso; null se não parou por isso. */
     private volatile String noLimiteDeUso;
+    /** Onde registrar os avisos do fim das execuções; null para não avisar. */
+    private volatile NotificacaoService notificacoes;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
@@ -189,12 +193,16 @@ public class Agendador {
     }
 
     /**
-     * Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo, máximo e os prompts
-     * das próximas execuções.
+     * Aplica o que das configurações vale para o agendador: horário de funcionamento, intervalo, máximo, os prompts
+     * das próximas execuções e os avisos que ele registra.
      */
     public void aplicar(Configuracoes configuracoes) {
         limitesDeUso = configuracoes.limitesDeUso();
         prompts = configuracoes.prompts();
+        NotificacaoService servico = notificacoes;
+        if (servico != null) {
+            servico.aplicar(configuracoes.notificacoes());
+        }
         usarHorario(configuracoes.horarioFuncionamento());
         Configuracoes.Execucao execucao = configuracoes.execucao();
         usarIntervalo(Duration.ofMinutes(execucao.intervaloMinutos()), execucao.maximoPorIntervalo());
@@ -210,6 +218,13 @@ public class Agendador {
      */
     public void usarConsumo(ToIntFunction<Provedor> uso) {
         this.uso = uso;
+    }
+
+    /**
+     * Onde registrar os avisos do fim de cada execução: verificação, direcionamento e falha. Sem isso, não avisa.
+     */
+    public void usarNotificacoes(NotificacaoService notificacoes) {
+        this.notificacoes = notificacoes;
     }
 
     /**
@@ -428,7 +443,9 @@ public class Agendador {
                     ? "Nenhum agente disponível: instale o Claude Code."
                     : task.provedor() + " ainda não é suportado ou não está instalado.";
             registrar(projetoId, taskId, hora() + " " + nome + " · " + motivo);
-            projetos.marcar(projetoId, taskId, subtarefaId, Estado.ERRO, motivo);
+            if (projetos.marcar(projetoId, taskId, subtarefaId, Estado.ERRO, motivo).isPresent()) {
+                notificar(Aviso.FALHAS, "Falhou", projeto, task, nome, motivo);
+            }
             return;
         }
         if (projetos.marcar(projetoId, taskId, subtarefaId, Estado.EM_ANDAMENTO, null).isEmpty()) {
@@ -483,14 +500,44 @@ public class Agendador {
             case ATENCAO -> "Aguardando verificação";
             default -> "Falhou: " + primeiraLinha(resultado.resposta());
         }));
+        Optional<Projeto> marcado;
         if (resultado.sucesso()) {
             // O agente rodou e leu as respostas que havia: fica só o pedido novo, se ele fez um.
             Direcionamento novo = pedido.map(Prompt.Pedido::direcionamento).orElse(null);
             String texto = novo == null ? resultado.resposta() : novo.resumo();
-            projetos.marcar(projetoId, taskId, subtarefaId, estado, texto, novo);
+            marcado = projetos.marcar(projetoId, taskId, subtarefaId, estado, texto, novo);
         } else {
             // A execução nem terminou (tempo esgotado, CLI fora do ar): as respostas ficam para a próxima tentativa.
-            projetos.marcar(projetoId, taskId, subtarefaId, estado, resultado.resposta());
+            marcado = projetos.marcar(projetoId, taskId, subtarefaId, estado, resultado.resposta());
+        }
+        // Excluída no meio-tempo: não há o que avisar.
+        if (marcado.isEmpty()) {
+            return;
+        }
+        if (pedido.isPresent()) {
+            // A primeira pergunta dá a ideia do que o agente precisa.
+            String pergunta = pedido.get().direcionamento().perguntas().stream()
+                    .map(Direcionamento.Pergunta::texto).findFirst().orElse(null);
+            notificar(Aviso.DIRECIONAMENTO, "Aguardando direcionamento", projeto, task, nome, pergunta);
+        } else if (estado == Estado.ATENCAO) {
+            notificar(Aviso.VERIFICACAO, "Aguardando verificação", projeto, task, nome, null);
+        } else if (estado == Estado.ERRO) {
+            notificar(Aviso.FALHAS, "Falhou", projeto, task, nome, primeiraLinha(resultado.resposta()));
+        }
+    }
+
+    /** Registra a notificação do fim da execução: "Projeto · Task › subtarefa" e, se houver, o detalhe. */
+    private void notificar(Aviso tipo, String titulo, Projeto projeto, Task task, String nome, String detalhe) {
+        NotificacaoService servico = notificacoes;
+        if (servico == null) {
+            return;
+        }
+        String texto = projeto.nome() + " · " + nome + (detalhe == null || detalhe.isBlank() ? "" : "\n" + detalhe);
+        try {
+            servico.registrar(tipo, titulo, texto, projeto.id(), task.id());
+        } catch (RuntimeException e) {
+            // Um aviso que não saiu não pode parar a fila.
+            System.err.println("Agendador: notificação não registrada: " + e);
         }
     }
 

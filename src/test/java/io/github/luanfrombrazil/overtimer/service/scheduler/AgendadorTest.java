@@ -1,9 +1,12 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Modelo;
+import io.github.luanfrombrazil.overtimer.model.Notificacao;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -15,6 +18,8 @@ import io.github.luanfrombrazil.overtimer.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.agente.Execucao;
 import io.github.luanfrombrazil.overtimer.service.agente.ResultadoExecucao;
+import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
+import io.github.luanfrombrazil.overtimer.service.persistence.NotificacoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProjetos;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.LocalTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -296,6 +303,63 @@ class AgendadorTest {
         assertEquals(Estado.CONCLUIDO, subtarefa(projeto, task, 0).estado());
         assertNull(subtarefa(projeto, task, 0).direcionamento(), "as respostas já foram entregues");
         assertEquals(Estado.CONCLUIDO, subtarefa(projeto, task, 1).estado());
+    }
+
+    @Test
+    void avisaVerificacaoDirecionamentoEFalhaComProjetoETask() throws InterruptedException {
+        NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
+                new Notificacoes(false, false, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
+                        EnumSet.allOf(Aviso.class)));
+        agendador.usarNotificacoes(notificacoes);
+        Projeto projeto = projeto();
+        Task verificar = Task.nova("Verificar", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task perguntar = Task.nova("Perguntar", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task falhar = Task.nova("Falhar", "Esta deve falhar", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task concluir = Task.nova("Concluir", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        projeto = projetos.salvarTask(projeto, verificar);
+        projeto = projetos.salvarTask(projeto, perguntar);
+        projeto = projetos.salvarTask(projeto, falhar);
+        projeto = projetos.salvarTask(projeto, concluir);
+        projetos.salvarSubtarefa(projeto, verificar, Subtarefa.nova("Olhar", "", "", true, List.of()));
+        projetos.salvarSubtarefa(projetos.buscar(projeto.id()).orElseThrow(), perguntar,
+                Subtarefa.nova("Integração", "Esta deve perguntar", "", false, List.of()));
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        List<Notificacao> registradas = notificacoes.listar();
+        assertEquals(3, registradas.size(), registradas.toString());
+        assertNotificacao(registradas, Aviso.VERIFICACAO, projeto, verificar);
+        Notificacao direcionamento = assertNotificacao(registradas, Aviso.DIRECIONAMENTO, projeto, perguntar);
+        assertTrue(direcionamento.texto().contains("O que faço com o runner?"), direcionamento.texto());
+        // A Task executada inteira também avisa.
+        Notificacao falha = assertNotificacao(registradas, Aviso.FALHAS, projeto, falhar);
+        assertTrue(falha.texto().contains("FALHOU: não deu"), falha.texto());
+    }
+
+    @Test
+    void semAgenteAvisaFalha() throws InterruptedException {
+        NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
+                Notificacoes.padrao());
+        agendador.usarNotificacoes(notificacoes);
+        Task codex = Task.nova("Codex", "", Provedor.CODEX, Esforco.MEDIUM);
+        Projeto projeto = projetos.salvarTask(projeto(), codex);
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        assertNotificacao(notificacoes.listar(), Aviso.FALHAS, projeto, codex);
+    }
+
+    private static Notificacao assertNotificacao(List<Notificacao> notificacoes, Aviso tipo, Projeto projeto,
+                                                 Task task) {
+        Notificacao encontrada = notificacoes.stream().filter(n -> n.tipo() == tipo).findFirst()
+                .orElseThrow(() -> new AssertionError("sem notificação " + tipo + " em " + notificacoes));
+        assertEquals(projeto.id(), encontrada.projetoId());
+        assertEquals(task.id(), encontrada.taskId());
+        assertTrue(encontrada.texto().startsWith(projeto.nome() + " · " + task.titulo()), encontrada.texto());
+        assertFalse(encontrada.lida());
+        return encontrada;
     }
 
     @Test
