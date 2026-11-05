@@ -4,7 +4,6 @@ import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.view.comum.Console;
-import io.github.luanfrombrazil.overtimer.view.comum.Etiqueta;
 import io.github.luanfrombrazil.overtimer.view.comum.Iniciais;
 import io.github.luanfrombrazil.overtimer.view.comum.Reordenacao;
 import io.github.luanfrombrazil.overtimer.view.comum.SeletorImagem;
@@ -22,7 +21,10 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Cursor;
+import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
@@ -82,10 +84,16 @@ public class ProjetoPanel extends JPanel {
     }
 
     private static final int ALTURA_CONSOLE = 180;
+    private static final int ALTURA_MINIMA_CONSOLE = 80;
+    private static final int ALTURA_PUXADOR = 10;
 
     private final Ouvinte ouvinte;
+    /** Altura do log escolhida no puxador; sobrevive aos redesenhos da tela. */
+    private int alturaConsole = ALTURA_CONSOLE;
     private final Set<String> expandidas = new HashSet<>();
     private Console console;
+    /** Console com o puxador acima, mantido entre os redesenhos do mesmo projeto. */
+    private JPanel areaLog;
     private final Set<String> conhecidas = new HashSet<>();
     private final Set<String> finalizadas = new HashSet<>();
     /** Tasks paradas com perguntas do agente; a que acabou de parar abre sozinha, para as perguntas aparecerem. */
@@ -111,6 +119,8 @@ public class ProjetoPanel extends JPanel {
     /**
      * Redesenha a tela com o projeto e o log do agente. Tasks novas aparecem abertas; ao trocar de projeto,
      * só a primeira.
+     *
+     * @param log histórico do log, usado só quando o projeto mostrado muda
      */
     public void mostrar(Projeto projeto, List<String> log) {
         boolean outro = !projeto.id().equals(projetoId);
@@ -147,8 +157,16 @@ public class ProjetoPanel extends JPanel {
         add(cabecalho(projeto), BorderLayout.NORTH);
         rolagem = tasks(projeto.tasks());
         add(rolagem, BorderLayout.CENTER);
-        console = null;
-        log.forEach(this::adicionarLog);
+        // O histórico só é carregado ao trocar de projeto; no mesmo projeto o console continua e recebe as linhas
+        // novas por adicionarLog. Recarregar aqui duplicava a linha que chega logo depois do redesenho (ex.: o
+        // início de uma Task, que redesenha a tela e escreve no log quase ao mesmo tempo).
+        if (outro) {
+            console = null;
+            areaLog = null;
+            log.forEach(this::adicionarLog);
+        } else if (areaLog != null) {
+            add(areaLog, BorderLayout.SOUTH);
+        }
         revalidate();
         repaint();
         JScrollPane atual = rolagem;
@@ -158,11 +176,58 @@ public class ProjetoPanel extends JPanel {
     /** Acrescenta uma linha ao console, que aparece na primeira linha recebida. */
     public void adicionarLog(String linha) {
         if (console == null) {
-            console = new Console(List.of("Log"), List.of(), ALTURA_CONSOLE);
-            add(console, BorderLayout.SOUTH);
+            console = new Console(List.of("Log"), List.of(), alturaConsole);
+            areaLog = new JPanel(new BorderLayout());
+            areaLog.setOpaque(false);
+            areaLog.add(puxador(), BorderLayout.NORTH);
+            areaLog.add(console, BorderLayout.CENTER);
+            add(areaLog, BorderLayout.SOUTH);
             revalidate();
         }
         console.adicionar(linha);
+    }
+
+    /** Faixa acima do console que, arrastada, aumenta ou diminui a altura do log. */
+    private JComponent puxador() {
+        JComponent puxador = new JComponent() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Tema.BORDA);
+                g2.fillRoundRect((getWidth() - 36) / 2, (getHeight() - 4) / 2, 36, 4, 4, 4);
+                g2.dispose();
+            }
+        };
+        puxador.setPreferredSize(new Dimension(0, ALTURA_PUXADOR));
+        puxador.setCursor(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR));
+        puxador.setToolTipText("Arraste para mudar a altura do log");
+        MouseAdapter arrasto = new MouseAdapter() {
+            private int yInicial;
+            private int alturaInicial;
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                yInicial = e.getYOnScreen();
+                alturaInicial = alturaConsole;
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                // O resto da tela guarda espaço para o cabeçalho e ao menos um pedaço das Tasks.
+                int maxima = Math.max(ALTURA_MINIMA_CONSOLE, getHeight() - 220);
+                alturaConsole = Math.clamp(alturaInicial + yInicial - e.getYOnScreen(), ALTURA_MINIMA_CONSOLE, maxima);
+                if (console != null) {
+                    Dimension tamanho = new Dimension(100, alturaConsole);
+                    console.setPreferredSize(tamanho);
+                    console.setMinimumSize(tamanho);
+                    revalidate();
+                }
+            }
+        };
+        puxador.addMouseListener(arrasto);
+        puxador.addMouseMotionListener(arrasto);
+        return puxador;
     }
 
     private JPanel cabecalho(Projeto projeto) {
@@ -177,7 +242,7 @@ public class ProjetoPanel extends JPanel {
         }
         return Ui.coluna(10,
                 Ui.cabecalho(titulo,
-                        Ui.linha(8, Etiqueta.solida(projeto.provedor().toString(), Tema.BORDA), editar, novaTask)),
+                        Ui.linha(8, editar, novaTask)),
                 Ui.legenda(local));
     }
 
