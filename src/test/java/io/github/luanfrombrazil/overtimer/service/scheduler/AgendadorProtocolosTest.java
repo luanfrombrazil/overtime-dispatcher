@@ -16,6 +16,7 @@ import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import io.github.luanfrombrazil.overtimer.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.agente.Execucao;
+import io.github.luanfrombrazil.overtimer.service.agente.ResultadoExecucao;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProjetos;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
 import org.junit.jupiter.api.AfterEach;
@@ -29,9 +30,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -209,6 +212,75 @@ class AgendadorProtocolosTest {
         iniciar();
         esperar(() -> agente.execucoes.size() >= 1);
         assertEquals(1, agente.execucoes.size());
+    }
+
+    private Protocolo comFila(String passos, ItemFila... itens) {
+        return protocolos.salvar(Protocolo.novo("Agenda", "AG", passos, Agenda.vazia(), Provedor.CLAUDE_CODE,
+                Esforco.LOW, Acessos.nenhum(), List.of()).comFilas(List.of(itens), List.of()));
+    }
+
+    private List<ItemFila> filaDe(Protocolo protocolo) {
+        return protocolos.buscar(protocolo.id()).orElseThrow().filaDeEntrada();
+    }
+
+    @Test
+    void execucaoComSucessoTiraDaFilaOQueFoiNoPrompt() throws InterruptedException {
+        Protocolo protocolo = comFila("Organize a agenda",
+                ItemFila.novo("Marcar a prova", "sexta às 10h", null),
+                ItemFila.novo("Marcar a entrega", "segunda", null));
+        iniciar();
+
+        agendador.rodarAgora(protocolo.id());
+        esperar(() -> filaDe(protocolo).isEmpty());
+
+        assertTrue(agente.execucoes.getFirst().prompt().contains("Marcar a entrega"));
+        assertTrue(filaDe(protocolo).isEmpty());
+        assertTrue(new ProtocoloService(new RepositorioProtocolos(dados)).buscar(protocolo.id()).orElseThrow()
+                .filaDeEntrada().isEmpty(), "a fila consumida fica salva");
+    }
+
+    @Test
+    void execucaoQueFalhaMantemAFila() throws InterruptedException {
+        ItemFila item = ItemFila.novo("Marcar a prova", null, null);
+        Protocolo protocolo = comFila("Esta execução deve falhar", item);
+        iniciar();
+
+        agendador.rodarAgora(protocolo.id());
+        esperar(() -> agente.execucoes.size() >= 1);
+        esperarCiclo();
+
+        assertEquals(1, agente.execucoes.size());
+        assertTrue(agendador.log(protocolo.id()).stream().anyMatch(l -> l.contains("Falhou")));
+        assertEquals(List.of(item), filaDe(protocolo));
+    }
+
+    @Test
+    void itemQueChegaDuranteAExecucaoFicaParaAProxima() throws InterruptedException {
+        ItemFila antes = ItemFila.novo("Marcar a prova", null, null);
+        ItemFila durante = ItemFila.novo("Marcar a entrega", null, null);
+        Protocolo protocolo = comFila("Organize a agenda", antes);
+        // O agente demora: enquanto roda, outro protocolo injeta um item.
+        agendador.encerrar();
+        AgendadorTest.AgenteFalso injeta = new AgendadorTest.AgenteFalso() {
+            @Override
+            public ResultadoExecucao executar(Execucao execucao, Consumer<String> log) {
+                Protocolo atual = protocolos.buscar(protocolo.id()).orElseThrow();
+                List<ItemFila> fila = new ArrayList<>(atual.filaDeEntrada());
+                fila.add(durante);
+                protocolos.salvar(atual.comFilas(fila, atual.propostas()));
+                return super.executar(execucao, log);
+            }
+        };
+        agente = injeta;
+        agendador = new Agendador(projetos, protocolos, new Agentes(List.of(injeta)), new AreaDeTrabalho(dados));
+        agendador.usarRelogio(relogio);
+        iniciar();
+
+        agendador.rodarAgora(protocolo.id());
+        esperar(() -> agente.execucoes.size() >= 1);
+        esperarCiclo();
+
+        assertEquals(List.of(durante), filaDe(protocolo));
     }
 
     @Test

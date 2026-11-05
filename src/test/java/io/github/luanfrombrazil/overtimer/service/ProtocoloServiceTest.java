@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimer.service;
 import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Agenda;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
+import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -99,6 +101,31 @@ class ProtocoloServiceTest {
     void ligarProtocoloInexistenteNaoFazNada() {
         assertTrue(servico.definirAtivo("nao-existe", true).isEmpty());
         assertTrue(avisos.isEmpty());
+    }
+
+    @Test
+    void tirarDaFilaTiraSoOsItensPedidos() {
+        ItemFila a = ItemFila.novo("A", null, null);
+        ItemFila b = ItemFila.novo("B", null, null);
+        ItemFila proposta = ItemFila.novo("P", null, null);
+        Protocolo protocolo = servico.salvar(novo("Agenda").comFilas(List.of(a, b), List.of(proposta)));
+        avisos.clear();
+
+        Protocolo depois = servico.tirarDaFila(protocolo.id(), Set.of(a.id(), "outro")).orElseThrow();
+
+        assertEquals(List.of(b), depois.filaDeEntrada());
+        assertEquals(List.of(proposta), depois.propostas(), "as propostas não mudam");
+        assertEquals(List.of(b), reaberto().buscar(protocolo.id()).orElseThrow().filaDeEntrada());
+        assertEquals(List.of(depois), avisos);
+    }
+
+    @Test
+    void tirarDaFilaSemNadaParaTirarNaoGrava() {
+        Protocolo protocolo = servico.salvar(novo("Agenda"));
+        avisos.clear();
+        assertEquals(protocolo, servico.tirarDaFila(protocolo.id(), Set.of("x")).orElseThrow());
+        assertTrue(avisos.isEmpty());
+        assertTrue(servico.tirarDaFila("nao-existe", Set.of("x")).isEmpty());
     }
 
     @Test

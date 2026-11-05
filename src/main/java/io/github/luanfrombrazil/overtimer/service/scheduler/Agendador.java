@@ -585,9 +585,14 @@ public class Agendador {
 
         boolean sucesso = resultado.sucesso() && !Prompt.falhou(resultado.resposta());
         registrarProtocolo(id, hora() + " " + (sucesso ? "Concluído" : "Falhou: " + primeiraLinha(resultado.resposta())));
+        // Só os itens que foram no prompt: os que chegaram durante a execução ficam para a próxima.
         if (sucesso && !protocolo.filaDeEntrada().isEmpty()) {
-            protocolos.tirarDaFila(id, protocolo.filaDeEntrada().stream().map(ItemFila::id)
-                    .collect(Collectors.toSet()));
+            try {
+                protocolos.tirarDaFila(id, protocolo.filaDeEntrada().stream().map(ItemFila::id)
+                        .collect(Collectors.toSet()));
+            } catch (RuntimeException e) {
+                registrarProtocolo(id, hora() + " Fila de entrada não atualizada: " + e.getMessage());
+            }
         }
     }
 
