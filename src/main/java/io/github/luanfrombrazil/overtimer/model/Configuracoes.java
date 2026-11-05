@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.model;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -127,6 +128,29 @@ public record Configuracoes(HorarioFuncionamento horarioFuncionamento, Map<Prove
         public static Notificacoes padrao() {
             return new Notificacoes(false, true, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
                     EnumSet.of(Aviso.VERIFICACAO, Aviso.DIRECIONAMENTO, Aviso.MERGE, Aviso.FALHAS));
+        }
+
+        /**
+         * Se o aviso fica em silêncio nesse instante: com "silenciar agora" ou dentro da faixa automática (início
+         * incluído, fim não; a faixa pode passar da meia-noite). Falhas furam os dois quando
+         * {@code falhasFuramSilencio} está ligado. Silenciado não é perdido: só não alerta.
+         */
+        public boolean silenciado(LocalDateTime instante, Aviso aviso) {
+            if (aviso == Aviso.FALHAS && falhasFuramSilencio) {
+                return false;
+            }
+            return silenciarAgora || silenciarAutomaticamente && naFaixaDeSilencio(instante.toLocalTime());
+        }
+
+        private boolean naFaixaDeSilencio(LocalTime hora) {
+            if (silencioInicio.equals(silencioFim)) {
+                return false;
+            }
+            if (silencioInicio.isBefore(silencioFim)) {
+                return !hora.isBefore(silencioInicio) && hora.isBefore(silencioFim);
+            }
+            // Vira o dia: ex.: 23:00-07:00 é das 23:00 até a meia-noite e da meia-noite até as 07:00.
+            return !hora.isBefore(silencioInicio) || hora.isBefore(silencioFim);
         }
     }
 
