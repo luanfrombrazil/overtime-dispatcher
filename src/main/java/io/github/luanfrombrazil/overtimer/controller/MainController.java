@@ -7,6 +7,7 @@ import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 import io.github.luanfrombrazil.overtimer.service.DadosService;
 import io.github.luanfrombrazil.overtimer.service.ProjetoService;
+import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
@@ -20,7 +21,7 @@ import io.github.luanfrombrazil.overtimer.view.config.ConfiguracoesDialog;
 import io.github.luanfrombrazil.overtimer.view.home.HomePanel;
 import io.github.luanfrombrazil.overtimer.view.notificacoes.NotificacoesDialog;
 import io.github.luanfrombrazil.overtimer.view.oraculo.OraculoDialog;
-import io.github.luanfrombrazil.overtimer.view.protocolo.NovoProtocoloDialog;
+import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloPanel;
 import io.github.luanfrombrazil.overtimer.view.trilha.TrilhaPanel;
 
@@ -39,6 +40,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     private final DadosService dados;
     private final ProjetoService projetos;
+    private final ProtocoloService protocolos;
     private final Agendador agendador;
     private final ConsumoService consumo;
     private final NotificacaoService notificacoes;
@@ -48,18 +50,22 @@ public class MainController implements BarraLateral.Ouvinte {
     private final MainFrame frame;
     private final ProjetoController projetoController;
     private String projetoAberto;
+    private String protocoloAberto;
+    /** Tela do protocolo aberto, para receber o log da execução em andamento; só vale com {@code protocoloAberto}. */
+    private ProtocoloPanel painelProtocolo;
     /** Quando a janela foi para a bandeja; null enquanto está aberta. */
     private LocalDateTime escondidaEm;
 
-    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo,
-                          NotificacaoService notificacoes) {
+    public MainController(DadosService dados, ProjetoService projetos, ProtocoloService protocolos,
+                          Agendador agendador, ConsumoService consumo, NotificacaoService notificacoes) {
         this.dados = dados;
         this.projetos = projetos;
+        this.protocolos = protocolos;
         this.agendador = agendador;
         this.consumo = consumo;
         this.notificacoes = notificacoes;
         this.barraSuperior = new BarraSuperior(consumo.consumo(), notificacoes.naoLidas());
-        this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
+        this.barraLateral = new BarraLateral(projetos.projetos(), protocolos.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
         this.frame = new MainFrame(barraSuperior, barraLateral);
         this.projetoController = new ProjetoController(frame, projetos, agendador::log,
@@ -95,7 +101,13 @@ public class MainController implements BarraLateral.Ouvinte {
 
             @Override
             public void log(String projetoId, String linha) {
-                SwingUtilities.invokeLater(() -> projetoController.adicionarLog(projetoId, linha));
+                SwingUtilities.invokeLater(() -> {
+                    projetoController.adicionarLog(projetoId, linha);
+                    // O log dos protocolos vem pelo id deles.
+                    if (painelProtocolo != null && projetoId.equals(protocoloAberto)) {
+                        painelProtocolo.adicionarLog(linha);
+                    }
+                });
             }
         });
         consumo.aoMudar(medido -> {
@@ -126,6 +138,12 @@ public class MainController implements BarraLateral.Ouvinte {
                 SwingUtilities.invokeLater(() -> barraSuperior.setNaoLidas(naoLidas));
             }
         });
+        protocolos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
+            atualizarBarraLateral();
+            if (p.id().equals(protocoloAberto)) {
+                protocolos.buscar(p.id()).ifPresentOrElse(this::mostrarProtocolo, this::home);
+            }
+        }));
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {
@@ -147,6 +165,7 @@ public class MainController implements BarraLateral.Ouvinte {
 
     public void home() {
         projetoAberto = null;
+        protocoloAberto = null;
         barraLateral.selecionar(null);
         barraLateral.setHomeAtivo(true);
         frame.mostrar(new HomePanel(dados));
@@ -158,20 +177,67 @@ public class MainController implements BarraLateral.Ouvinte {
         Projeto atual = projetos.buscar(projeto.id()).orElse(projeto);
         abrirItem(atual);
         projetoAberto = atual.id();
+        protocoloAberto = null;
         frame.mostrar(projetoController.abrir(atual));
     }
 
     @Override
     public void protocolo(Protocolo protocolo) {
-        abrirItem(protocolo);
+        // Como no projeto, a linha da barra lateral pode ter um registro antigo.
+        Protocolo atual = protocolos.buscar(protocolo.id()).orElse(protocolo);
+        abrirItem(atual);
         projetoAberto = null;
-        frame.mostrar(new ProtocoloPanel(protocolo, this::novoProtocolo));
+        protocoloAberto = atual.id();
+        mostrarProtocolo(atual);
+    }
+
+    private void mostrarProtocolo(Protocolo protocolo) {
+        painelProtocolo = new ProtocoloPanel(protocolo, protocolos.historico(protocolo.id()), this::nomeDaOrigem,
+                ativo -> ligarProtocolo(protocolo, ativo), () -> agendador.rodarAgora(protocolo.id()),
+                () -> editarProtocolo(protocolo.id()));
+        frame.mostrar(painelProtocolo);
+    }
+
+    /** Abre o pop-up com o protocolo como está salvo agora, com o Excluir. */
+    private void editarProtocolo(String id) {
+        protocolos.buscar(id).ifPresent(atual -> new ProtocoloDialog(frame, atual, editado -> {
+            Protocolo salvo = protocolos.editar(editado);
+            atualizarBarraLateral();
+            protocolo(salvo);
+        }, () -> {
+            try {
+                protocolos.excluir(id);
+            } catch (UncheckedIOException e) {
+                JOptionPane.showMessageDialog(frame, e.getMessage(), atual.nome(), JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            atualizarBarraLateral();
+            home();
+        }).abrir());
+    }
+
+    /** Grava o interruptor; se não der, volta a tela ao que está salvo. */
+    private void ligarProtocolo(Protocolo protocolo, boolean ativo) {
+        try {
+            protocolos.definirAtivo(protocolo.id(), ativo);
+        } catch (UncheckedIOException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), protocolo.nome(), JOptionPane.ERROR_MESSAGE);
+            protocolos.buscar(protocolo.id()).ifPresent(this::mostrarProtocolo);
+        }
+    }
+
+    /** Nome do protocolo ou projeto com o id dado; o próprio id se nenhum existe mais. */
+    private String nomeDaOrigem(String id) {
+        return protocolos.buscar(id).map(Protocolo::nome)
+                .or(() -> projetos.buscar(id).map(Projeto::nome))
+                .orElse(id);
     }
 
     @Override
     public void trilha(Trilha trilha) {
         abrirItem(trilha);
         projetoAberto = null;
+        protocoloAberto = null;
         frame.mostrar(new TrilhaPanel(trilha));
     }
 
@@ -187,7 +253,11 @@ public class MainController implements BarraLateral.Ouvinte {
 
     @Override
     public void novoProtocolo() {
-        new NovoProtocoloDialog(frame).abrir();
+        new ProtocoloDialog(frame, null, p -> {
+            Protocolo salvo = protocolos.salvar(p);
+            atualizarBarraLateral();
+            protocolo(salvo);
+        }, null).abrir();
     }
 
     @Override
@@ -275,7 +345,7 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     private void atualizarBarraLateral() {
-        barraLateral.atualizar(projetos.projetos(), dados.protocolos(), dados.trilhas(), dados.sugestoesDoOraculo());
+        barraLateral.atualizar(projetos.projetos(), protocolos.protocolos(), dados.trilhas(), dados.sugestoesDoOraculo());
     }
 
     private void abrirItem(Object item) {

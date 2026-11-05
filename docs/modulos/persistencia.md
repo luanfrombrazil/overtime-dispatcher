@@ -27,7 +27,26 @@ worktrees/<id da task>/                                 worktree git da Task (pr
 - Cada arquivo é escrito num `.tmp` e depois trocado, para não ficar pela metade.
 - Excluir um projeto apaga só a pasta dele na pasta central; a pasta do projeto no sistema não é tocada.
 
-O formato dos demais dados (protocolos, consumo) ainda está em [ideias em aberto](../ideias-em-aberto.md).
+## Protocolos
+
+```
+protocolos-rotina/<id do protocolo>/protocolo.json    o protocolo inteiro
+protocolos-rotina/<id do protocolo>/historico.json    as últimas 20 execuções
+protocolos-rotina/<id do protocolo>/trabalho/         pasta onde o agente do protocolo roda
+```
+
+- `historico.json` guarda `{ "execucoes": [...] }`, da mais recente para a mais antiga; cada execução tem `inicio` e `fim` (ISO, ex.: `2026-11-05T08:00:12`), `sucesso`, `resultado` (resposta do agente ou motivo da falha) e `log` (até 500 linhas). Ao abrir a app, a agenda conta a partir do início da última execução: o horário que passou com a app fechada roda uma vez.
+
+- A pasta `trabalho` é criada na primeira execução e mantida entre uma execução e outra; o agente pode deixar nela o que precisar consultar na próxima.
+
+- `protocolo.json` guarda nome, sigla, passo a passo, a agenda, provedor e esforço, os acessos, os ids de quem entra direto (`aceitaDiretoDe`), se está ligado (`ativo`), a fila de entrada e as propostas.
+- A agenda é `{ "modo": "HORARIOS", "horarios": [480, 1110], "intervaloMinutos": 0 }` (minutos depois da meia-noite, todo dia) ou `{ "modo": "INTERVALO", "horarios": [], "intervaloMinutos": 45 }`.
+- Os acessos são `{ "sites": ["https://..."], "email": true, "calendario": false, "conectorEmail": "claude_ai_Gmail", "conectorCalendario": null }`: o conector é o nome do servidor MCP no CLI.
+- Cada item da fila ou das propostas guarda id, título, descrição e o id do protocolo ou projeto de origem.
+- O estado do protocolo não é salvo: vem das propostas.
+- Como nos projetos, o arquivo é escrito num `.tmp` e depois trocado, e excluir apaga a pasta do protocolo.
+
+O formato dos demais dados (consumo) ainda está em [ideias em aberto](../ideias-em-aberto.md).
 
 ## Configurações
 

@@ -1,10 +1,14 @@
 package io.github.luanfrombrazil.overtimer.service.agente;
 
+import io.github.luanfrombrazil.overtimer.model.Acessos;
+import io.github.luanfrombrazil.overtimer.model.Agenda;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
+import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.model.Task;
+import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AreaDeTrabalhoTest {
@@ -66,5 +72,41 @@ class AreaDeTrabalhoTest {
                 Provedor.AUTOMATICO, Esforco.MEDIUM, Permissoes.padrao());
 
         assertEquals(repositorio, new AreaDeTrabalho(dados).preparar(projeto, Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM)));
+    }
+
+    private static Protocolo protocolo() {
+        return Protocolo.novo("Agenda", "AG", "Passos", Agenda.aCada(60), Provedor.AUTOMATICO, Esforco.MEDIUM,
+                Acessos.nenhum(), List.of());
+    }
+
+    @Test
+    void protocoloGanhaPastaDeTrabalhoNaPrimeiraExecucao() throws Exception {
+        Protocolo protocolo = protocolo();
+        Path esperada = dados.resolve("protocolos-rotina").resolve(protocolo.id()).resolve("trabalho");
+        assertFalse(Files.exists(esperada));
+
+        AreaDeTrabalho area = new AreaDeTrabalho(dados);
+        assertEquals(esperada, area.preparar(protocolo));
+        assertTrue(Files.isDirectory(esperada));
+
+        Files.writeString(esperada.resolve("notas.md"), "da execução anterior");
+        assertEquals(esperada, area.preparar(protocolo), "a segunda vez reaproveita a pasta");
+        assertTrue(Files.isRegularFile(esperada.resolve("notas.md")));
+    }
+
+    @Test
+    void pastaDeTrabalhoNaoAtrapalhaACargaDosProtocolos() throws Exception {
+        Protocolo protocolo = protocolo();
+        RepositorioProtocolos repositorio = new RepositorioProtocolos(dados);
+        repositorio.salvar(protocolo);
+        new AreaDeTrabalho(dados).preparar(protocolo);
+        assertEquals(List.of(protocolo), repositorio.carregar());
+    }
+
+    @Test
+    void protocoloComIdForaDaPastaEhRecusado() {
+        Protocolo invalido = new Protocolo("../worktrees", "X", "X", "Passos", null, null, null, null, null, true,
+                null, null);
+        assertThrows(IOException.class, () -> new AreaDeTrabalho(dados).preparar(invalido));
     }
 }

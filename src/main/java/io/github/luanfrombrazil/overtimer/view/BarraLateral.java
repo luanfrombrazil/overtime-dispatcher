@@ -268,7 +268,10 @@ public class BarraLateral extends JPanel {
 
     /** Projetos são identificados pelo id, porque cada alteração gera um registro novo. */
     private static Object chave(Object item) {
-        return item instanceof Projeto p ? p.id() : item;
+        if (item instanceof Projeto p) {
+            return p.id();
+        }
+        return item instanceof Protocolo protocolo ? protocolo.id() : item;
     }
 
     /** Título da seção e botão de criar; recolhida, só o botão "+", com a ação na dica. */

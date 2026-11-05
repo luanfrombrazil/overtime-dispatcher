@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service.agente;
 
+import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -154,10 +156,40 @@ public class ClaudeCodeAgente implements Agente {
                 ? List.of("--session-id", execucao.sessao())
                 : List.of("--resume", execucao.sessao()));
         linha.add("--allowedTools");
-        linha.add(String.join(",", ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
+        linha.add(String.join(",", execucao.acessos() != null ? ferramentas(execucao.acessos())
+                : ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
         linha.add("--disallowedTools");
         linha.add(String.join(",", bloqueadas(execucao.usaGit(), execucao.push())));
         return linha;
+    }
+
+    /**
+     * Ferramentas do agente de um protocolo, que roda na pasta de trabalho dele: lê e edita só ali ({@code ./**}),
+     * sem shell. Os sites liberam o WebFetch só nos domínios deles; e-mail e calendário liberam o servidor MCP
+     * escolhido. Os limites do D-14 dentro do conector (só rascunhos, só a agenda do agente) vão no prompt.
+     */
+    static List<String> ferramentas(Acessos acessos) {
+        List<String> ferramentas = new ArrayList<>(List.of("Read(./**)", "Glob", "Grep", "TodoWrite",
+                "Edit(./**)", "Write(./**)"));
+        for (String site : acessos.sites()) {
+            dominio(site).map(d -> "WebFetch(domain:" + d + ")")
+                    .filter(regra -> !ferramentas.contains(regra))
+                    .ifPresent(ferramentas::add);
+        }
+        acessos.conectores().forEach(c -> ferramentas.add("mcp__" + c));
+        return ferramentas;
+    }
+
+    /** Domínio de um endereço digitado com ou sem {@code https://}; vazio se não der para ler. */
+    static Optional<String> dominio(String site) {
+        String endereco = site.contains("://") ? site : "https://" + site;
+        try {
+            String host = URI.create(endereco).getHost();
+            return host == null || !host.matches("[A-Za-z0-9.-]+") ? Optional.empty()
+                    : Optional.of(host.toLowerCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     /**

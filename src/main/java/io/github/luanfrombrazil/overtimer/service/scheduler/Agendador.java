@@ -5,13 +5,17 @@ import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
 import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
 import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
+import io.github.luanfrombrazil.overtimer.model.ExecucaoProtocolo;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
+import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Modelo;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
+import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
 import io.github.luanfrombrazil.overtimer.model.Task;
 import io.github.luanfrombrazil.overtimer.service.ProjetoService;
+import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import io.github.luanfrombrazil.overtimer.service.agente.Agente;
 import io.github.luanfrombrazil.overtimer.service.agente.Agentes;
 import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
@@ -21,6 +25,7 @@ import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -30,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +49,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 
 /**
  * Entrega o trabalho da fila aos agentes, um de cada vez: subtarefas ou, quando não há subtarefas, a Task inteira.
@@ -66,6 +74,11 @@ import java.util.function.ToIntFunction;
  * <p>
  * Não começa uma Task num provedor cujo {@linkplain #usarConsumo uso medido} (sessão ou semanal) chegou ao limite de
  * uso dele nas configurações; pula para a próxima Task de outro provedor. Uso desconhecido não impede.
+ * <p>
+ * Os protocolos ligados entram na mesma fila, um de cada vez com as Tasks: quando a agenda de um chega, ele passa
+ * na frente da próxima Task, com as mesmas regras de horário de funcionamento, limite de uso e máximo por
+ * intervalo. Além dos ciclos do intervalo, o agendador acorda sozinho no próximo horário de protocolo. Um horário
+ * que passou com o agendador ocupado ou fora do horário de funcionamento roda uma vez, assim que der.
  */
 public class Agendador {
 
@@ -75,6 +88,8 @@ public class Agendador {
     private static final LimiteDeUso SEM_LIMITE_DE_USO = new LimiteDeUso(100, 0);
     public static final Duration LIMITE_DA_EXECUCAO = Duration.ofMinutes(60);
     private static final int LINHAS_EM_MEMORIA = 300;
+    /** Linhas de log guardadas por execução de protocolo no histórico. */
+    private static final int LINHAS_NO_HISTORICO = 500;
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     /** O que a barra superior mostra. */
@@ -95,6 +110,8 @@ public class Agendador {
     }
 
     private final ProjetoService projetos;
+    /** Protocolos a rodar pela agenda; null quando o agendador só cuida das Tasks. */
+    private final ProtocoloService protocolos;
     private final Agentes agentes;
     private final AreaDeTrabalho areaDeTrabalho;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(tarefa -> {
@@ -137,11 +154,38 @@ public class Agendador {
     /** Provedores no limite de uso que já foram avisados; saem daqui quando o uso baixa. */
     private final Set<Provedor> avisadosNoLimite = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Início da conta da agenda de cada protocolo, pelo id: a última execução (a do histórico, ao abrir a app) ou, se
+     * ele nunca rodou, quando o agendador o viu ligado pela primeira vez. Desligado, acompanha o relógio, para não rodar o que
+     * passou enquanto estava desligado.
+     */
+    private final Map<String, LocalDateTime> contaDaAgenda = new ConcurrentHashMap<>();
+    /** Protocolos pedidos pelo "Rodar agora", pelo id, que rodam no próximo ciclo mesmo fora da agenda. */
+    private final Set<String> pedidos = ConcurrentHashMap.newKeySet();
+    /** Ciclo marcado para o próximo horário de protocolo; null se não há nenhum. */
+    private ScheduledFuture<?> proximoProtocolo;
+    /** Relógio da agenda dos protocolos; trocado nos testes. */
+    private volatile Clock relogio = Clock.systemDefaultZone();
+
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
+        this(projetos, null, agentes, areaDeTrabalho);
+    }
+
+    public Agendador(ProjetoService projetos, ProtocoloService protocolos, Agentes agentes,
+                     AreaDeTrabalho areaDeTrabalho) {
         this.projetos = projetos;
+        this.protocolos = protocolos;
         this.agentes = agentes;
         this.areaDeTrabalho = areaDeTrabalho;
         projetos.aoCriarTask(this::reter);
+        if (protocolos != null) {
+            // Agenda trocada, protocolo ligado ou criado: o próximo horário pode ter mudado.
+            protocolos.aoMudar(p -> marcarProtocolo());
+        }
+    }
+
+    void usarRelogio(Clock relogio) {
+        this.relogio = relogio;
     }
 
     public void aoMudar(Ouvinte ouvinte) {
@@ -235,7 +279,11 @@ public class Agendador {
      * execução registra o erro de falta de agente.
      */
     private boolean dentroDoLimiteDeUso(Task task) {
-        Optional<Agente> agente = agentes.para(task.provedor());
+        return dentroDoLimiteDeUso(task.provedor());
+    }
+
+    private boolean dentroDoLimiteDeUso(Provedor pedido) {
+        Optional<Agente> agente = agentes.para(pedido);
         if (agente.isEmpty()) {
             return true;
         }
@@ -284,6 +332,7 @@ public class Agendador {
             ciclos.cancel(false);
         }
         marcarAbertura();
+        marcarProtocolo();
         avisarSituacao();
     }
 
@@ -321,6 +370,91 @@ public class Agendador {
             // O fim do ciclo chama marcarAbertura de novo: se o relógio se adiantou ao timer, marca outra vez.
             abertura = executor.schedule(this::ciclo, Math.max(0, espera), TimeUnit.MILLISECONDS);
         });
+    }
+
+    /**
+     * Rodando, marca um ciclo para o próximo horário de protocolo ainda por vir; nos outros casos, desmarca. Um
+     * horário que já passou (ex.: provedor no limite de uso) fica para os ciclos do intervalo, para não virar um laço.
+     */
+    private synchronized void marcarProtocolo() {
+        if (proximoProtocolo != null) {
+            proximoProtocolo.cancel(false);
+            proximoProtocolo = null;
+        }
+        if (!rodando || protocolos == null || executor.isShutdown()) {
+            return;
+        }
+        LocalDateTime agora = LocalDateTime.now(relogio);
+        protocolos.protocolos().stream()
+                .filter(Protocolo::ativo)
+                .map(p -> p.agenda().proxima(contaDaAgenda.getOrDefault(p.id(), agora)))
+                .flatMap(Optional::stream)
+                .filter(quando -> quando.isAfter(agora))
+                .min(LocalDateTime::compareTo)
+                .ifPresent(quando -> proximoProtocolo = executor.schedule(this::ciclo,
+                        Duration.between(agora, quando).plusSeconds(1).toMillis(), TimeUnit.MILLISECONDS));
+    }
+
+    /**
+     * Começa a contar a agenda dos protocolos vistos pela primeira vez e faz a dos desligados acompanhar o relógio.
+     * Roda em todo ciclo, mesmo fora do horário de funcionamento, para o horário que passar com ele fechado ainda
+     * rodar quando abrir.
+     */
+    private void acompanharAgendas() {
+        if (protocolos == null) {
+            return;
+        }
+        LocalDateTime agora = LocalDateTime.now(relogio);
+        for (Protocolo protocolo : protocolos.protocolos()) {
+            if (protocolo.ativo()) {
+                // Ao abrir a app, conta da última execução salva: o horário que passou com ela fechada roda uma vez.
+                contaDaAgenda.computeIfAbsent(protocolo.id(), id -> protocolos.ultimaExecucao(id)
+                        .map(ExecucaoProtocolo::inicioEm).orElse(agora));
+            } else {
+                contaDaAgenda.put(protocolo.id(), agora);
+            }
+        }
+    }
+
+    /**
+     * Pede para o protocolo rodar no próximo ciclo, mesmo fora da agenda ou desligado, e faz esse ciclo já. Valem o
+     * horário de funcionamento, o limite de uso e o máximo por intervalo; com o agendador pausado, o pedido espera
+     * ele ser ligado.
+     */
+    public void rodarAgora(String protocoloId) {
+        pedidos.add(protocoloId);
+        agora();
+    }
+
+    /**
+     * O protocolo pedido pelo "Rodar agora" ou, se não há, o ligado cuja agenda já chegou; em ambos, só se o provedor
+     * não estiver no limite de uso.
+     */
+    private Optional<Protocolo> protocoloDaVez() {
+        if (protocolos == null) {
+            return Optional.empty();
+        }
+        acompanharAgendas();
+        for (String id : List.copyOf(pedidos)) {
+            Optional<Protocolo> pedido = protocolos.buscar(id);
+            if (pedido.isEmpty()) {
+                pedidos.remove(id);
+            } else if (dentroDoLimiteDeUso(pedido.get().provedor())) {
+                return pedido;
+            }
+        }
+        LocalDateTime agora = LocalDateTime.now(relogio);
+        for (Protocolo protocolo : protocolos.protocolos()) {
+            if (!protocolo.ativo()) {
+                continue;
+            }
+            LocalDateTime desde = contaDaAgenda.getOrDefault(protocolo.id(), agora);
+            boolean chegou = protocolo.agenda().proxima(desde).map(q -> !q.isAfter(agora)).orElse(false);
+            if (chegou && dentroDoLimiteDeUso(protocolo.provedor())) {
+                return Optional.of(protocolo);
+            }
+        }
+        return Optional.empty();
     }
 
     /** Faz um ciclo já, sem esperar o intervalo (ex.: uma subtarefa nova ou uma verificação aprovada). */
@@ -426,7 +560,13 @@ public class Agendador {
             noLimiteDeUso = null;
             // Quem saiu do limite volta a poder ser avisado na próxima vez que entrar.
             avisadosNoLimite.removeIf(provedor -> limiteDeUso(provedor).permite(usoDe(provedor)));
+            acompanharAgendas();
             while (rodando && dentroDoHorario() && !limiteAtingido()) {
+                Optional<Protocolo> protocolo = protocoloDaVez();
+                if (protocolo.isPresent()) {
+                    executar(protocolo.get());
+                    continue;
+                }
                 Optional<ProjetoService.Proxima> proxima =
                         projetos.proxima(task -> liberada(task) && dentroDoLimiteDeUso(task));
                 if (proxima.isEmpty()) {
@@ -453,8 +593,98 @@ public class Agendador {
             ultimaTaskIniciada = null;
             // Parou por ter saído do horário (ou acabou de entrar nele): acorda na próxima abertura.
             marcarAbertura();
+            marcarProtocolo();
             avisarSituacao();
         }
+    }
+
+    /**
+     * Roda o protocolo numa sessão nova, na pasta de trabalho dele. A agenda conta a partir do início, mesmo que a
+     * execução falhe: o horário não fica sendo tentado a cada ciclo. Com sucesso, a fila de entrada enviada sai. Cada
+     * execução, mesmo a que não chegou a um agente, vai para o histórico do protocolo.
+     */
+    private void executar(Protocolo protocolo) throws InterruptedException {
+        String id = protocolo.id();
+        LocalDateTime inicio = LocalDateTime.now(relogio);
+        pedidos.remove(id);
+        contaDaAgenda.put(id, inicio);
+        // Uma Task interrompida por um protocolo conta como um começo novo quando voltar.
+        ultimaTaskIniciada = null;
+        List<String> log = new ArrayList<>();
+        Consumer<String> anotar = linha -> {
+            if (log.size() < LINHAS_NO_HISTORICO) {
+                log.add(linha);
+            }
+            registrarProtocolo(id, linha);
+        };
+
+        Optional<Agente> agente = agentes.para(protocolo.provedor());
+        if (agente.isEmpty()) {
+            String motivo = protocolo.provedor() == Provedor.AUTOMATICO
+                    ? "Nenhum agente disponível: instale o Claude Code."
+                    : protocolo.provedor() + " ainda não é suportado ou não está instalado.";
+            anotar.accept(hora() + " " + protocolo.nome() + " · " + motivo);
+            guardarExecucao(id, inicio, false, motivo, log);
+            return;
+        }
+        execucoesNoIntervalo++;
+        emExecucao = agente.get().provedor() + " em " + protocolo.nome();
+        avisarSituacao();
+        anotar.accept(hora() + " " + protocolo.nome() + " · " + agente.get().provedor());
+
+        ResultadoExecucao resultado;
+        try {
+            Path pasta = areaDeTrabalho.preparar(protocolo);
+            Execucao execucao = Execucao.doProtocolo(pasta, PromptProtocolo.montar(protocolo, this::nomeDe),
+                    UUID.randomUUID().toString(), true, protocolo.esforco(), protocolo.acessos(), LIMITE_DA_EXECUCAO);
+            resultado = agente.get().executar(execucao, linha -> anotar.accept("  " + linha));
+        } catch (IOException | RuntimeException e) {
+            resultado = ResultadoExecucao.falha(e.getMessage() == null ? e.toString() : e.getMessage());
+        } finally {
+            emExecucao = null;
+        }
+
+        boolean sucesso = resultado.sucesso() && !Prompt.falhou(resultado.resposta());
+        anotar.accept(hora() + " " + (sucesso ? "Concluído" : "Falhou: " + primeiraLinha(resultado.resposta())));
+        // Só os itens que foram no prompt: os que chegaram durante a execução ficam para a próxima.
+        if (sucesso && !protocolo.filaDeEntrada().isEmpty()) {
+            try {
+                protocolos.tirarDaFila(id, protocolo.filaDeEntrada().stream().map(ItemFila::id)
+                        .collect(Collectors.toSet()));
+            } catch (RuntimeException e) {
+                anotar.accept(hora() + " Fila de entrada não atualizada: " + e.getMessage());
+            }
+        }
+        guardarExecucao(id, inicio, sucesso, resultado.resposta(), log);
+    }
+
+    private void guardarExecucao(String id, LocalDateTime inicio, boolean sucesso, String resultado,
+                                 List<String> log) {
+        try {
+            protocolos.registrarExecucao(id,
+                    ExecucaoProtocolo.de(inicio, LocalDateTime.now(relogio), sucesso, resultado, log));
+        } catch (RuntimeException e) {
+            registrarProtocolo(id, hora() + " Histórico não gravado: " + e.getMessage());
+        }
+    }
+
+    /** Nome do protocolo ou projeto com o id dado, para a origem dos itens da fila; o id se não existe mais. */
+    private String nomeDe(String id) {
+        return protocolos.buscar(id).map(Protocolo::nome)
+                .or(() -> projetos.buscar(id).map(Projeto::nome))
+                .orElse(id);
+    }
+
+    /** Linha do log do protocolo nesta sessão da app, pelo id dele, como o log dos projetos. */
+    private void registrarProtocolo(String protocoloId, String linha) {
+        Deque<String> linhas = logs.computeIfAbsent(protocoloId, id -> new ArrayDeque<>());
+        synchronized (linhas) {
+            linhas.addLast(linha);
+            while (linhas.size() > LINHAS_EM_MEMORIA) {
+                linhas.removeFirst();
+            }
+        }
+        ouvintes.forEach(o -> o.log(protocoloId, linha));
     }
 
     private void executar(ProjetoService.Proxima proxima) throws InterruptedException {
