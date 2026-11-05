@@ -149,7 +149,7 @@ public final class Ui {
         return Ui.fixo(botao);
     }
 
-    /** Símbolo do Oráculo: detalhado (telas grandes) ou simples (barra lateral). */
+    /** Símbolo do Oráculo: detalhado (barra lateral e telas grandes) ou simples (ícones pequenos, como nos cartões). */
     public static FlatSVGIcon iconeOraculo(boolean detalhado, int tamanho) {
         return new FlatSVGIcon("icones/oraculo-" + (detalhado ? "detalhado" : "simples") + ".svg", tamanho, tamanho);
     }
