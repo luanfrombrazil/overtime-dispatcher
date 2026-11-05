@@ -377,7 +377,7 @@ class ModelosPagina extends JPanel {
         VariavelChip(Variavel variavel, EditorDeVariaveis destino) {
             super(variavel.marcador());
             setFont(Tema.mono().deriveFont(11f));
-            setForeground(Tema.ACENTO_CLARO);
+            setForeground(EditorDeVariaveis.corDaVariavel(variavel.modificavel()));
             setBorder(BorderFactory.createEmptyBorder(4, 7, 4, 7));
             setToolTipText(variavel.descricao());
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

@@ -16,6 +16,7 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -120,19 +121,29 @@ class EditorDeVariaveis extends JTextPane {
         return Optional.empty();
     }
 
-    /** Pinta as variáveis com a cor de acento e o resto do texto com a cor normal. */
+    /** Pinta as variáveis (as modificáveis em laranja) e o resto do texto com a cor normal. */
     private void colorir() {
         StyledDocument documento = getStyledDocument();
         String texto = getText();
-        SimpleAttributeSet normal = new SimpleAttributeSet();
-        StyleConstants.setForeground(normal, Tema.TEXTO);
-        SimpleAttributeSet variavel = new SimpleAttributeSet();
-        StyleConstants.setForeground(variavel, Tema.ACENTO_CLARO);
-        documento.setCharacterAttributes(0, texto.length(), normal, true);
+        documento.setCharacterAttributes(0, texto.length(), cor(Tema.TEXTO), true);
         Matcher m = VARIAVEL.matcher(texto);
         while (m.find()) {
-            documento.setCharacterAttributes(m.start(), m.end() - m.start(), variavel, true);
+            String marcador = m.group();
+            boolean modificavel = variaveis.stream()
+                    .anyMatch(v -> v.marcador().equals(marcador) && v.modificavel());
+            documento.setCharacterAttributes(m.start(), m.end() - m.start(), cor(corDaVariavel(modificavel)), true);
         }
+    }
+
+    /** Cor de uma variável no texto e na coluna lateral: laranja se a regra dela pode ser editada. */
+    static Color corDaVariavel(boolean modificavel) {
+        return modificavel ? Tema.LARANJA : Tema.ACENTO_CLARO;
+    }
+
+    private static SimpleAttributeSet cor(Color cor) {
+        SimpleAttributeSet atributos = new SimpleAttributeSet();
+        StyleConstants.setForeground(atributos, cor);
+        return atributos;
     }
 
     // ---------- Autocompletar ----------
