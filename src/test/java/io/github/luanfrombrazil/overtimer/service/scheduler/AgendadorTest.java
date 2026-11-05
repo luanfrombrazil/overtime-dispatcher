@@ -309,7 +309,7 @@ class AgendadorTest {
     void avisaVerificacaoDirecionamentoEFalhaComProjetoETask() throws InterruptedException {
         NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
                 new Notificacoes(false, false, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
-                        EnumSet.allOf(Aviso.class)));
+                        EnumSet.of(Aviso.VERIFICACAO, Aviso.DIRECIONAMENTO, Aviso.FALHAS)));
         agendador.usarNotificacoes(notificacoes);
         Projeto projeto = projeto();
         Task verificar = Task.nova("Verificar", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
@@ -342,10 +342,11 @@ class AgendadorTest {
         NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
                 new Notificacoes(false, false, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
                         EnumSet.of(Aviso.LIMITE_DE_USO)));
-        agendador.usarNotificacoes(notificacoes);
         AtomicInteger uso = new AtomicInteger(95);
         agendador.usarConsumo(p -> uso.get());
         agendador.aplicar(Configuracoes.padrao()); // automação até 90%
+        // Depois do aplicar, que troca os avisos marcados pelos das configurações.
+        agendador.usarNotificacoes(notificacoes);
         Projeto projeto = projetos.salvarTask(projeto(), Task.nova("T1", "", Provedor.CLAUDE_CODE, Esforco.MEDIUM));
 
         agendador.iniciar();
