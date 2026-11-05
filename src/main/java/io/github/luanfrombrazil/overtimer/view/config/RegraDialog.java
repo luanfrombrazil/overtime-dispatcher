@@ -40,6 +40,7 @@ final class RegraDialog extends JDialog {
         super(SwingUtilities.getWindowAncestor(origem), ModalityType.APPLICATION_MODAL);
         setUndecorated(true);
         boolean criando = variavel == null;
+        nome = criando ? new JTextField() : null;
 
         regra = new JTextArea(criando ? "" : variavel.regra());
         regra.setFont(Tema.mono());
@@ -58,7 +59,7 @@ final class RegraDialog extends JDialog {
         cancelar.addActionListener(e -> dispose());
         salvar.addActionListener(e -> {
             salva = criando
-                    ? new Variavel(this.nome.getText().strip(), "Variável editável criada nas configurações", regra.getText())
+                    ? new Variavel(nome.getText().strip(), "Variável editável criada nas configurações", regra.getText())
                     : variavel.comRegra(regra.getText());
             dispose();
         });
@@ -69,7 +70,6 @@ final class RegraDialog extends JDialog {
 
         JComponent topo;
         if (criando) {
-            nome = new JTextField();
             nome.setFont(Tema.mono());
             nome.setPreferredSize(new Dimension(260, 30));
             Ui.fixo(nome);
@@ -93,7 +93,6 @@ final class RegraDialog extends JDialog {
             topo = Ui.coluna(12, Ui.secao("Nova variável editável"),
                     Ui.coluna(4, Ui.legenda("Nome"), nome), Ui.legenda("Regra"));
         } else {
-            nome = null;
             topo = Ui.secao(variavel.marcador());
         }
 
