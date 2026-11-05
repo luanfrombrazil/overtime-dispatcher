@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.controller;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Notificacao;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
@@ -16,6 +17,7 @@ import io.github.luanfrombrazil.overtimer.view.BarraSuperior;
 import io.github.luanfrombrazil.overtimer.view.MainFrame;
 import io.github.luanfrombrazil.overtimer.view.config.ConfiguracoesDialog;
 import io.github.luanfrombrazil.overtimer.view.home.HomePanel;
+import io.github.luanfrombrazil.overtimer.view.notificacoes.NotificacoesDialog;
 import io.github.luanfrombrazil.overtimer.view.oraculo.OraculoDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.NovoProtocoloDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloPanel;
@@ -34,6 +36,7 @@ public class MainController implements BarraLateral.Ouvinte {
     private final ProjetoService projetos;
     private final Agendador agendador;
     private final ConsumoService consumo;
+    private final NotificacaoService notificacoes;
     private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
     private final BarraLateral barraLateral;
@@ -47,6 +50,7 @@ public class MainController implements BarraLateral.Ouvinte {
         this.projetos = projetos;
         this.agendador = agendador;
         this.consumo = consumo;
+        this.notificacoes = notificacoes;
         this.barraSuperior = new BarraSuperior(consumo.consumo(), notificacoes.naoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
@@ -57,7 +61,7 @@ public class MainController implements BarraLateral.Ouvinte {
         barraLateral.aoClicarHome(this::home);
         barraLateral.aoClicarAgendador(this::alternarAgendador);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
-        barraSuperior.aoClicarNotificacoes(() -> configuracoes("Notificações"));
+        barraSuperior.aoClicarNotificacoes(this::notificacoes);
         frame.bandeja().ifPresent(b -> b.aoSair(this::sair));
 
         // O agendador e o serviço avisam na thread do agendador; a tela só muda na thread do Swing.
@@ -156,6 +160,20 @@ public class MainController implements BarraLateral.Ouvinte {
     @Override
     public void novaTrilha() {
         // Ainda sem diálogo próprio no protótipo.
+    }
+
+    /** Pop-up do sino. */
+    private void notificacoes() {
+        new NotificacoesDialog(frame, notificacoes.listar(), this::abrirNotificacao,
+                () -> configuracoes("Notificações")).abrir();
+    }
+
+    /** Marca a notificação como lida e abre o projeto dela, se ainda existir. */
+    private void abrirNotificacao(Notificacao notificacao) {
+        notificacoes.marcarComoLida(notificacao.id());
+        if (notificacao.projetoId() != null) {
+            projetos.buscar(notificacao.projetoId()).ifPresent(this::projeto);
+        }
     }
 
     public void configuracoes() {
