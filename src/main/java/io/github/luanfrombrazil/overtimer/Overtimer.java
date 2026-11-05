@@ -33,15 +33,16 @@ public final class Overtimer {
         ProjetoService projetos = new ProjetoService(new RepositorioProjetos(pastaDados));
         Agendador agendador = new Agendador(projetos, Agentes.instalados(), new AreaDeTrabalho(pastaDados));
         Configuracoes configuracoes = new ConfiguracoesRepositorio(pastaDados).carregar();
-        agendador.usarNotificacoes(new NotificacaoService(new NotificacoesRepositorio(pastaDados),
-                configuracoes.notificacoes()));
+        NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(pastaDados),
+                configuracoes.notificacoes());
+        agendador.usarNotificacoes(notificacoes);
         agendador.aplicar(configuracoes);
 
         Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
         ConsumoService consumo = ConsumoService.padrao(agendador::executando);
         agendador.usarConsumo(consumo::uso);
         SwingUtilities.invokeLater(() -> {
-            new MainController(new DadosService(), projetos, agendador, consumo).iniciar();
+            new MainController(new DadosService(), projetos, agendador, consumo, notificacoes).iniciar();
             // Só depois da tela existir, para a primeira medição já chegar ao ouvinte da barra superior.
             consumo.iniciar();
         });

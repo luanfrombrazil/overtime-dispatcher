@@ -19,10 +19,6 @@ public class DadosService {
 
     private static final int SEMANAS_NO_ANO = 53;
 
-    public int notificacoesNaoLidas() {
-        return 0;
-    }
-
     public int sugestoesDoOraculo() {
         return 0;
     }

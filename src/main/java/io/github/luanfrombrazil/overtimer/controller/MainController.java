@@ -6,6 +6,7 @@ import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 import io.github.luanfrombrazil.overtimer.service.DadosService;
 import io.github.luanfrombrazil.overtimer.service.ProjetoService;
+import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
@@ -40,12 +41,13 @@ public class MainController implements BarraLateral.Ouvinte {
     private final ProjetoController projetoController;
     private String projetoAberto;
 
-    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo) {
+    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo,
+                          NotificacaoService notificacoes) {
         this.dados = dados;
         this.projetos = projetos;
         this.agendador = agendador;
         this.consumo = consumo;
-        this.barraSuperior = new BarraSuperior(consumo.consumo(), dados.notificacoesNaoLidas());
+        this.barraSuperior = new BarraSuperior(consumo.consumo(), notificacoes.naoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
         this.frame = new MainFrame(barraSuperior, barraLateral);
@@ -80,6 +82,12 @@ public class MainController implements BarraLateral.Ouvinte {
             SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido));
             // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
             agendador.agora();
+        });
+        notificacoes.aoMudar(new NotificacaoService.Ouvinte() {
+            @Override
+            public void mudou(int naoLidas) {
+                SwingUtilities.invokeLater(() -> barraSuperior.setNaoLidas(naoLidas));
+            }
         });
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
