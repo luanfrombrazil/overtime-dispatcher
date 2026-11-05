@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.view;
 
+import io.github.luanfrombrazil.overtimer.model.Notificacao;
 import io.github.luanfrombrazil.overtimer.view.comum.Ui;
 
 import javax.swing.JFrame;
@@ -57,6 +58,19 @@ public final class Bandeja {
     /** O ícone em si, para as notificações do desktop. */
     public TrayIcon icone() {
         return icone;
+    }
+
+    /**
+     * Mostra a notificação do Windows. Clicar nela dispara o mesmo ActionEvent do duplo clique, que reabre a
+     * janela.
+     */
+    public void mostrar(Notificacao notificacao) {
+        TrayIcon.MessageType tipo = switch (notificacao.tipo()) {
+            case FALHAS -> TrayIcon.MessageType.ERROR;
+            case LIMITE_DE_USO -> TrayIcon.MessageType.WARNING;
+            default -> TrayIcon.MessageType.INFO;
+        };
+        icone.displayMessage(notificacao.titulo(), notificacao.texto(), tipo);
     }
 
     /** O que o "Sair" do menu faz: encerrar a app. */

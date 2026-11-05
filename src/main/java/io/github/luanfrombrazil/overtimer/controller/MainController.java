@@ -89,6 +89,15 @@ public class MainController implements BarraLateral.Ouvinte {
         });
         notificacoes.aoMudar(new NotificacaoService.Ouvinte() {
             @Override
+            public void registrada(Notificacao notificacao) {
+                Configuracoes.Notificacoes canais = notificacoes.configuracoes();
+                // Em silêncio a notificação fica só no sino.
+                if (canais.desktop() && !canais.silenciado(notificacao.instante(), notificacao.tipo())) {
+                    SwingUtilities.invokeLater(() -> frame.bandeja().ifPresent(b -> b.mostrar(notificacao)));
+                }
+            }
+
+            @Override
             public void mudou(int naoLidas) {
                 SwingUtilities.invokeLater(() -> barraSuperior.setNaoLidas(naoLidas));
             }
