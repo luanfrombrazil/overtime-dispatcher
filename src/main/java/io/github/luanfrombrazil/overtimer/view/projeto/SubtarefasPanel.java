@@ -2,14 +2,17 @@ package io.github.luanfrombrazil.overtimer.view.projeto;
 
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Subtarefa;
+import io.github.luanfrombrazil.overtimer.view.comum.BotaoIcone;
 import io.github.luanfrombrazil.overtimer.view.comum.Corda;
 import io.github.luanfrombrazil.overtimer.view.comum.ItemStatus;
 import io.github.luanfrombrazil.overtimer.view.comum.Reordenacao;
+import io.github.luanfrombrazil.overtimer.view.comum.Ui;
 import io.github.luanfrombrazil.overtimer.view.tema.Tema;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -40,7 +44,12 @@ import java.util.function.Consumer;
  */
 class SubtarefasPanel extends JPanel {
 
+    /** Alinha as perguntas sob o item da subtarefa, um pouco mais para dentro, como as subtarefas sob a Task. */
+    private static final int RECUO_PERGUNTAS = 48;
+
     private final List<Subtarefa> subtarefas;
+    /** Perguntas de cada subtarefa que espera direcionamento, pelo id. */
+    private final Map<String, DirecionamentoPanel> perguntas = new HashMap<>();
     private final Map<String, Integer> indices = new HashMap<>();
     private final List<No> nos = new ArrayList<>();
     private final List<JPanel> linhas = new ArrayList<>();
@@ -53,10 +62,14 @@ class SubtarefasPanel extends JPanel {
     /**
      * @param aoMover        recebe a subtarefa solta e quantas posições ela andou (negativo sobe)
      * @param aoTentarDeNovo chamado pelo botão de seta circular das subtarefas que falharam
+     * @param recolhidas     ids das subtarefas com perguntas que você recolheu; as demais com perguntas abrem
+     *                       expandidas. O conjunto é alterado aqui, pela seta de cada uma
+     * @param aoResponder    recebe a subtarefa e as suas respostas às perguntas dela
      */
     SubtarefasPanel(List<Subtarefa> subtarefas, BiConsumer<Subtarefa, Subtarefa> aoAmarrar,
                     BiConsumer<Subtarefa, Integer> aoMover, Consumer<Subtarefa> aoClicar,
-                    Consumer<Subtarefa> aoTentarDeNovo) {
+                    Consumer<Subtarefa> aoTentarDeNovo, Set<String> recolhidas,
+                    BiConsumer<Subtarefa, List<String>> aoResponder) {
         this.subtarefas = subtarefas;
         this.aoAmarrar = aoAmarrar;
         // Só as subtarefas não finalizadas têm alça; as posições da reordenação contam apenas elas.
@@ -98,6 +111,8 @@ class SubtarefasPanel extends JPanel {
                         reordenacao.alca("Arraste para mudar a ordem"));
             } else if (s.finalizada()) {
                 item.comDireita(TaskCard.botaoConclusao(s.titulo(), s.resultado()));
+            } else if (s.aguardaDirecionamento()) {
+                item.comDireita(seta(s, recolhidas), reordenacao.alca("Arraste para mudar a ordem"));
             } else {
                 item.comDireita(reordenacao.alca("Arraste para mudar a ordem"));
             }
@@ -108,7 +123,40 @@ class SubtarefasPanel extends JPanel {
             }
             linhas.add(linha);
             add(linha);
+            if (s.aguardaDirecionamento()) {
+                // Como a Task mostra as subtarefas, a subtarefa expandida mostra as perguntas do agente. Elas ficam
+                // fora da linha, para a corda e a reordenação continuarem medindo só as linhas.
+                DirecionamentoPanel painel = new DirecionamentoPanel(s.id(), s.direcionamento(), RECUO_PERGUNTAS,
+                        respostas -> aoResponder.accept(s, respostas));
+                painel.setVisible(!recolhidas.contains(s.id()));
+                perguntas.put(s.id(), painel);
+                add(painel);
+            }
         }
+    }
+
+    /** Seta que expande ou recolhe as perguntas da subtarefa. */
+    private BotaoIcone seta(Subtarefa s, Set<String> recolhidas) {
+        BotaoIcone seta = new BotaoIcone(iconeSeta(!recolhidas.contains(s.id())), "Mostrar ou esconder as perguntas",
+                24);
+        seta.addActionListener(e -> {
+            DirecionamentoPanel painel = perguntas.get(s.id());
+            boolean aberta = !painel.isVisible();
+            painel.setVisible(aberta);
+            if (aberta) {
+                recolhidas.remove(s.id());
+            } else {
+                recolhidas.add(s.id());
+            }
+            seta.setIcon(iconeSeta(aberta));
+            revalidate();
+            repaint();
+        });
+        return seta;
+    }
+
+    private static Icon iconeSeta(boolean aberta) {
+        return Ui.icone(aberta ? "seta-baixo" : "seta-direita", 14, Tema.TEXTO_SECUNDARIO);
     }
 
     private boolean temDependentes(Subtarefa subtarefa) {

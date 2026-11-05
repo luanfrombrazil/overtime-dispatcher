@@ -16,4 +16,5 @@ De tempos em tempos, verifica se há um agente ocioso e, se houver, entrega a pr
 - Pausar não interrompe a execução em andamento; fechar a app interrompe, e a subtarefa volta à fila na próxima abertura.
 - Terminou bem: concluída, ou **aguardando verificação** se a subtarefa exige verificação manual. O agente responde com `FALHOU:` quando não consegue concluir, e a subtarefa fica vermelha; "Tentar de novo" a devolve à fila.
 - Limite de 60 minutos por execução.
-- **Ainda não:** horário de funcionamento, reserva, várias execuções em paralelo, orientação no meio do trabalho (RPC) e notificações.
+- **Direcionamento:** quando a resposta do agente termina com o bloco `DIRECIONAMENTO:`, o item fica amarelo com as perguntas e a Task inteira sai da fila (as subtarefas compartilham a sessão e seguem em ordem). Ao responder, ele volta à fila e a próxima execução retoma a sessão só com as respostas; se a sessão se perdeu, vai o pedido completo com uma seção "Direcionamento já dado". As respostas são descartadas quando o agente termina de rodar, e ficam guardadas se a execução nem terminar (tempo esgotado, CLI fora do ar).
+- **Ainda não:** horário de funcionamento, reserva, várias execuções em paralelo e notificações.

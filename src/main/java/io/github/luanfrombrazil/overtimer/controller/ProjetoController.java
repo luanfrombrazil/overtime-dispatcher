@@ -163,6 +163,12 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
         alterado(servico.tentarDeNovo(projeto, task));
     }
 
+    /** As respostas voltam a Task para a fila; {@link #alterado} faz o agendador olhar já. */
+    @Override
+    public void responder(Task task, Subtarefa subtarefa, List<String> respostas) {
+        alterado(servico.responder(projeto, task, subtarefa, respostas));
+    }
+
     private void alterado(Projeto atualizado) {
         projeto = atualizado;
         aoAlterar.accept(atualizado);

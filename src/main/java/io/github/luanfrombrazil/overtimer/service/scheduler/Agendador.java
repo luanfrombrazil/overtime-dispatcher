@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service.scheduler;
 
+import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
@@ -265,10 +266,15 @@ public class Agendador {
 
         ResultadoExecucao resultado;
         boolean sessaoNova = task.sessao() == null;
+        Direcionamento respondido = subtarefa == null ? task.direcionamento() : subtarefa.direcionamento();
+        // Com a sessão em que o agente perguntou, basta mandar as respostas; sem ela, vai o pedido completo com elas.
+        boolean continuar = respondido != null && respondido.respondido() && !sessaoNova;
         try {
             Path pasta = areaDeTrabalho.preparar(projeto, task);
             String sessao = sessaoNova ? UUID.randomUUID().toString() : task.sessao();
-            Execucao execucao = new Execucao(pasta, Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task)),
+            String prompt = continuar ? Prompt.continuar(task, subtarefa, respondido)
+                    : Prompt.montar(projeto, task, subtarefa, AreaDeTrabalho.branch(task));
+            Execucao execucao = new Execucao(pasta, prompt,
                     sessao, sessaoNova, task.esforco(), projeto.permissoes(), projeto.usaGit(), LIMITE_DA_EXECUCAO);
             resultado = agente.get().executar(execucao, linha -> registrar(projetoId, taskId, "  " + linha));
         } catch (IOException | RuntimeException e) {
@@ -285,14 +291,24 @@ public class Agendador {
         }
 
         boolean sucesso = resultado.sucesso() && !Prompt.falhou(resultado.resposta());
+        Optional<Prompt.Pedido> pedido = sucesso ? Prompt.pedido(resultado.resposta()) : Optional.empty();
         boolean verificar = subtarefa != null && subtarefa.requerVerificacao();
-        Estado estado = !sucesso ? Estado.ERRO : verificar ? Estado.ATENCAO : Estado.CONCLUIDO;
-        registrar(projetoId, taskId, hora() + " " + switch (estado) {
+        Estado estado = !sucesso ? Estado.ERRO : pedido.isPresent() || verificar ? Estado.ATENCAO : Estado.CONCLUIDO;
+        registrar(projetoId, taskId, hora() + " " + (pedido.isPresent() ? "Aguardando direcionamento"
+                : switch (estado) {
             case CONCLUIDO -> "Concluída";
             case ATENCAO -> "Aguardando verificação";
             default -> "Falhou: " + primeiraLinha(resultado.resposta());
-        });
-        projetos.marcar(projetoId, taskId, subtarefaId, estado, resultado.resposta());
+        }));
+        if (resultado.sucesso()) {
+            // O agente rodou e leu as respostas que havia: fica só o pedido novo, se ele fez um.
+            Direcionamento novo = pedido.map(Prompt.Pedido::direcionamento).orElse(null);
+            String texto = novo == null ? resultado.resposta() : novo.resumo();
+            projetos.marcar(projetoId, taskId, subtarefaId, estado, texto, novo);
+        } else {
+            // A execução nem terminou (tempo esgotado, CLI fora do ar): as respostas ficam para a próxima tentativa.
+            projetos.marcar(projetoId, taskId, subtarefaId, estado, resultado.resposta());
+        }
     }
 
     private void registrar(String projetoId, String taskId, String linha) {

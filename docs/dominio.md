@@ -25,7 +25,8 @@ Oráculo (observa tudo e sugere)
 - Pode **depender** de outras subtarefas.
 - Pode exigir **verificação manual**.
 - Diz ao agente se deve fazer **commit** ao terminar (marcado por padrão) e **push** depois do commit (desmarcado por padrão; só vale com commit).
-- O agente pode **pedir orientação** no meio do trabalho; enquanto espera, segue para outra Task.
+- O agente pode **pedir direcionamento**: para com perguntas, cada uma com opções sugeridas. A subtarefa fica amarela ("Direcionamento") e segura a Task; ao expandir a subtarefa no cartão da Task, aparecem as perguntas, com um botão de rádio por opção e um "Outro" com campo de texto. Enquanto espera, o agendador segue para outra Task. A Task sem subtarefas também pode perguntar; as perguntas ficam no próprio cartão.
+- Direcionamento e **verificação manual** são esperas diferentes, ambas amarelas: a verificação aprova ou manda refazer; o direcionamento responde e retoma.
 
 ## Protocolo
 Rotina contínua em que o agente segue um passo a passo seu. Ver [protocolos](modulos/protocolos.md).

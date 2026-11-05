@@ -26,11 +26,12 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgendadorTest {
 
-    /** Responde na hora, sem processo: "FALHOU" quando a instrução pede. */
+    /** Responde na hora, sem processo: "FALHOU" ou um pedido de direcionamento quando a instrução pede. */
     static class AgenteFalso implements Agente {
         final List<Execucao> execucoes = new CopyOnWriteArrayList<>();
 
@@ -49,6 +50,16 @@ class AgendadorTest {
             execucoes.add(execucao);
             log.accept("› Edit arquivo.txt");
             boolean falhar = execucao.prompt().contains("deve falhar");
+            if (execucao.prompt().contains("deve perguntar")) {
+                return new ResultadoExecucao(true, """
+                        Migrei 14 testes.
+
+                        DIRECIONAMENTO:
+                        Pergunta: O que faço com o runner?
+                        - Migrar o runner
+                        - Remover os testes
+                        """, execucao.sessao());
+            }
             return new ResultadoExecucao(true, falhar ? "FALHOU: não deu" : "Pronto", execucao.sessao());
         }
 
@@ -220,6 +231,44 @@ class AgendadorTest {
         assertEquals(3, agente.execucoes.size());
         assertEquals(List.of(comSubtarefas.id(), inteira.id()), iniciadas);
         assertFalse(agendador.executando());
+    }
+
+    @Test
+    void perguntaParaATaskEmAmareloERetomaNaMesmaSessaoComAsRespostas() throws InterruptedException {
+        Task task = Task.nova("Migração", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Projeto projeto = projetos.salvarTask(projeto(), task);
+        projetos.salvarSubtarefa(projeto, task, Subtarefa.nova("Integração", "Esta deve perguntar", "", false,
+                List.of()));
+        projetos.salvarSubtarefa(projeto, task, Subtarefa.nova("Sem dependência", "", "", false, List.of()));
+        projetos.salvarTask(projetos.buscar(projeto.id()).orElseThrow(),
+                Task.nova("Outra task", "", Provedor.AUTOMATICO, Esforco.MEDIUM));
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        Subtarefa parada = subtarefa(projeto, task, 0);
+        assertEquals(Estado.ATENCAO, parada.estado());
+        assertTrue(parada.aguardaDirecionamento());
+        assertEquals("Direcionamento", parada.detalhe());
+        assertEquals("Migrei 14 testes.", parada.resultado());
+        assertEquals(List.of("Migrar o runner", "Remover os testes"),
+                parada.direcionamento().perguntas().getFirst().opcoes());
+        assertEquals(Estado.PENDENTE, subtarefa(projeto, task, 1).estado(), "a Task inteira espera a resposta");
+        assertEquals(2, agente.execucoes.size(), "a fila seguiu para a outra Task");
+        assertTrue(agendador.log(projeto.id()).stream().anyMatch(l -> l.contains("Aguardando direcionamento")));
+
+        projetos.responder(projetos.buscar(projeto.id()).orElseThrow(), task, parada, List.of("Mantenha o runner"));
+        agendador.agora();
+        esperarFilaVazia();
+
+        Execucao retomada = agente.execucoes.get(2);
+        assertFalse(retomada.sessaoNova());
+        assertEquals(agente.execucoes.getFirst().sessao(), retomada.sessao());
+        assertTrue(retomada.prompt().startsWith("Resposta ao seu pedido de direcionamento:"));
+        assertTrue(retomada.prompt().contains("Resposta: Mantenha o runner"));
+        assertEquals(Estado.CONCLUIDO, subtarefa(projeto, task, 0).estado());
+        assertNull(subtarefa(projeto, task, 0).direcionamento(), "as respostas já foram entregues");
+        assertEquals(Estado.CONCLUIDO, subtarefa(projeto, task, 1).estado());
     }
 
     @Test

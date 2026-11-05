@@ -23,6 +23,7 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -45,9 +46,10 @@ class TaskCard extends Cartao {
      * @param aoExpandir avisado quando o usuário abre (true) ou fecha (false) o cartão
      * @param alca       alça de três barras, no fim do cabeçalho, que arrasta o cartão para mudar a ordem; null
      *                   na Task finalizada, que não muda de ordem
+     * @param recolhidas subtarefas com perguntas que você recolheu, alterado pela seta de cada uma
      */
     TaskCard(Task task, boolean finalizada, boolean expandido, Consumer<Boolean> aoExpandir,
-             ProjetoPanel.Ouvinte ouvinte, JComponent alca) {
+             ProjetoPanel.Ouvinte ouvinte, JComponent alca, Set<String> recolhidas) {
         super(task.estado() == Estado.ORACULO ? Tema.ROXO_FUNDO : Tema.PAINEL,
                 task.estado() == Estado.ORACULO ? Tema.ROXO : Tema.BORDA, null);
         this.task = task;
@@ -96,7 +98,17 @@ class TaskCard extends Cartao {
                         (uma, outra) -> ouvinte.amarrar(task, uma, outra),
                         (s, deslocamento) -> ouvinte.moverSubtarefa(task, s, deslocamento),
                         s -> ouvinte.editarSubtarefa(task, s),
-                        s -> ouvinte.tentarDeNovo(task, s)));
+                        s -> ouvinte.tentarDeNovo(task, s),
+                        recolhidas,
+                        (s, respostas) -> ouvinte.responder(task, s, respostas)));
+            } else if (task.aguardaDirecionamento()) {
+                // Sem subtarefas, as perguntas do agente ficam direto no cartão, que está sempre aberto.
+                JPanel perguntas = new JPanel(new BorderLayout());
+                perguntas.setOpaque(false);
+                perguntas.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+                perguntas.add(new DirecionamentoPanel(task.id(), task.direcionamento(), ItemStatus.LARGURA_BORDA + 12,
+                        respostas -> ouvinte.responder(task, null, respostas)), BorderLayout.CENTER);
+                corpo.add(Ui.largo(perguntas));
             }
             corpo.add(acoes(ouvinte));
         }
@@ -152,7 +164,9 @@ class TaskCard extends Cartao {
         JButton editar = Ui.botaoSecundario("Editar");
         editar.addActionListener(e -> ouvinte.editarTask(task));
         linha.add(Ui.linha(8, novaSubtarefa, editar), BorderLayout.WEST);
-        task.subtarefas().stream().filter(s -> s.estado() == Estado.ATENCAO).findFirst().ifPresent(s -> {
+        // O direcionamento se responde nas perguntas sob a subtarefa; este botão é só da verificação manual.
+        task.subtarefas().stream().filter(s -> s.estado() == Estado.ATENCAO && !s.aguardaDirecionamento())
+                .findFirst().ifPresent(s -> {
             JButton revisar = Ui.botaoSecundario("Revisar verificação");
             revisar.addActionListener(e -> ouvinte.editarSubtarefa(task, s));
             linha.add(revisar, BorderLayout.EAST);

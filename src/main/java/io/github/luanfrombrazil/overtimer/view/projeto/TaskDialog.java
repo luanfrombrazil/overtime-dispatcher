@@ -53,7 +53,8 @@ public class TaskDialog extends Dialogo {
         corpo.add(Box.createVerticalStrut(14));
         // A finalizada não mostra a situação: a mensagem de conclusão fica no botão verde do cartão.
         if (!nova && !rascunho && !travada && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
-            corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(), aoDecidir));
+            corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(),
+                    existente.aguardaDirecionamento(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
 
@@ -105,7 +106,7 @@ public class TaskDialog extends Dialogo {
             return task;
         }
         return new Task(task.id(), "Rascunho", task.descricao(), task.provedor(), task.esforco(), task.origem(),
-                task.subtarefas(), task.sessao(), task.execucao(), task.resultado());
+                task.subtarefas(), task.sessao(), task.execucao(), task.resultado(), task.direcionamento());
     }
 
     private Task task() {
@@ -116,6 +117,6 @@ public class TaskDialog extends Dialogo {
         }
         return new Task(existente.id(), titulo.getText().strip(), Formulario.textoDa(descricao), p, e,
                 existente.origem(), existente.subtarefas(), existente.sessao(), existente.execucao(),
-                existente.resultado());
+                existente.resultado(), existente.direcionamento());
     }
 }

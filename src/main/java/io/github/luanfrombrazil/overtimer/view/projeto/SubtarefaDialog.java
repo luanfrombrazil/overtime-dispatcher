@@ -62,7 +62,8 @@ public class SubtarefaDialog extends Dialogo {
         corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
         corpo.add(Box.createVerticalStrut(14));
         if (!nova && !rascunho && existente.estado() != Estado.PENDENTE) {
-            corpo.add(situacao(this, existente.estado(), existente.resultado(), aoDecidir));
+            corpo.add(situacao(this, existente.estado(), existente.resultado(), existente.aguardaDirecionamento(),
+                    aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
         }
 
@@ -123,23 +124,27 @@ public class SubtarefaDialog extends Dialogo {
             return s;
         }
         return new Subtarefa(s.id(), "Rascunho", s.instrucao(), s.criterioDeAceite(), s.requerVerificacao(),
-                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push());
+                s.estado(), s.dependeDe(), s.resultado(), s.commit(), s.push(), s.direcionamento());
     }
 
     /**
      * Como a última execução (da subtarefa ou da Task inteira) terminou, com a resposta do agente e as decisões
-     * possíveis. Decidir fecha o {@code dialogo}.
+     * possíveis. Decidir fecha o {@code dialogo}. Quem espera direcionamento não decide aqui: as perguntas ficam no
+     * cartão da Task, sob a subtarefa.
+     *
+     * @param direcionamento se o item parou com perguntas sem resposta, em vez de esperar a verificação
      */
-    static JComponent situacao(Dialogo dialogo, Estado estado, String resultado, Consumer<Estado> aoDecidir) {
+    static JComponent situacao(Dialogo dialogo, Estado estado, String resultado, boolean direcionamento,
+                               Consumer<Estado> aoDecidir) {
         String titulo = switch (estado) {
-            case ATENCAO -> "Aguardando sua verificação";
+            case ATENCAO -> direcionamento ? "Aguardando seu direcionamento" : "Aguardando sua verificação";
             case ERRO -> "Falhou";
             case CONCLUIDO -> "Concluída";
             case EM_ANDAMENTO -> "Em andamento";
             default -> "";
         };
         List<JButton> botoes = new ArrayList<>();
-        if (estado == Estado.ATENCAO) {
+        if (estado == Estado.ATENCAO && !direcionamento) {
             botoes.add(decisao(dialogo, Ui.botaoSecundario("Refazer"), Estado.PENDENTE, aoDecidir));
             botoes.add(decisao(dialogo, Ui.botaoPrimario("Aprovar"), Estado.CONCLUIDO, aoDecidir));
         } else if (estado == Estado.ERRO) {
@@ -184,6 +189,6 @@ public class SubtarefaDialog extends Dialogo {
         }
         return new Subtarefa(existente.id(), titulo.getText().strip(), Formulario.textoDa(instrucao),
                 Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), existente.dependeDe(),
-                existente.resultado(), commit.isSelected(), push.isSelected());
+                existente.resultado(), commit.isSelected(), push.isSelected(), existente.direcionamento());
     }
 }

@@ -16,6 +16,14 @@ public enum Estado {
     RASCUNHO;
 
     /**
+     * Se um item (subtarefa ou Task executada inteira) espera a sua resposta a perguntas do agente. Amarelo como a
+     * verificação, mas é outra espera: a verificação aprova ou manda refazer; o direcionamento responde e retoma.
+     */
+    public static boolean aguardaDirecionamento(Estado estado, Direcionamento direcionamento) {
+        return estado == ATENCAO && direcionamento != null && !direcionamento.respondido();
+    }
+
+    /**
      * Estado de um conjunto a partir dos estados das partes: falha e pedido de atenção têm prioridade,
      * depois o que está em andamento; só fica concluído quando todas as partes estão concluídas.
      */

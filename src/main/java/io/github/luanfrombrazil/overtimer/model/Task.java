@@ -7,14 +7,16 @@ import java.util.UUID;
  * Trabalho para um agente. A Task traz as próprias instruções e pode ser executada inteira; as subtarefas são
  * opcionais e quebram o trabalho em passos menores (D-19).
  *
- * @param subtarefas passos da Task, na ordem de execução; vazia quando a Task é executada inteira
- * @param sessao     id da sessão do agente compartilhada pelas execuções, ou null antes da primeira
- * @param execucao   estado da Task executada inteira; só vale enquanto ela não tem subtarefas, exceto
- *                   {@link Estado#RASCUNHO}, que marca a Task toda como rascunho
- * @param resultado  resposta do agente na última execução da Task inteira, ou o motivo da falha
+ * @param subtarefas     passos da Task, na ordem de execução; vazia quando a Task é executada inteira
+ * @param sessao         id da sessão do agente compartilhada pelas execuções, ou null antes da primeira
+ * @param execucao       estado da Task executada inteira; só vale enquanto ela não tem subtarefas, exceto
+ *                       {@link Estado#RASCUNHO}, que marca a Task toda como rascunho
+ * @param resultado      resposta do agente na última execução da Task inteira, ou o motivo da falha
+ * @param direcionamento perguntas do agente à Task executada inteira, como em {@link Subtarefa#direcionamento()}
  */
 public record Task(String id, String titulo, String descricao, Provedor provedor, Esforco esforco,
-                   Origem origem, List<Subtarefa> subtarefas, String sessao, Estado execucao, String resultado) {
+                   Origem origem, List<Subtarefa> subtarefas, String sessao, Estado execucao, String resultado,
+                   Direcionamento direcionamento) {
 
     public Task {
         subtarefas = subtarefas == null ? List.of() : List.copyOf(subtarefas);
@@ -23,19 +25,28 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
 
     public static Task nova(String titulo, String descricao, Provedor provedor, Esforco esforco) {
         return new Task(UUID.randomUUID().toString(), titulo, descricao, provedor, esforco, Origem.USUARIO,
-                List.of(), null, Estado.PENDENTE, null);
+                List.of(), null, Estado.PENDENTE, null, null);
     }
 
     public Task comSubtarefas(List<Subtarefa> subtarefas) {
-        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado,
+                direcionamento);
     }
 
     public Task comSessao(String sessao) {
-        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado,
+                direcionamento);
     }
 
+    /** Muda o estado e o resultado da Task executada inteira, mantendo o direcionamento. */
     public Task comExecucao(Estado execucao, String resultado) {
-        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado);
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado,
+                direcionamento);
+    }
+
+    public Task comDirecionamento(Direcionamento direcionamento) {
+        return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado,
+                direcionamento);
     }
 
     /**
@@ -81,14 +92,30 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return Estado.resumir(subtarefas.stream().map(Subtarefa::estado).toList());
     }
 
+    /**
+     * Se a Task executada inteira parou com perguntas sem resposta, ou se uma das subtarefas parou. Enquanto isso, a
+     * Task inteira fica fora da fila: as subtarefas compartilham a sessão do agente e seguem em ordem.
+     */
+    public boolean aguardaDirecionamento() {
+        return inteira() ? Estado.aguardaDirecionamento(execucao, direcionamento)
+                : subtarefas.stream().anyMatch(Subtarefa::aguardaDirecionamento);
+    }
+
+    /** Subtarefas esperando a sua verificação manual. */
     public long verificacoes() {
-        return subtarefas.stream().filter(s -> s.estado() == Estado.ATENCAO).count();
+        return subtarefas.stream().filter(s -> s.estado() == Estado.ATENCAO && !s.aguardaDirecionamento()).count();
+    }
+
+    /** Itens parados com perguntas sem resposta: as subtarefas ou, se ela roda inteira, a própria Task. */
+    public long direcionamentos() {
+        return inteira() ? (aguardaDirecionamento() ? 1 : 0)
+                : subtarefas.stream().filter(Subtarefa::aguardaDirecionamento).count();
     }
 
     /** Texto curto sob o título. */
     public String detalhe() {
         return switch (estado()) {
-            case ATENCAO -> Textos.verificacoes(verificacoes());
+            case ATENCAO -> Textos.pendencias(verificacoes(), direcionamentos());
             case ERRO -> "Falhou";
             default -> null;
         };

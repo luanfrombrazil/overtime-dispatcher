@@ -73,6 +73,12 @@ public class ProjetoPanel extends JPanel {
 
         /** Devolve à fila todas as subtarefas da Task que falharam. */
         void tentarDeNovo(Task task);
+
+        /**
+         * Responde às perguntas do agente, uma resposta por pergunta, da subtarefa ou, com {@code subtarefa} null,
+         * da Task executada inteira.
+         */
+        void responder(Task task, Subtarefa subtarefa, List<String> respostas);
     }
 
     private static final int ALTURA_CONSOLE = 180;
@@ -82,6 +88,10 @@ public class ProjetoPanel extends JPanel {
     private Console console;
     private final Set<String> conhecidas = new HashSet<>();
     private final Set<String> finalizadas = new HashSet<>();
+    /** Tasks paradas com perguntas do agente; a que acabou de parar abre sozinha, para as perguntas aparecerem. */
+    private final Set<String> aguardando = new HashSet<>();
+    /** Subtarefas com perguntas que você recolheu pela seta. */
+    private final Set<String> recolhidas = new HashSet<>();
     private String projetoId;
     private JScrollPane rolagem;
     private Reordenacao reordenacao;
@@ -110,6 +120,8 @@ public class ProjetoPanel extends JPanel {
             expandidas.clear();
             conhecidas.clear();
             finalizadas.clear();
+            aguardando.clear();
+            recolhidas.clear();
             projeto.tasks().stream().filter(t -> !finalizada(t)).findFirst().ifPresent(t -> expandidas.add(t.id()));
             projeto.tasks().forEach(t -> conhecidas.add(t.id()));
         }
@@ -122,6 +134,12 @@ public class ProjetoPanel extends JPanel {
                 finalizadas.remove(t.id());
             } else if (finalizadas.add(t.id())) {
                 expandidas.remove(t.id());
+            }
+            if (!t.aguardaDirecionamento()) {
+                aguardando.remove(t.id());
+            } else if (aguardando.add(t.id())) {
+                expandidas.add(t.id());
+                t.subtarefas().forEach(s -> recolhidas.remove(s.id()));
             }
         }
 
@@ -238,6 +256,6 @@ public class ProjetoPanel extends JPanel {
             } else {
                 expandidas.remove(task.id());
             }
-        }, ouvinte, alca);
+        }, ouvinte, alca, recolhidas);
     }
 }

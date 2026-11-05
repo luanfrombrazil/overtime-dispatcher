@@ -25,6 +25,7 @@ Decisões técnicas e de arquitetura do projeto. Regras de funcionamento estão 
 | D-17 | As notificações do Windows possuem botões de ação. | 28/10/2026 |
 | D-18 | A integração com o WhatsApp reutiliza um projeto existente do autor. | 28/10/2026 |
 | D-19 | Subtarefas são opcionais: uma Task sem subtarefas é executada inteira, como uma única unidade, a partir da sua própria instrução. | 31/10/2026 |
+| D-20 | O agente pede direcionamento terminando a execução com um bloco `DIRECIONAMENTO:` de perguntas e opções; a Task fica parada em amarelo e, com as suas respostas, retoma na mesma sessão. É outra espera que não a verificação manual. | 04/11/2026 |
 
 ## Pendentes
 

@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service;
 
+import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Origem;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
@@ -136,7 +137,8 @@ public class ProjetoService {
             exigirAberta(antiga);
             criada = antiga.rascunho();
             tasks.set(indice, task.comSubtarefas(antiga.subtarefas()).comSessao(antiga.sessao())
-                    .comExecucao(antiga.rascunho() ? Estado.PENDENTE : antiga.execucao(), antiga.resultado()));
+                    .comExecucao(antiga.rascunho() ? Estado.PENDENTE : antiga.execucao(), antiga.resultado())
+                    .comDirecionamento(antiga.direcionamento()));
         }
         Projeto gravado = gravar(atual.comTasks(tasks));
         if (criada) {
@@ -244,7 +246,8 @@ public class ProjetoService {
                 Subtarefa antiga = novas.get(indice);
                 exigirAberta(antiga);
                 novas.set(indice, antiga.rascunho() ? subtarefa.comEstado(Estado.PENDENTE, null)
-                        : subtarefa.comEstado(antiga.estado(), antiga.resultado()));
+                        : subtarefa.comEstado(antiga.estado(), antiga.resultado())
+                        .comDirecionamento(antiga.direcionamento()));
             }
             return novas;
         });
@@ -345,7 +348,8 @@ public class ProjetoService {
     /**
      * Próximo trabalho na fila, seguindo a ordem dos projetos, das Tasks e das subtarefas: a primeira subtarefa
      * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo
-     * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados.
+     * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados. A Task com perguntas sem
+     * resposta fica parada até você responder; a fila segue para as outras.
      */
     public synchronized Optional<Proxima> proxima() {
         return proxima(task -> true);
@@ -355,7 +359,8 @@ public class ProjetoService {
     public synchronized Optional<Proxima> proxima(Predicate<Task> liberada) {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
-                if (task.origem() == Origem.ORACULO || task.rascunho() || !liberada.test(task)) {
+                if (task.origem() == Origem.ORACULO || task.rascunho() || task.aguardaDirecionamento()
+                        || !liberada.test(task)) {
                     continue;
                 }
                 if (task.inteira()) {
@@ -388,6 +393,54 @@ public class ProjetoService {
         return alterarSePossivel(projetoId, taskId, task -> task.comSubtarefas(task.subtarefas().stream()
                 .map(s -> s.id().equals(subtarefaId) ? s.comEstado(estado, resultado) : s)
                 .toList()));
+    }
+
+    /**
+     * Como {@link #marcar(String, String, String, Estado, String)}, trocando também o direcionamento: as perguntas
+     * novas do agente ou null, depois que ele recebeu as respostas.
+     */
+    public synchronized Optional<Projeto> marcar(String projetoId, String taskId, String subtarefaId,
+                                                 Estado estado, String resultado, Direcionamento direcionamento) {
+        if (subtarefaId == null) {
+            return alterarSePossivel(projetoId, taskId,
+                    task -> task.comExecucao(estado, resultado).comDirecionamento(direcionamento));
+        }
+        return alterarSePossivel(projetoId, taskId, task -> task.comSubtarefas(task.subtarefas().stream()
+                .map(s -> s.id().equals(subtarefaId) ? s.comEstado(estado, resultado).comDirecionamento(direcionamento) : s)
+                .toList()));
+    }
+
+    /**
+     * Sua resposta às perguntas do agente, uma por pergunta e na ordem delas, à subtarefa ou, com {@code subtarefa}
+     * null, à Task executada inteira. Ela volta para a fila e, na próxima execução, o agente recebe as respostas na
+     * mesma sessão e continua de onde parou.
+     */
+    public synchronized Projeto responder(Projeto projeto, Task task, Subtarefa subtarefa, List<String> respostas) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        if (indice < 0) {
+            throw new IllegalArgumentException("Task não encontrada.");
+        }
+        Task antiga = tasks.get(indice);
+        if (subtarefa == null) {
+            if (!antiga.inteira() || !Estado.aguardaDirecionamento(antiga.execucao(), antiga.direcionamento())) {
+                throw new IllegalArgumentException("A task não está esperando direcionamento.");
+            }
+            tasks.set(indice, antiga.comExecucao(Estado.PENDENTE, antiga.resultado())
+                    .comDirecionamento(antiga.direcionamento().comRespostas(respostas)));
+            return gravar(atual.comTasks(tasks));
+        }
+        Subtarefa s = antiga.subtarefas().stream().filter(x -> x.id().equals(subtarefa.id())).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Subtarefa não encontrada."));
+        if (!s.aguardaDirecionamento()) {
+            throw new IllegalArgumentException("A subtarefa não está esperando direcionamento.");
+        }
+        Subtarefa respondida = s.comEstado(Estado.PENDENTE, s.resultado())
+                .comDirecionamento(s.direcionamento().comRespostas(respostas));
+        tasks.set(indice, antiga.comSubtarefas(antiga.subtarefas().stream()
+                .map(x -> x.id().equals(s.id()) ? respondida : x).toList()));
+        return gravar(atual.comTasks(tasks));
     }
 
     /** Guarda a sessão do agente da Task, para as próximas subtarefas continuarem a mesma conversa. */

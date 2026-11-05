@@ -1,5 +1,6 @@
 package io.github.luanfrombrazil.overtimer.service;
 
+import io.github.luanfrombrazil.overtimer.model.Direcionamento;
 import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.Estado;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
@@ -43,6 +44,64 @@ class ProjetoServiceTest {
 
     private static Subtarefa sub(String titulo) {
         return Subtarefa.nova(titulo, "Faça " + titulo, "Pronto", false, List.of());
+    }
+
+    private static Direcionamento perguntas(String... textos) {
+        return new Direcionamento("Parei.", java.util.Arrays.stream(textos)
+                .map(t -> new Direcionamento.Pergunta(t, List.of("Sim", "Não"), null)).toList());
+    }
+
+    @Test
+    void direcionamentoSeguraATaskEARespostaDevolveAFila() {
+        Projeto projeto = novoProjeto("Meu App");
+        Task task = Task.nova("Migração", "", Provedor.CLAUDE_CODE, Esforco.LOW);
+        projeto = servico.salvarTask(projeto, task);
+        projeto = servico.salvarSubtarefa(projeto, task, sub("A"));
+        projeto = servico.salvarSubtarefa(projeto, task, sub("B"));
+        Subtarefa a = projeto.tasks().getFirst().subtarefas().getFirst();
+        servico.marcar(projeto.id(), task.id(), a.id(), Estado.ATENCAO, "Parei.", perguntas("Runner?", "Surefire?"));
+
+        assertTrue(servico.proxima().isEmpty(), "B não roda enquanto A espera");
+        Task parada = servico.buscar(projeto.id()).orElseThrow().tasks().getFirst();
+        assertEquals("1 direcionamento", parada.detalhe());
+        assertEquals(0, parada.verificacoes());
+        // O que foi perguntado sobrevive a reabrir a app.
+        assertEquals(parada, new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id()).orElseThrow()
+                .tasks().getFirst());
+
+        Projeto atual = servico.buscar(projeto.id()).orElseThrow();
+        assertThrows(IllegalArgumentException.class, () -> servico.responder(atual, task, a, List.of("Sim")));
+        assertThrows(IllegalArgumentException.class, () -> servico.responder(atual, task, a, List.of("Sim", " ")));
+        Subtarefa b = parada.subtarefas().get(1);
+        assertThrows(IllegalArgumentException.class, () -> servico.responder(atual, task, b, List.of("Sim")));
+
+        projeto = servico.responder(atual, task, a, List.of("Sim", "Só no Java 25"));
+        Subtarefa respondida = projeto.tasks().getFirst().subtarefas().getFirst();
+        assertEquals(Estado.PENDENTE, respondida.estado());
+        assertEquals("Só no Java 25", respondida.direcionamento().perguntas().get(1).resposta());
+        assertEquals(a.id(), servico.proxima().orElseThrow().subtarefa().id());
+    }
+
+    @Test
+    void taskInteiraTambemPedeDirecionamento() {
+        Projeto projeto = novoProjeto("Meu App");
+        Task task = Task.nova("Inteira", "", Provedor.CLAUDE_CODE, Esforco.LOW);
+        projeto = servico.salvarTask(projeto, task);
+        servico.marcar(projeto.id(), task.id(), null, Estado.ATENCAO, "Parei.", perguntas("Runner?"));
+
+        Task parada = servico.buscar(projeto.id()).orElseThrow().tasks().getFirst();
+        assertTrue(parada.aguardaDirecionamento());
+        assertEquals("1 direcionamento", parada.detalhe());
+        assertEquals("1 direcionamento", servico.buscar(projeto.id()).orElseThrow().detalhe());
+        // Editar a Task não apaga as perguntas.
+        projeto = servico.salvarTask(servico.buscar(projeto.id()).orElseThrow(), new Task(task.id(), "Renomeada", "",
+                Provedor.CLAUDE_CODE, Esforco.LOW, task.origem(), List.of(), null, null, null, null));
+        assertTrue(projeto.tasks().getFirst().aguardaDirecionamento());
+
+        projeto = servico.responder(projeto, task, null, List.of("Não"));
+        assertEquals(Estado.PENDENTE, projeto.tasks().getFirst().execucao());
+        assertTrue(projeto.tasks().getFirst().direcionamento().respondido());
+        assertEquals(task.id(), servico.proxima().orElseThrow().task().id());
     }
 
     @Test
@@ -166,8 +225,8 @@ class ProjetoServiceTest {
 
     @Test
     void estadoDoProjetoVemDasSubtarefas() {
-        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null, true, false);
-        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null, true, false);
+        Subtarefa feita = new Subtarefa("1", "A", "", "", false, Estado.CONCLUIDO, List.of(), null, true, false, null);
+        Subtarefa verificar = new Subtarefa("2", "B", "", "", true, Estado.ATENCAO, List.of(), null, true, false, null);
         Task task = Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM).comSubtarefas(List.of(feita, verificar));
         Projeto projeto = Projeto.novo("P", "P", "", "", null, Provedor.AUTOMATICO, Esforco.MEDIUM, Permissoes.padrao())
                 .comTasks(List.of(task));
@@ -195,7 +254,7 @@ class ProjetoServiceTest {
         assertFalse(relidas.get(2).commit());
         assertFalse(relidas.get(2).push());
         // Arquivos de antes desses campos: commit ligado, push desligado.
-        Subtarefa antiga = new Subtarefa("1", "A", "", "", false, Estado.PENDENTE, List.of(), null, null, null);
+        Subtarefa antiga = new Subtarefa("1", "A", "", "", false, Estado.PENDENTE, List.of(), null, null, null, null);
         assertTrue(antiga.commit());
         assertFalse(antiga.push());
     }
@@ -340,7 +399,7 @@ class ProjetoServiceTest {
         assertTrue(concluida.finalizada());
         Projeto finalizado = projeto;
         assertThrows(IllegalArgumentException.class, () -> servico.salvarTask(finalizado, new Task(inteira.id(),
-                "Renomeada", "", Provedor.AUTOMATICO, Esforco.MEDIUM, inteira.origem(), List.of(), null, null, null)));
+                "Renomeada", "", Provedor.AUTOMATICO, Esforco.MEDIUM, inteira.origem(), List.of(), null, null, null, null)));
         assertThrows(IllegalArgumentException.class, () -> servico.salvarSubtarefa(finalizado, inteira, sub("B")));
         assertEquals("Inteira", servico.buscar(projeto.id()).orElseThrow().tasks().getFirst().titulo());
     }
@@ -352,7 +411,7 @@ class ProjetoServiceTest {
         projeto = servico.marcar(projeto.id(), task.id(), null, Estado.ERRO, "FALHOU: x").orElseThrow();
 
         projeto = servico.salvarTask(projeto, new Task(task.id(), "Renomeada", "", Provedor.AUTOMATICO,
-                Esforco.MEDIUM, task.origem(), List.of(), null, null, null));
+                Esforco.MEDIUM, task.origem(), List.of(), null, null, null, null));
         assertEquals("Renomeada", projeto.tasks().getFirst().titulo());
         assertEquals(Estado.ERRO, projeto.tasks().getFirst().estado());
         assertEquals("FALHOU: x", projeto.tasks().getFirst().resultado());
@@ -380,7 +439,7 @@ class ProjetoServiceTest {
         // Refazer devolve a subtarefa à fila e destrava.
         projeto = servico.definirEstado(projeto, task, a, Estado.PENDENTE);
         projeto = servico.salvarSubtarefa(projeto, task, new Subtarefa(a.id(), "A editada", "", "", false,
-                Estado.PENDENTE, List.of(), null, true, false));
+                Estado.PENDENTE, List.of(), null, true, false, null));
         assertEquals("A editada", projeto.tasks().getFirst().subtarefas().getFirst().titulo());
     }
 

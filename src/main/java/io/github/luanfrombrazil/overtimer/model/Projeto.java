@@ -55,7 +55,8 @@ public record Projeto(String id, String nome, String sigla, String descricao, St
     /** Texto curto sob o nome, na barra lateral. */
     public String detalhe() {
         return switch (estado()) {
-            case ATENCAO -> Textos.verificacoes(tasks.stream().mapToLong(Task::verificacoes).sum());
+            case ATENCAO -> Textos.pendencias(tasks.stream().mapToLong(Task::verificacoes).sum(),
+                    tasks.stream().mapToLong(Task::direcionamentos).sum());
             case ERRO -> "Falhou";
             default -> null;
         };
