@@ -180,7 +180,7 @@ public class ClaudeCodeAgente implements Agente {
 
     /** Se o id de sessão é um UUID, o único formato que a app cria e o Claude Code devolve. */
     static boolean sessaoValida(String sessao) {
-        return sessao != null && UUID.matches(sessao);
+        return sessao != null && UUID.matcher(sessao).matches();
     }
 
     /**
