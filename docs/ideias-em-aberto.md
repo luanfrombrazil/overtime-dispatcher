@@ -7,7 +7,6 @@ Propostas feitas durante o desenho que **ainda não foram confirmadas**. Nada aq
 - Pausar o provedor automaticamente ao receber erro de limite.
 - Botão "Vou usar agora" para pausar a automação por algumas horas.
 - Escolha automática de provedor pela maior folga de orçamento.
-- Protocolos passando na frente das Tasks no horário deles.
 - Recuperar execuções interrompidas ao reabrir a app.
 - Número máximo de tentativas e timeout por execução.
 
