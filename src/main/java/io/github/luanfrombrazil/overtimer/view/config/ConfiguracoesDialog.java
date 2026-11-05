@@ -1,7 +1,12 @@
 package io.github.luanfrombrazil.overtimer.view.config;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Aviso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Execucao;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.LimiteDeUso;
+import io.github.luanfrombrazil.overtimer.model.Configuracoes.Notificacoes;
 import io.github.luanfrombrazil.overtimer.model.HorarioFuncionamento;
+import io.github.luanfrombrazil.overtimer.model.Provedor;
 import io.github.luanfrombrazil.overtimer.view.comum.Chip;
 import io.github.luanfrombrazil.overtimer.view.comum.Dialogo;
 import io.github.luanfrombrazil.overtimer.view.comum.Interruptor;
@@ -18,6 +23,8 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Cursor;
@@ -25,29 +32,49 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.text.ParseException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Configurações, com navegação lateral. Agendamento e Notificações já prototipadas.
+ * Configurações, com navegação lateral. Geral e Notificações já prototipadas.
  */
 public class ConfiguracoesDialog extends Dialogo {
 
     private static final List<String> SECOES =
-            List.of("Geral", "Agendamento", "Provedores", "Notificações", "Projetos padrão", "Avançado");
+            List.of("Geral", "Provedores", "Notificações", "Projetos padrão", "Avançado");
 
-    /** Valores iniciais da reserva de cada provedor: 0% para automação e 5% para o Oráculo. */
-    private static final int AUTOMACAO_PADRAO = 0;
-    private static final int ORACULO_PADRAO = 5;
+    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     private final CardLayout cartoes = new CardLayout();
     private final JPanel paginas = new JPanel(cartoes);
     private final Map<String, JLabel> itensNavegacao = new LinkedHashMap<>();
     private final Configuracoes configuracoes;
     private final Consumer<Configuracoes> aoSalvar;
+
+    // Controles editáveis, lidos por editadas() ao salvar.
     private BarrasHorario barras;
+    private final Map<Provedor, ReservaSlider> sliders = new EnumMap<>(Provedor.class);
+    private JComboBox<String> intervalo;
+    private JSpinner maximoPorIntervalo;
+    private JComboBox<String> tentativas;
+    private JComboBox<String> timeout;
+    private Interruptor silenciarAgora;
+    private Interruptor silenciarAutomaticamente;
+    private JComboBox<String> silencioInicio;
+    private JComboBox<String> silencioFim;
+    private Interruptor falhasFuramSilencio;
+    private Interruptor desktop;
+    private Interruptor whatsapp;
+    private Interruptor som;
+    private final Map<Aviso, JCheckBox> avisos = new EnumMap<>(Aviso.class);
 
     /** Mostra as configurações recebidas; "Salvar" entrega a versão editada para {@code aoSalvar}. */
     public ConfiguracoesDialog(JFrame dono, Configuracoes configuracoes, Consumer<Configuracoes> aoSalvar) {
@@ -62,7 +89,7 @@ public class ConfiguracoesDialog extends Dialogo {
         paginas.setOpaque(false);
         for (String secao : SECOES) {
             JComponent pagina = switch (secao) {
-                case "Agendamento" -> agendamento();
+                case "Geral" -> geral();
                 case "Notificações" -> notificacoes();
                 default -> Ui.margem(Ui.coluna(0, Ui.legenda("Em construção.")), 20, 24, 20, 24);
             };
@@ -78,7 +105,7 @@ public class ConfiguracoesDialog extends Dialogo {
         conteudo.add(rodape(), BorderLayout.SOUTH);
         raiz.add(conteudo, BorderLayout.CENTER);
 
-        mostrar("Agendamento");
+        mostrar("Geral");
     }
 
     /** Abre numa seção específica (ex.: "Notificações"). */
@@ -128,7 +155,7 @@ public class ConfiguracoesDialog extends Dialogo {
         JButton salvar = Ui.botaoPrimario("Salvar");
         cancelar.addActionListener(e -> fechar());
         salvar.addActionListener(e -> {
-            aoSalvar.accept(new Configuracoes(barras.horario()));
+            aoSalvar.accept(editadas());
             fechar();
         });
         JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -141,12 +168,41 @@ public class ConfiguracoesDialog extends Dialogo {
         return rodape;
     }
 
-    // ---------- Agendamento ----------
+    /** As configurações como estão na tela. */
+    private Configuracoes editadas() {
+        Map<Provedor, LimiteDeUso> limites = new EnumMap<>(Provedor.class);
+        sliders.forEach((provedor, slider) ->
+                limites.put(provedor, new LimiteDeUso(slider.automacao(), slider.oraculo())));
+        try {
+            // Um número digitado sem Enter ainda não foi para o modelo.
+            maximoPorIntervalo.commitEdit();
+        } catch (ParseException e) {
+            // Texto inválido: fica o último valor aceito.
+        }
+        Execucao execucao = new Execucao(numero(intervalo), numero(tentativas), numero(timeout),
+                (Integer) maximoPorIntervalo.getValue());
+        Set<Aviso> marcados = EnumSet.noneOf(Aviso.class);
+        avisos.forEach((aviso, caixa) -> {
+            if (caixa.isSelected()) {
+                marcados.add(aviso);
+            }
+        });
+        Notificacoes notificacoes = new Notificacoes(silenciarAgora.isLigado(), silenciarAutomaticamente.isLigado(),
+                LocalTime.parse((String) silencioInicio.getSelectedItem()),
+                LocalTime.parse((String) silencioFim.getSelectedItem()), falhasFuramSilencio.isLigado(),
+                desktop.isLigado(), whatsapp.isLigado(), som.isLigado(), marcados);
+        return new Configuracoes(barras.horario(), limites, execucao, notificacoes);
+    }
 
-    private JComponent agendamento() {
+    // ---------- Geral ----------
+
+    private JComponent geral() {
         JPanel pagina = pagina();
 
         pagina.add(Ui.cabecalho(Ui.secao("Horário de funcionamento"), null));
+        pagina.add(Box.createVerticalStrut(4));
+        pagina.add(Ui.cabecalho(Ui.legenda("O agendador só começa execuções nos horários marcados. Clique e arraste "
+                + "para marcar ou desmarcar."), null));
         pagina.add(Box.createVerticalStrut(10));
         HorarioFuncionamento atual = configuracoes.horarioFuncionamento();
         barras = new BarrasHorario(atual);
@@ -170,38 +226,54 @@ public class ConfiguracoesDialog extends Dialogo {
         pagina.add(Ui.cabecalho(barras, null));
 
         pagina.add(Box.createVerticalStrut(20));
-        pagina.add(Ui.cabecalho(Ui.secao("Reserva para você"), null));
+        pagina.add(Ui.cabecalho(Ui.secao("Limite de uso"), null));
+        pagina.add(Box.createVerticalStrut(4));
+        pagina.add(Ui.cabecalho(Ui.legenda("O agendador não começa Tasks num provedor cujo uso (sessão ou semanal) "
+                + "chegou ao limite azul. Roxo: Oráculo; o resto fica para você."), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(reserva("Claude Code", AUTOMACAO_PADRAO, ORACULO_PADRAO));
-        pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Codex", AUTOMACAO_PADRAO, ORACULO_PADRAO));
-        pagina.add(Box.createVerticalStrut(6));
-        pagina.add(reserva("Gemini", AUTOMACAO_PADRAO, ORACULO_PADRAO));
+        for (int i = 0; i < Configuracoes.PROVEDORES_COM_LIMITE.size(); i++) {
+            if (i > 0) {
+                pagina.add(Box.createVerticalStrut(6));
+            }
+            pagina.add(limiteDeUso(Configuracoes.PROVEDORES_COM_LIMITE.get(i)));
+        }
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Execução"), null));
         pagina.add(Box.createVerticalStrut(8));
-        JComboBox<String> tentativas = lista("1", "2", "3", "5");
-        tentativas.setSelectedItem("3");
-        JComboBox<String> timeout = lista("15 min", "30 min", "60 min");
-        timeout.setSelectedItem("30 min");
+        Execucao execucao = configuracoes.execucao();
+        intervalo = lista(execucao.intervaloMinutos() + " min", "5 min", "10 min", "15 min", "30 min", "60 min");
+        maximoPorIntervalo = new JSpinner(new SpinnerNumberModel(execucao.maximoPorIntervalo(), 0, 999, 1));
+        maximoPorIntervalo.setFont(Tema.corpo());
+        maximoPorIntervalo.setPreferredSize(new Dimension(110, 30));
+        maximoPorIntervalo.setMaximumSize(maximoPorIntervalo.getPreferredSize());
+        tentativas = lista(String.valueOf(execucao.tentativas()), "1", "2", "3", "5");
+        timeout = lista(execucao.timeoutMinutos() + " min", "15 min", "30 min", "60 min");
         pagina.add(Ui.cabecalho(Ui.linha(24,
-                campo("Intervalo", lista("5 min", "10 min", "15 min", "30 min")),
+                campo("Intervalo", intervalo),
+                campo("Máx. por intervalo", maximoPorIntervalo),
                 campo("Tentativas", tentativas),
                 campo("Timeout", timeout)), null));
+        pagina.add(Box.createVerticalStrut(6));
+        pagina.add(Ui.cabecalho(Ui.legenda("Máximo de execuções que o agendador começa em cada intervalo; "
+                + "0 para não limitar."), null));
         return pagina;
     }
 
-    private static JComponent reserva(String provedor, int automacao, int oraculo) {
-        ReservaSlider slider = new ReservaSlider(automacao, oraculo);
+    private JComponent limiteDeUso(Provedor provedor) {
+        LimiteDeUso atual = configuracoes.limiteDeUso(provedor);
+        ReservaSlider slider = new ReservaSlider(atual.automacao(), atual.oraculo());
+        sliders.put(provedor, slider);
+        JLabel valorAutomacao = Ui.texto("", Tema.corpo(), Tema.ACENTO);
         JLabel valorOraculo = Ui.texto("", Tema.corpo(), Tema.ROXO_CLARO);
         JLabel valorVoce = Ui.corpo("");
         slider.aoMudar((o, v) -> {
+            valorAutomacao.setText((100 - o - v) + "%");
             valorOraculo.setText(o + "%");
             valorVoce.setText(v + "%");
         });
-        return Ui.cabecalho(Ui.linha(12, largura(Ui.corpo(provedor), 100), largura(slider, 300),
-                largura(valorOraculo, 40), largura(valorVoce, 40)), null);
+        return Ui.cabecalho(Ui.linha(12, largura(Ui.corpo(provedor.toString()), 100), largura(slider, 280),
+                largura(valorAutomacao, 40), largura(valorOraculo, 40), largura(valorVoce, 40)), null);
     }
 
     private static <T extends JComponent> T largura(T componente, int largura) {
@@ -215,45 +287,49 @@ public class ConfiguracoesDialog extends Dialogo {
     // ---------- Notificações ----------
 
     private JComponent notificacoes() {
+        Notificacoes atual = configuracoes.notificacoes();
+        silenciarAgora = new Interruptor(atual.silenciarAgora());
+        silenciarAutomaticamente = new Interruptor(atual.silenciarAutomaticamente());
+        silencioInicio = lista(atual.silencioInicio().format(HORA), "23:00", "22:00", "00:00");
+        silencioFim = lista(atual.silencioFim().format(HORA), "07:00", "06:00", "08:00");
+        falhasFuramSilencio = new Interruptor(atual.falhasFuramSilencio());
+        desktop = new Interruptor(atual.desktop());
+        whatsapp = new Interruptor(atual.whatsapp());
+        som = new Interruptor(atual.som());
+
         JPanel pagina = pagina();
         pagina.add(Ui.cabecalho(Ui.secao("Modo silencioso"), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("Silenciar agora", false));
+        pagina.add(opcao("Silenciar agora", silenciarAgora));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("Silenciar automaticamente", true));
+        pagina.add(opcao("Silenciar automaticamente", silenciarAutomaticamente));
         pagina.add(Box.createVerticalStrut(6));
-        pagina.add(Ui.cabecalho(Ui.linha(8, Ui.legenda("Das"), lista("23:00", "22:00", "00:00"),
-                Ui.legenda("às"), lista("07:00", "06:00", "08:00")), null));
+        pagina.add(Ui.cabecalho(Ui.linha(8, Ui.legenda("Das"), silencioInicio,
+                Ui.legenda("às"), silencioFim), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("Falhas furam o silêncio", true));
+        pagina.add(opcao("Falhas furam o silêncio", falhasFuramSilencio));
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Canais"), null));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("Desktop (Windows)", true));
+        pagina.add(opcao("Desktop (Windows)", desktop));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("WhatsApp", false));
+        pagina.add(opcao("WhatsApp", whatsapp));
         pagina.add(Box.createVerticalStrut(8));
-        pagina.add(opcao("Som", false));
+        pagina.add(opcao("Som", som));
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Avisar sobre"), null));
         pagina.add(Box.createVerticalStrut(8));
         JPanel tipos = new JPanel(new java.awt.GridLayout(0, 4, 16, 4));
         tipos.setOpaque(false);
-        Map<String, Boolean> avisos = new LinkedHashMap<>();
-        avisos.put("Verificação", true);
-        avisos.put("Direcionamento", true);
-        avisos.put("Merge", true);
-        avisos.put("Falhas", true);
-        avisos.put("Limite de uso", false);
-        avisos.put("Sessão concluída", false);
-        avisos.forEach((nome, marcado) -> {
-            JCheckBox caixa = new JCheckBox(nome, marcado);
+        for (Aviso aviso : Aviso.values()) {
+            JCheckBox caixa = new JCheckBox(aviso.toString(), atual.avisos().contains(aviso));
             caixa.setFont(Tema.corpo());
             caixa.setOpaque(false);
+            avisos.put(aviso, caixa);
             tipos.add(caixa);
-        });
+        }
         pagina.add(Ui.largo(tipos));
         return pagina;
     }
@@ -268,19 +344,29 @@ public class ConfiguracoesDialog extends Dialogo {
         return pagina;
     }
 
-    private static JComponent opcao(String texto, boolean ligado) {
-        return Ui.cabecalho(Ui.corpo(texto), new Interruptor(ligado));
+    private static JComponent opcao(String texto, Interruptor interruptor) {
+        return Ui.cabecalho(Ui.corpo(texto), interruptor);
     }
 
     private static JComponent campo(String rotulo, JComponent entrada) {
         return Ui.coluna(4, Ui.legenda(rotulo), entrada);
     }
 
-    private static JComboBox<String> lista(String... opcoes) {
+    /** Lista com as opções e {@code atual} selecionado; um valor salvo fora das opções entra no fim delas. */
+    private static JComboBox<String> lista(String atual, String... opcoes) {
         JComboBox<String> lista = new JComboBox<>(opcoes);
+        if (!List.of(opcoes).contains(atual)) {
+            lista.addItem(atual);
+        }
+        lista.setSelectedItem(atual);
         lista.setFont(Tema.corpo());
         lista.setPreferredSize(new Dimension(110, 30));
         lista.setMaximumSize(lista.getPreferredSize());
         return lista;
+    }
+
+    /** O número no começo da opção escolhida ("30 min" → 30). */
+    private static int numero(JComboBox<String> lista) {
+        return Integer.parseInt(((String) lista.getSelectedItem()).split(" ")[0]);
     }
 }

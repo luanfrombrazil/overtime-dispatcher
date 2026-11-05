@@ -31,15 +31,31 @@ O formato dos demais dados (protocolos, consumo) ainda está em [ideias em abert
 
 ## Configurações
 
-Ficam em `configuracoes.json`, na pasta central. Sem o arquivo, ou com ele inválido, valem os padrões.
-
-O horário de funcionamento é gravado como faixas de 30 em 30 minutos por dia:
+Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "Salvar" nas Configurações. Sem o arquivo, ou com ele inválido, valem os padrões. Uma seção ausente (ex.: arquivo de uma versão anterior) fica com o padrão dela, sem afetar as outras.
 
 ```json
 {
   "horarioFuncionamento": {
     "seg": ["00:00-07:00", "22:00-24:00"],
     "sab": ["00:00-24:00"]
+  },
+  "limitesDeUso": {
+    "CLAUDE_CODE": { "automacao": 90, "oraculo": 5 },
+    "CODEX": { "automacao": 90, "oraculo": 5 },
+    "GEMINI": { "automacao": 90, "oraculo": 5 }
+  },
+  "execucao": { "intervaloMinutos": 5, "tentativas": 3, "timeoutMinutos": 30, "maximoPorIntervalo": 0 },
+  "notificacoes": {
+    "silenciarAgora": false,
+    "silenciarAutomaticamente": true,
+    "silencioInicio": "23:00",
+    "silencioFim": "07:00",
+    "falhasFuramSilencio": true,
+    "canais": { "desktop": true, "whatsapp": false, "som": false },
+    "avisos": ["VERIFICACAO", "DIRECIONAMENTO", "MERGE", "FALHAS"]
   }
 }
 ```
+
+- O horário de funcionamento é gravado como faixas de 30 em 30 minutos por dia.
+- O limite de uso é a porcentagem da janela de uso de cada provedor até onde a automação pode começar Tasks, mais a faixa do Oráculo; o resto é sua. A seção `reservas` de versões anteriores é ignorada.

@@ -72,7 +72,11 @@ public class MainController implements BarraLateral.Ouvinte {
                 SwingUtilities.invokeLater(() -> projetoController.adicionarLog(projetoId, linha));
             }
         });
-        consumo.aoMudar(medido -> SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido)));
+        consumo.aoMudar(medido -> {
+            SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido));
+            // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
+            agendador.agora();
+        });
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {
@@ -143,7 +147,7 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     public void configuracoes() {
-        configuracoes("Agendamento");
+        configuracoes("Geral");
     }
 
     private void configuracoes(String secao) {
@@ -158,6 +162,8 @@ public class MainController implements BarraLateral.Ouvinte {
         } catch (UncheckedIOException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage(), "Configurações", JOptionPane.ERROR_MESSAGE);
         }
+        // Mesmo sem conseguir gravar, o que foi escolhido vale para esta sessão.
+        agendador.aplicar(configuracoes);
     }
 
     private void alternarAgendador() {

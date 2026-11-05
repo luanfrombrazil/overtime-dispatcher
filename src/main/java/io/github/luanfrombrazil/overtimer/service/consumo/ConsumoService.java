@@ -1,6 +1,7 @@
 package io.github.luanfrombrazil.overtimer.service.consumo;
 
 import io.github.luanfrombrazil.overtimer.model.Consumo;
+import io.github.luanfrombrazil.overtimer.model.Provedor;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -66,6 +67,29 @@ public class ConsumoService {
     /** Última medição (antes da primeira, todos os provedores aparecem sem porcentagem). */
     public List<Consumo> consumo() {
         return atual;
+    }
+
+    /**
+     * Maior uso medido do provedor (sessão ou semanal), de 0 a 100, ou {@link Consumo#DESCONHECIDO} se ele não é
+     * medido ou a última medição falhou.
+     */
+    public int uso(Provedor provedor) {
+        String nome = nomeDoMedidor(provedor);
+        return atual.stream()
+                .filter(c -> c.provedor().equals(nome))
+                .mapToInt(c -> Math.max(c.sessao(), c.semanal()))
+                .findFirst()
+                .orElse(Consumo.DESCONHECIDO);
+    }
+
+    /** Nome com que o medidor do provedor aparece na barra superior. */
+    static String nomeDoMedidor(Provedor provedor) {
+        return switch (provedor) {
+            case CLAUDE_CODE -> "Claude";
+            case CODEX -> "Codex";
+            case GEMINI -> "Gemini";
+            case AUTOMATICO -> "";
+        };
     }
 
     /** Mede já (abertura do programa) e passa a medir de novo quando ficar ocioso. */
