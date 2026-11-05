@@ -46,7 +46,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Configurações, com navegação lateral. Geral e Notificações já prototipadas.
+ * Configurações, com navegação lateral. Geral, Modelos e Notificações já prototipadas.
  */
 public class ConfiguracoesDialog extends Dialogo {
 
@@ -77,6 +77,8 @@ public class ConfiguracoesDialog extends Dialogo {
     private Interruptor whatsapp;
     private Interruptor som;
     private final Map<Aviso, JCheckBox> avisos = new EnumMap<>(Aviso.class);
+    private final ModelosPagina modelos = new ModelosPagina();
+    private final JButton restaurarPadrao = Ui.botaoSecundario("Restaurar padrão");
 
     /** Mostra as configurações recebidas; "Salvar" entrega a versão editada para {@code aoSalvar}. */
     public ConfiguracoesDialog(JFrame dono, Configuracoes configuracoes, Consumer<Configuracoes> aoSalvar) {
@@ -84,7 +86,7 @@ public class ConfiguracoesDialog extends Dialogo {
         this.configuracoes = configuracoes;
         this.aoSalvar = aoSalvar;
         JPanel raiz = (JPanel) getContentPane();
-        raiz.setPreferredSize(new Dimension(820, 740));
+        raiz.setPreferredSize(new Dimension(1120, 740));
 
         raiz.add(navegacao(), BorderLayout.WEST);
 
@@ -92,6 +94,7 @@ public class ConfiguracoesDialog extends Dialogo {
         for (String secao : SECOES) {
             JComponent pagina = switch (secao) {
                 case "Geral" -> geral();
+                case "Modelos" -> modelos;
                 case "Notificações" -> notificacoes();
                 default -> Ui.margem(Ui.coluna(0, Ui.legenda("Em construção.")), 20, 24, 20, 24);
             };
@@ -157,6 +160,7 @@ public class ConfiguracoesDialog extends Dialogo {
             item.setBackground(ativo ? Tema.SELECIONADO : Tema.APP);
             item.setForeground(ativo ? Tema.TEXTO : Tema.TEXTO_SECUNDARIO);
         });
+        restaurarPadrao.setVisible(secao.equals("Modelos"));
     }
 
     private JComponent rodape() {
@@ -167,13 +171,18 @@ public class ConfiguracoesDialog extends Dialogo {
             aoSalvar.accept(editadas());
             fechar();
         });
-        JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        restaurarPadrao.addActionListener(e -> modelos.restaurarPadrao());
+        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        botoes.setOpaque(false);
+        botoes.add(cancelar);
+        botoes.add(salvar);
+        JPanel rodape = new JPanel(new BorderLayout());
         rodape.setOpaque(false);
         rodape.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1, 0, 0, 0, Tema.BORDA),
                 BorderFactory.createEmptyBorder(14, 24, 14, 16)));
-        rodape.add(cancelar);
-        rodape.add(salvar);
+        rodape.add(restaurarPadrao, BorderLayout.WEST);
+        rodape.add(botoes, BorderLayout.EAST);
         return rodape;
     }
 
