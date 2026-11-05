@@ -74,7 +74,7 @@ public class BarraSuperior extends JPanel {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, Tema.BORDA),
                 BorderFactory.createEmptyBorder(10, 16, 10, 16)));
 
-        notificacoes.setContador(naoLidas);
+        setNaoLidas(naoLidas);
         setConsumo(consumo);
         add(Ui.linha(16, this.consumo, Ui.linha(8, notificacoes, configuracoes)), BorderLayout.EAST);
     }
@@ -101,6 +101,11 @@ public class BarraSuperior extends JPanel {
         }
         revalidate();
         repaint();
+    }
+
+    /** Número no sino: as notificações não lidas. */
+    public void setNaoLidas(int naoLidas) {
+        notificacoes.setContador(naoLidas);
     }
 
     public void aoClicarNotificacoes(Runnable acao) {

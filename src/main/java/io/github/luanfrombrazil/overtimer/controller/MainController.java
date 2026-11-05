@@ -1,19 +1,24 @@
 package io.github.luanfrombrazil.overtimer.controller;
 
 import io.github.luanfrombrazil.overtimer.model.Configuracoes;
+import io.github.luanfrombrazil.overtimer.model.Notificacao;
 import io.github.luanfrombrazil.overtimer.model.Projeto;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Trilha;
 import io.github.luanfrombrazil.overtimer.service.DadosService;
 import io.github.luanfrombrazil.overtimer.service.ProjetoService;
+import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
+import io.github.luanfrombrazil.overtimer.view.Bandeja;
 import io.github.luanfrombrazil.overtimer.view.BarraLateral;
 import io.github.luanfrombrazil.overtimer.view.BarraSuperior;
 import io.github.luanfrombrazil.overtimer.view.MainFrame;
+import io.github.luanfrombrazil.overtimer.view.Som;
 import io.github.luanfrombrazil.overtimer.view.config.ConfiguracoesDialog;
 import io.github.luanfrombrazil.overtimer.view.home.HomePanel;
+import io.github.luanfrombrazil.overtimer.view.notificacoes.NotificacoesDialog;
 import io.github.luanfrombrazil.overtimer.view.oraculo.OraculoDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.NovoProtocoloDialog;
 import io.github.luanfrombrazil.overtimer.view.protocolo.ProtocoloPanel;
@@ -21,7 +26,11 @@ import io.github.luanfrombrazil.overtimer.view.trilha.TrilhaPanel;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.UncheckedIOException;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Liga as ações da janela principal: navegação entre telas e abertura dos pop-ups.
@@ -31,18 +40,25 @@ public class MainController implements BarraLateral.Ouvinte {
     private final DadosService dados;
     private final ProjetoService projetos;
     private final Agendador agendador;
+    private final ConsumoService consumo;
+    private final NotificacaoService notificacoes;
     private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
     private final BarraLateral barraLateral;
     private final MainFrame frame;
     private final ProjetoController projetoController;
     private String projetoAberto;
+    /** Quando a janela foi para a bandeja; null enquanto está aberta. */
+    private LocalDateTime escondidaEm;
 
-    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo) {
+    public MainController(DadosService dados, ProjetoService projetos, Agendador agendador, ConsumoService consumo,
+                          NotificacaoService notificacoes) {
         this.dados = dados;
         this.projetos = projetos;
         this.agendador = agendador;
-        this.barraSuperior = new BarraSuperior(consumo.consumo(), dados.notificacoesNaoLidas());
+        this.consumo = consumo;
+        this.notificacoes = notificacoes;
+        this.barraSuperior = new BarraSuperior(consumo.consumo(), notificacoes.naoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), dados.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
         this.frame = new MainFrame(barraSuperior, barraLateral);
@@ -52,7 +68,17 @@ public class MainController implements BarraLateral.Ouvinte {
         barraLateral.aoClicarHome(this::home);
         barraLateral.aoClicarAgendador(this::alternarAgendador);
         barraSuperior.aoClicarConfiguracoes(this::configuracoes);
-        barraSuperior.aoClicarNotificacoes(() -> configuracoes("Notificações"));
+        barraSuperior.aoClicarNotificacoes(this::notificacoes);
+        frame.bandeja().ifPresent(b -> {
+            b.aoSair(this::sair);
+            b.aoVoltar(this::enquantoVoceEstavaFora);
+        });
+        frame.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                escondidaEm = LocalDateTime.now();
+            }
+        });
 
         // O agendador e o serviço avisam na thread do agendador; a tela só muda na thread do Swing.
         agendador.aoMudar(new Agendador.Ouvinte() {
@@ -76,6 +102,29 @@ public class MainController implements BarraLateral.Ouvinte {
             SwingUtilities.invokeLater(() -> barraSuperior.setConsumo(medido));
             // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
             agendador.agora();
+        });
+        notificacoes.aoMudar(new NotificacaoService.Ouvinte() {
+            @Override
+            public void registrada(Notificacao notificacao) {
+                Configuracoes.Notificacoes canais = notificacoes.configuracoes();
+                // Em silêncio a notificação fica só no sino.
+                if (canais.silenciado(notificacao.instante(), notificacao.tipo())) {
+                    return;
+                }
+                SwingUtilities.invokeLater(() -> {
+                    if (canais.desktop()) {
+                        frame.bandeja().ifPresent(b -> b.mostrar(notificacao));
+                    }
+                    if (canais.som()) {
+                        Som.tocar();
+                    }
+                });
+            }
+
+            @Override
+            public void mudou(int naoLidas) {
+                SwingUtilities.invokeLater(() -> barraSuperior.setNaoLidas(naoLidas));
+            }
         });
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
@@ -146,6 +195,36 @@ public class MainController implements BarraLateral.Ouvinte {
         // Ainda sem diálogo próprio no protótipo.
     }
 
+    /** Pop-up do sino. */
+    private void notificacoes() {
+        new NotificacoesDialog(frame, "Notificações", notificacoes.listar(), this::abrirNotificacao,
+                () -> configuracoes("Notificações")).abrir();
+    }
+
+    /** Ao voltar da bandeja: as não lidas que chegaram com a janela escondida, se houver alguma. */
+    private void enquantoVoceEstavaFora() {
+        LocalDateTime desde = escondidaEm;
+        escondidaEm = null;
+        if (desde == null) {
+            return;
+        }
+        List<Notificacao> novas = notificacoes.listar().stream()
+                .filter(n -> !n.lida() && !n.instante().isBefore(desde))
+                .toList();
+        if (!novas.isEmpty()) {
+            new NotificacoesDialog(frame, "Enquanto você estava fora", novas, this::abrirNotificacao,
+                    () -> configuracoes("Notificações")).abrir();
+        }
+    }
+
+    /** Marca a notificação como lida e abre o projeto dela, se ainda existir. */
+    private void abrirNotificacao(Notificacao notificacao) {
+        notificacoes.marcarComoLida(notificacao.id());
+        if (notificacao.projetoId() != null) {
+            projetos.buscar(notificacao.projetoId()).ifPresent(this::projeto);
+        }
+    }
+
     public void configuracoes() {
         configuracoes("Geral");
     }
@@ -164,6 +243,15 @@ public class MainController implements BarraLateral.Ouvinte {
         }
         // Mesmo sem conseguir gravar, o que foi escolhido vale para esta sessão.
         agendador.aplicar(configuracoes);
+    }
+
+    /** "Sair" da bandeja: para o agendador (e o agente em execução) e a medição de consumo, e fecha a app. */
+    private void sair() {
+        agendador.encerrar();
+        consumo.encerrar();
+        frame.bandeja().ifPresent(Bandeja::remover);
+        frame.dispose();
+        System.exit(0);
     }
 
     private void alternarAgendador() {
