@@ -23,7 +23,9 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -96,7 +98,14 @@ public class ConfiguracoesDialog extends Dialogo {
             JPanel envoltorio = new JPanel(new BorderLayout());
             envoltorio.setOpaque(false);
             envoltorio.add(pagina, BorderLayout.NORTH);
-            paginas.add(envoltorio, secao);
+            // Seções longas (ex.: Modelos) rolam dentro do pop-up, que mantém o tamanho.
+            JScrollPane rolagem = new JScrollPane(envoltorio,
+                    ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+            rolagem.setBorder(BorderFactory.createEmptyBorder());
+            rolagem.setOpaque(false);
+            rolagem.getViewport().setOpaque(false);
+            rolagem.getVerticalScrollBar().setUnitIncrement(16);
+            paginas.add(rolagem, secao);
         }
 
         JPanel conteudo = new JPanel(new BorderLayout());
