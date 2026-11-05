@@ -382,6 +382,35 @@ class AgendadorTest {
     }
 
     @Test
+    void avisaUmaVezPorTaskFinalizada() throws InterruptedException {
+        NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
+                new Notificacoes(false, false, LocalTime.of(23, 0), LocalTime.of(7, 0), true, true, false, false,
+                        EnumSet.of(Aviso.SESSAO_CONCLUIDA)));
+        agendador.usarNotificacoes(notificacoes);
+        Projeto projeto = projeto();
+        Task duas = Task.nova("Duas subtarefas", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task inteira = Task.nova("Inteira", "Faça", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        Task verificar = Task.nova("Com verificação", "", Provedor.AUTOMATICO, Esforco.MEDIUM);
+        projeto = projetos.salvarTask(projeto, duas);
+        projeto = projetos.salvarTask(projeto, inteira);
+        projeto = projetos.salvarTask(projeto, verificar);
+        projeto = projetos.salvarSubtarefa(projeto, duas, Subtarefa.nova("A", "", "", false, List.of()));
+        projeto = projetos.salvarSubtarefa(projeto, duas, Subtarefa.nova("B", "", "", false, List.of()));
+        projetos.salvarSubtarefa(projeto, verificar, Subtarefa.nova("Olhar", "", "", true, List.of()));
+
+        agendador.iniciar();
+        esperarFilaVazia();
+
+        List<Notificacao> concluidas = notificacoes.listar().stream()
+                .filter(n -> n.tipo() == Aviso.SESSAO_CONCLUIDA).toList();
+        assertEquals(2, concluidas.size(), concluidas.toString());
+        assertEquals(1, concluidas.stream().filter(n -> n.taskId().equals(duas.id())).count());
+        assertEquals(1, concluidas.stream().filter(n -> n.taskId().equals(inteira.id())).count());
+        String projetoId = projeto.id();
+        assertTrue(concluidas.stream().allMatch(n -> projetoId.equals(n.projetoId())));
+    }
+
+    @Test
     void semAgenteAvisaFalha() throws InterruptedException {
         NotificacaoService notificacoes = new NotificacaoService(new NotificacoesRepositorio(dados),
                 Notificacoes.padrao());

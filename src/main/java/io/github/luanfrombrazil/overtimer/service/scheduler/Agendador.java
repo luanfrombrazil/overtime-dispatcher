@@ -553,6 +553,11 @@ public class Agendador {
             notificar(Aviso.VERIFICACAO, "Aguardando verificação", projeto, task, nome, null);
         } else if (estado == Estado.ERRO) {
             notificar(Aviso.FALHAS, "Falhou", projeto, task, nome, primeiraLinha(resultado.resposta()));
+        } else if (estado == Estado.CONCLUIDO && marcado.get().tasks().stream()
+                .anyMatch(t -> t.id().equals(taskId) && t.finalizada())) {
+            // A última subtarefa (ou a Task inteira) concluiu: a Task está finalizada. Finalizada, ela não recebe
+            // subtarefas novas, então isto acontece uma vez por Task.
+            notificar(Aviso.SESSAO_CONCLUIDA, "Task concluída", projeto, task, task.titulo(), null);
         }
     }
 
