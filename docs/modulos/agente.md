@@ -24,7 +24,7 @@ O agente recebe uma Task inteira (quando ela não tem subtarefas) ou uma subtare
 | Modelo e esforço | `--model`, `--effort` (low, medium, high, xhigh, max) |
 | Funções da app (MCP) | `--mcp-config` |
 
-Na app: `claude -p --output-format stream-json --verbose --permission-mode dontAsk --effort <esforço>`, com o prompt pela entrada padrão. As permissões do projeto viram `--allowedTools` (leitura sempre; `Edit`/`Write` só dentro da pasta de trabalho (`./**`) se pode editar; `Bash`/`PowerShell` se pode rodar testes, senão só os subcomandos git do dia a dia (`status`, `diff`, `log`, `add`, `commit`…, e `push` quando a subtarefa pede) em projeto com git; `WebFetch`/`WebSearch` se pode acessar a internet).
+Na app: `claude -p --output-format stream-json --verbose --effort <esforço>`, com o prompt pela entrada padrão. As permissões do projeto viram `--allowedTools` (leitura sempre; `Edit`/`Write` só dentro da pasta de trabalho (`./**`) se pode editar; `Bash`/`PowerShell` se pode rodar testes, senão só os subcomandos git do dia a dia (`status`, `diff`, `log`, `add`, `commit`…, e `push` quando a subtarefa pede) em projeto com git; `WebFetch`/`WebSearch` se pode acessar a internet; `mcp__<servidor>` para cada conector MCP liberado no projeto). No `-p` não há a quem perguntar: ferramenta fora de `--allowedTools`, inclusive de conector, é negada.
 
 `--disallowedTools` vale mesmo com o shell liberado:
 - sempre: ler credenciais da pasta do usuário (`~/.ssh`, `~/.aws`, `~/.git-credentials`, `~/.claude/.credentials.json`…);

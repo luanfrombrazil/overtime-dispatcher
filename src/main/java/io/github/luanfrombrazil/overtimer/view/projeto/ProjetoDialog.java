@@ -62,6 +62,8 @@ public class ProjetoDialog extends Dialogo {
     private final JCheckBox rodarTestes;
     private final JCheckBox instalarDependencias;
     private final JCheckBox acessarInternet;
+    /** Servidores MCP liberados, separados por vírgula. */
+    private final JTextField conectores;
 
     /**
      * @param existente projeto a editar, ou null para criar um novo
@@ -146,6 +148,9 @@ public class ProjetoDialog extends Dialogo {
         corpo.add(Ui.cabecalho(rodarTestes, null));
         corpo.add(Ui.cabecalho(instalarDependencias, null));
         corpo.add(Ui.cabecalho(acessarInternet, null));
+        corpo.add(Box.createVerticalStrut(8));
+        conectores = Formulario.texto(String.join(", ", permissoes.conectores()));
+        corpo.add(Formulario.campo("Conectores MCP", conectores));
 
         JPanel raiz = (JPanel) getContentPane();
         raiz.add(corpo, BorderLayout.CENTER);
@@ -234,7 +239,8 @@ public class ProjetoDialog extends Dialogo {
         String nomeDigitado = nome.getText().strip();
         String branchEscolhida = usarGit.isSelected() ? branchEscolhida() : null;
         Permissoes permissoes = new Permissoes(editarArquivos.isSelected(), rodarTestes.isSelected(),
-                instalarDependencias.isSelected(), acessarInternet.isSelected());
+                instalarDependencias.isSelected(), acessarInternet.isSelected(),
+                Permissoes.conectoresDe(conectores.getText()));
         Provedor p = (Provedor) provedor.getSelectedItem();
         Esforco e = (Esforco) esforco.getSelectedItem();
         String sigla = Iniciais.de(nomeDigitado);

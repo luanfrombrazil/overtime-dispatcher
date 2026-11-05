@@ -14,6 +14,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClaudeCodeAgenteTest {
@@ -29,7 +30,8 @@ class ClaudeCodeAgenteTest {
         List<String> seguinte = ClaudeCodeAgente.linhaDeComando(List.of("claude"), execucao(false, Permissoes.padrao(), false));
 
         assertEquals("claude", nova.getFirst());
-        assertTrue(nova.containsAll(List.of("-p", "--output-format", "stream-json", "--verbose", "dontAsk")));
+        assertTrue(nova.containsAll(List.of("-p", "--output-format", "stream-json", "--verbose")));
+        assertFalse(nova.contains("--permission-mode"), "o modo de permissão fica o padrão do CLI");
         assertEquals("abc", nova.get(nova.indexOf("--session-id") + 1));
         assertEquals("abc", seguinte.get(seguinte.indexOf("--resume") + 1));
         assertEquals("xhigh", nova.get(nova.indexOf("--effort") + 1));
@@ -61,6 +63,25 @@ class ClaudeCodeAgenteTest {
         assertTrue(comPush.contains("Bash(git push *)"));
         assertTrue(tudo.containsAll(List.of("Edit(./**)", "Write(./**)", "Bash", "WebFetch")));
         assertFalse(tudo.contains("Edit"), "a edição fica presa à pasta de trabalho");
+        assertTrue(tudo.stream().noneMatch(f -> f.startsWith("mcp__")), "nenhum conector sem liberar");
+    }
+
+    @Test
+    void conectoresLiberadosViramRegrasDeServidorMcp() {
+        Permissoes comFigma = new Permissoes(false, false, false, false, List.of("claude_ai_Figma"));
+
+        assertTrue(ClaudeCodeAgente.ferramentas(comFigma, false, false).contains("mcp__claude_ai_Figma"));
+    }
+
+    @Test
+    void conectoresDigitadosSaoLidosESoAceitamNomesDeServidor() {
+        assertEquals(List.of("claude_ai_Figma", "github"),
+                Permissoes.conectoresDe(" mcp__claude_ai_Figma, github\nclaude_ai_Figma "));
+        assertEquals(List.of(), Permissoes.conectoresDe("  "));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Permissoes(true, true, false, false, List.of("Bash(rm *)")));
+        assertEquals(List.of(), new Permissoes(true, true, false, false, null).conectores(),
+                "projetos salvos antes dos conectores");
     }
 
     @Test

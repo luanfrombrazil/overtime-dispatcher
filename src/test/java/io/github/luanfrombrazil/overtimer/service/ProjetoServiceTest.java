@@ -125,6 +125,16 @@ class ProjetoServiceTest {
     }
 
     @Test
+    void conectoresLiberadosSobrevivemAoReinicio() {
+        Projeto projeto = servico.salvar(Projeto.novo("Com Figma", "CF", "", pastaDoProjeto.toString(), null,
+                Provedor.CLAUDE_CODE, Esforco.MEDIUM, new Permissoes(true, true, false, false, List.of("claude_ai_Figma"))));
+
+        Projeto relido = new ProjetoService(new RepositorioProjetos(dados)).buscar(projeto.id()).orElseThrow();
+
+        assertEquals(List.of("claude_ai_Figma"), relido.permissoes().conectores());
+    }
+
+    @Test
     void editarProjetoMantemAsTasks() {
         Projeto projeto = servico.salvarTask(novoProjeto("Meu App"), Task.nova("T", "", Provedor.AUTOMATICO, Esforco.MEDIUM));
         Projeto editado = new Projeto(projeto.id(), "Outro nome", "ON", "", projeto.pasta(), null,

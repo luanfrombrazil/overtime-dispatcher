@@ -22,8 +22,7 @@ import java.util.function.Consumer;
  * Claude Code em modo não interativo ({@code claude -p}), com a saída em stream-json.
  * <p>
  * O prompt vai pela entrada padrão (sem problemas de aspas na linha de comando do Windows). As permissões do
- * projeto viram {@code --allowedTools} com {@code --permission-mode dontAsk}: o que não foi liberado é negado
- * sem perguntar. Por cima disso, {@code --disallowedTools} barra, mesmo com o shell liberado, o que nunca deve
+ * projeto viram {@code --allowedTools}. Por cima disso, {@code --disallowedTools} barra, mesmo com o shell liberado, o que nunca deve
  * acontecer sem supervisão: ler credenciais, trocar de branch ou reescrever o histórico do worktree, e push que a
  * subtarefa não pediu. Internet e instalação de dependências com o shell liberado continuam pedidas no prompt:
  * por prefixo de comando não dá para fechar.
@@ -147,7 +146,6 @@ public class ClaudeCodeAgente implements Agente {
     static List<String> linhaDeComando(List<String> comando, Execucao execucao) {
         List<String> linha = new ArrayList<>(comando);
         linha.addAll(List.of("-p", "--output-format", "stream-json", "--verbose",
-                "--permission-mode", "dontAsk",
                 "--effort", execucao.esforco().name().toLowerCase(Locale.ROOT)));
         if (execucao.modelo().apelido() != null) {
             linha.addAll(List.of("--model", execucao.modelo().apelido()));
@@ -190,13 +188,15 @@ public class ClaudeCodeAgente implements Agente {
         if (permissoes.acessarInternet()) {
             ferramentas.addAll(List.of("WebFetch", "WebSearch"));
         }
+        // No modo -p não há a quem perguntar: ferramenta de conector fora desta lista é negada.
+        permissoes.conectores().forEach(c -> ferramentas.add("mcp__" + c));
         return ferramentas;
     }
 
     /**
      * Regras de bloqueio, que valem mesmo com o shell liberado: ler credenciais e, com git, o que tira o worktree da
      * branch da Task ou mexe no repositório (e o push que a subtarefa não pediu). A edição já fica presa à pasta de
-     * trabalho por {@link #ferramentas}, e o que não foi liberado já é negado pelo {@code dontAsk}.
+     * trabalho por {@link #ferramentas}.
      */
     static List<String> bloqueadas(boolean usaGit, boolean push) {
         List<String> bloqueadas = new ArrayList<>();
