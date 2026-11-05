@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, esforço e modelo do agente, verificação,
- * commit e push. As
+ * Pop-up de criação e edição de subtarefa: instrução, critério de aceite, esforço e modelo do agente, commit e
+ * push. A verificação manual não é mais escolhida aqui: a nova nasce sem ela e a editada mantém a que tinha. As
  * dependências não ficam aqui: são os fios arrastados entre as subtarefas no cartão da Task. A subtarefa finalizada
  * abre travada, só para leitura.
  */
@@ -45,7 +45,6 @@ public class SubtarefaDialog extends Dialogo {
     private final JScrollPane criterio;
     private final JSlider esforco;
     private final JComboBox<Modelo> modelo;
-    private final JCheckBox verificacao;
     private final JCheckBox commit;
     private final JCheckBox push;
 
@@ -65,10 +64,13 @@ public class SubtarefaDialog extends Dialogo {
         boolean travada = !nova && existente.finalizada();
 
         JPanel corpo = Formulario.corpo();
-        corpo.add(Ui.cabecalho(Ui.titulo(nova ? "Nova subtarefa" : rascunho ? "Rascunho de subtarefa"
-                : travada ? "Subtarefa finalizada" : "Editar subtarefa"), null));
-        corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
-        corpo.add(Box.createVerticalStrut(14));
+        // A subtarefa nova abre direto no formulário, sem título nem o nome da Task.
+        if (!nova) {
+            corpo.add(Ui.cabecalho(Ui.titulo(rascunho ? "Rascunho de subtarefa"
+                    : travada ? "Subtarefa finalizada" : "Editar subtarefa"), null));
+            corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
+            corpo.add(Box.createVerticalStrut(14));
+        }
         if (!nova && !rascunho && existente.estado() != Estado.PENDENTE) {
             corpo.add(situacao(this, existente.estado(), existente.resultado(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));
@@ -88,8 +90,6 @@ public class SubtarefaDialog extends Dialogo {
         modelo.setSelectedItem(nova ? Modelo.PADRAO : existente.modelo());
         corpo.add(Formulario.campo("Esforço · modelo", esforcoEModelo(esforco, modelo)));
         corpo.add(Box.createVerticalStrut(10));
-        verificacao = Formulario.caixa("Exige verificação manual", !nova && existente.requerVerificacao());
-        corpo.add(Ui.cabecalho(verificacao, null));
         commit = Formulario.caixa("Commit ao terminar", nova || existente.commit());
         push = Formulario.caixa("Push depois do commit", !nova && existente.push());
         // Push só faz sentido depois de um commit.
@@ -106,7 +106,7 @@ public class SubtarefaDialog extends Dialogo {
         raiz.add(corpo, BorderLayout.CENTER);
         if (travada) {
             // A subtarefa finalizada só pode ser vista; "Refazer", na situação, a devolve à fila.
-            Formulario.travar(titulo, instrucao, criterio, esforco, modelo, verificacao, commit, push);
+            Formulario.travar(titulo, instrucao, criterio, esforco, modelo, commit, push);
             raiz.add(Formulario.rodapeSomenteLeitura(this, null, null), BorderLayout.SOUTH);
         } else {
             raiz.add(Formulario.rodape(this, nova || rascunho ? "Criar subtarefa" : "Salvar",
@@ -222,11 +222,11 @@ public class SubtarefaDialog extends Dialogo {
     private Subtarefa subtarefa() {
         if (existente == null) {
             return Subtarefa.nova(titulo.getText().strip(), Formulario.textoDa(instrucao), Formulario.textoDa(criterio),
-                    verificacao.isSelected(), List.of()).comGit(commit.isSelected(), push.isSelected())
+                    false, List.of()).comGit(commit.isSelected(), push.isSelected())
                     .comModelo(esforcoEscolhido(), (Modelo) modelo.getSelectedItem());
         }
         return new Subtarefa(existente.id(), titulo.getText().strip(), Formulario.textoDa(instrucao),
-                Formulario.textoDa(criterio), verificacao.isSelected(), existente.estado(), existente.dependeDe(),
+                Formulario.textoDa(criterio), existente.requerVerificacao(), existente.estado(), existente.dependeDe(),
                 existente.resultado(), commit.isSelected(), push.isSelected(), esforcoEscolhido(),
                 (Modelo) modelo.getSelectedItem());
     }
