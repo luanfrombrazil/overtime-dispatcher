@@ -81,6 +81,7 @@ public class MainController implements BarraLateral.Ouvinte {
             // Uma medição nova pode tirar um provedor do limite de uso (ou pôr nele).
             agendador.agora();
         });
+        protocolos.aoMudar(p -> SwingUtilities.invokeLater(this::atualizarBarraLateral));
         projetos.aoMudar(p -> SwingUtilities.invokeLater(() -> {
             atualizarBarraLateral();
             if (p.id().equals(projetoAberto)) {
@@ -118,9 +119,12 @@ public class MainController implements BarraLateral.Ouvinte {
 
     @Override
     public void protocolo(Protocolo protocolo) {
-        abrirItem(protocolo);
+        // Como no projeto, a linha da barra lateral pode ter um registro antigo.
+        Protocolo atual = protocolos.buscar(protocolo.id()).orElse(protocolo);
+        abrirItem(atual);
         projetoAberto = null;
-        frame.mostrar(new ProtocoloPanel(protocolo, this::nomeDaOrigem, this::novoProtocolo));
+        frame.mostrar(new ProtocoloPanel(atual, this::nomeDaOrigem,
+                ativo -> protocolos.definirAtivo(atual.id(), ativo), this::novoProtocolo));
     }
 
     /** Nome do protocolo ou projeto com o id dado; o próprio id se nenhum existe mais. */

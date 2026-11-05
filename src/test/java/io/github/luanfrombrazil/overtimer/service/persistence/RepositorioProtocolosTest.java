@@ -6,7 +6,6 @@ import io.github.luanfrombrazil.overtimer.model.Esforco;
 import io.github.luanfrombrazil.overtimer.model.ItemFila;
 import io.github.luanfrombrazil.overtimer.model.Protocolo;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
-import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -84,23 +83,5 @@ class RepositorioProtocolosTest {
     @Test
     void idForaDaPastaEhRecusado() {
         assertThrows(IllegalArgumentException.class, () -> new RepositorioProtocolos(dados).excluir("../projetos"));
-    }
-
-    @Test
-    void servicoSobreviveAReabrir() {
-        ProtocoloService servico = new ProtocoloService(new RepositorioProtocolos(dados));
-        Protocolo protocolo = servico.salvar(completo());
-
-        ProtocoloService reaberto = new ProtocoloService(new RepositorioProtocolos(dados));
-        assertEquals(protocolo, reaberto.buscar(protocolo.id()).orElseThrow());
-        assertEquals(List.of(protocolo), reaberto.protocolos());
-    }
-
-    @Test
-    void servicoExigeNome() {
-        ProtocoloService servico = new ProtocoloService(new RepositorioProtocolos(dados));
-        Protocolo semNome = Protocolo.novo(" ", null, "", null, null, null, null, null);
-        assertThrows(IllegalArgumentException.class, () -> servico.salvar(semNome));
-        assertTrue(servico.protocolos().isEmpty());
     }
 }

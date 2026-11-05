@@ -22,6 +22,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -32,20 +33,24 @@ public class ProtocoloPanel extends JPanel {
     private static final int LARGURA_COLUNA_DIREITA = 360;
 
     /**
-     * @param nomeDe nome do protocolo ou projeto com o id dado, para as origens das tasks injetadas
+     * @param nomeDe  nome do protocolo ou projeto com o id dado, para as origens das tasks injetadas
+     * @param aoLigar chamado com o novo estado quando o interruptor muda
      */
-    public ProtocoloPanel(Protocolo protocolo, Function<String, String> nomeDe, Runnable aoEditar) {
+    public ProtocoloPanel(Protocolo protocolo, Function<String, String> nomeDe, Consumer<Boolean> aoLigar,
+                          Runnable aoEditar) {
         super(new BorderLayout(0, 14));
         setBackground(Tema.APP);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         JButton editar = Ui.botaoSecundario("Editar");
         editar.addActionListener(e -> aoEditar.run());
+        Interruptor ativo = new Interruptor(protocolo.ativo());
+        ativo.addPropertyChangeListener("ligado", e -> aoLigar.accept((Boolean) e.getNewValue()));
         add(Ui.coluna(10,
                 Ui.cabecalho(Ui.titulo(protocolo.nome()), Ui.linha(8,
                         Etiqueta.solida(protocolo.provedor().toString(), Tema.BORDA),
                         Etiqueta.solida(protocolo.esforco().toString(), Tema.CINZA),
-                        new Interruptor(protocolo.ativo()), editar,
+                        ativo, editar,
                         Ui.comIcone(Ui.botaoPrimario("Rodar agora"), "play"))),
                 Ui.legenda(protocolo.agenda().descricao())), BorderLayout.NORTH);
 
