@@ -129,6 +129,24 @@ class ClaudeCodeAgenteTest {
         assertTrue(liberadas.contains("mcp__claude_ai_Gmail"));
         assertFalse(liberadas.contains("git "), "a pasta de trabalho não é um repositório");
         assertTrue(bloqueadas.contains("Read(~/.ssh/**)"), "credenciais ficam fora também no protocolo");
+        assertTrue(bloqueadas.contains("mcp__claude_ai_Gmail__send_message"), "o e-mail não envia");
+    }
+
+    @Test
+    void emailSoLeECriaRascunhos() {
+        Acessos acessos = new Acessos(List.of(), true, true, "claude_ai_Gmail", "claude_ai_Google_Calendar");
+        List<String> bloqueadas = ClaudeCodeAgente.bloqueadas(acessos);
+
+        assertTrue(bloqueadas.containsAll(List.of("mcp__claude_ai_Gmail__send_message",
+                "mcp__claude_ai_Gmail__reply", "mcp__claude_ai_Gmail__forward",
+                "mcp__claude_ai_Gmail__trash_thread", "mcp__claude_ai_Gmail__update_draft",
+                "mcp__claude_ai_Gmail__delete_draft", "mcp__claude_ai_Gmail__create_filter")));
+        assertFalse(bloqueadas.contains("mcp__claude_ai_Gmail__create_draft"), "rascunho novo é permitido");
+        assertFalse(bloqueadas.contains("mcp__claude_ai_Gmail__get_message"), "ler é permitido");
+        assertTrue(bloqueadas.stream().allMatch(r -> r.startsWith("mcp__claude_ai_Gmail__")),
+                "o calendário não é afetado");
+        assertEquals(List.of(), ClaudeCodeAgente.bloqueadas(
+                new Acessos(List.of(), false, false, "claude_ai_Gmail", null)), "sem e-mail, nada a bloquear");
     }
 
     @Test

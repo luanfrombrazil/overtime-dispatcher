@@ -36,8 +36,8 @@ A agenda conta a partir do início da última execução. Um horário que passou
 
 Cada acesso vale de dois jeitos:
 
-- **Ferramentas do agente:** sites liberam o `WebFetch` apenas nos domínios cadastrados (`WebFetch(domain:...)`); e-mail e calendário liberam o servidor MCP escolhido no pop-up (`mcp__<servidor>`). Acesso marcado sem conector não libera nada.
-- **Regras no prompt:** o que a lista de ferramentas não consegue fechar dentro de cada site ou conector (só leitura, só rascunhos, só a agenda do agente). Os acessos não marcados viram proibições explícitas.
+- **Ferramentas do agente:** sites liberam o `WebFetch` apenas nos domínios cadastrados (`WebFetch(domain:...)`); e-mail e calendário liberam o servidor MCP escolhido no pop-up (`mcp__<servidor>`). Acesso marcado sem conector não libera nada. No e-mail, as ferramentas do conector que enviam, respondem, encaminham, apagam, arquivam ou modificam e-mails, marcadores, filtros e rascunhos existentes ficam bloqueadas pelo nome (as do Gmail do Claude e os nomes comuns de outros servidores): um site lido não consegue fazer o agente enviar nada. Um servidor que use outros nomes para essas ações fica só com a regra do prompt.
+- **Regras no prompt:** o que a lista de ferramentas não consegue fechar dentro de cada site ou conector (só leitura nos sites, só a agenda do agente no calendário). Os acessos não marcados viram proibições explícitas.
 
 ## Pasta de trabalho
 

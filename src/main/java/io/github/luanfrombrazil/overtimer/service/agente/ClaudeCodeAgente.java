@@ -51,6 +51,21 @@ public class ClaudeCodeAgente implements Agente {
             "git branch -d", "git push --force", "git push -f", "git config", "git remote", "git worktree",
             "git filter-branch", "git update-ref");
 
+    /**
+     * Ferramentas de conector de e-mail que enviam, apagam ou modificam (D-14: o protocolo só lê e cria rascunhos):
+     * as do conector do Gmail do Claude e os nomes comuns de outros servidores MCP de e-mail. Liberar o servidor
+     * inteiro e bloquear estas fecha o envio também contra um site lido que tente instruir o agente.
+     */
+    private static final List<String> ESCRITA_DE_EMAIL = List.of(
+            "send_message", "send_email", "send_draft", "reply", "reply_all", "reply_to_message", "forward",
+            "forward_message", "update_draft", "delete_draft", "delete_message", "delete_email", "delete_thread",
+            "trash_message", "trash_thread", "untrash_message", "untrash_thread", "archive_message", "archive_thread",
+            "move_message", "modify_message", "modify_email", "modify_thread", "batch_modify_emails",
+            "batch_delete_emails", "update_message_labels", "label_message", "label_thread", "unlabel_message",
+            "unlabel_thread", "apply_sensitive_message_label", "apply_sensitive_thread_label", "mark_message_spam",
+            "mark_thread_spam", "unmark_message_spam", "unmark_thread_spam", "create_label", "update_label",
+            "delete_label", "create_filter", "update_filter", "delete_filter");
+
     private final Optional<List<String>> comando;
     private volatile Process atual;
 
@@ -159,8 +174,20 @@ public class ClaudeCodeAgente implements Agente {
         linha.add(String.join(",", execucao.acessos() != null ? ferramentas(execucao.acessos())
                 : ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
         linha.add("--disallowedTools");
-        linha.add(String.join(",", bloqueadas(execucao.usaGit(), execucao.push())));
+        List<String> bloqueadas = new ArrayList<>(bloqueadas(execucao.usaGit(), execucao.push()));
+        if (execucao.acessos() != null) {
+            bloqueadas.addAll(bloqueadas(execucao.acessos()));
+        }
+        linha.add(String.join(",", bloqueadas));
         return linha;
+    }
+
+    /** Com e-mail liberado, as ferramentas do conector que enviam, apagam ou modificam ficam bloqueadas. */
+    static List<String> bloqueadas(Acessos acessos) {
+        if (!acessos.email() || acessos.conectorEmail() == null) {
+            return List.of();
+        }
+        return ESCRITA_DE_EMAIL.stream().map(f -> "mcp__" + acessos.conectorEmail() + "__" + f).toList();
     }
 
     /**
