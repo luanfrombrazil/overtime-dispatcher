@@ -169,6 +169,41 @@ public class ProjetoController implements ProjetoPanel.Ouvinte {
         alterado(servico.responder(projeto, task, subtarefa, respostas));
     }
 
+    @Override
+    public void aceitar(Task task) {
+        decidirSugestao(() -> servico.aceitar(projeto, task));
+    }
+
+    @Override
+    public void recusar(Task task) {
+        if (task.execucao() == Estado.SUGERIDA && !task.inteira() && JOptionPane.showConfirmDialog(frame,
+                "Recusar \"" + task.titulo() + "\" e todas as subtarefas dela?", "Recusar task",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) {
+            return;
+        }
+        decidirSugestao(() -> servico.recusar(projeto, task));
+    }
+
+    @Override
+    public void aceitar(Task task, Subtarefa subtarefa) {
+        decidirSugestao(() -> servico.aceitar(projeto, task, subtarefa));
+    }
+
+    @Override
+    public void recusar(Task task, Subtarefa subtarefa) {
+        decidirSugestao(() -> servico.recusar(projeto, task, subtarefa));
+    }
+
+    /** Aceitar uma sugestão pode liberar trabalho: {@link #alterado} faz o agendador olhar já. */
+    private void decidirSugestao(java.util.function.Supplier<Projeto> decisao) {
+        try {
+            alterado(decisao.get());
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage(), "Sugestão", JOptionPane.WARNING_MESSAGE);
+            servico.buscar(projeto.id()).ifPresent(this::alterado);
+        }
+    }
+
     private void alterado(Projeto atualizado) {
         projeto = atualizado;
         aoAlterar.accept(atualizado);

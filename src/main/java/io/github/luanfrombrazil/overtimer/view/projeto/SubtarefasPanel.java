@@ -65,11 +65,14 @@ class SubtarefasPanel extends JPanel {
      * @param recolhidas     ids das subtarefas com perguntas que você recolheu; as demais com perguntas abrem
      *                       expandidas. O conjunto é alterado aqui, pela seta de cada uma
      * @param aoResponder    recebe a subtarefa e as suas respostas às perguntas dela
+     * @param aoAceitar      chamado pelo "Aceitar" de uma subtarefa sugerida por um agente
+     * @param aoRecusar      chamado pelo "Recusar" de uma subtarefa sugerida por um agente
      */
     SubtarefasPanel(List<Subtarefa> subtarefas, BiConsumer<Subtarefa, Subtarefa> aoAmarrar,
                     BiConsumer<Subtarefa, Integer> aoMover, Consumer<Subtarefa> aoClicar,
                     Consumer<Subtarefa> aoTentarDeNovo, Set<String> recolhidas,
-                    BiConsumer<Subtarefa, List<String>> aoResponder) {
+                    BiConsumer<Subtarefa, List<String>> aoResponder, Consumer<Subtarefa> aoAceitar,
+                    Consumer<Subtarefa> aoRecusar) {
         this.subtarefas = subtarefas;
         this.aoAmarrar = aoAmarrar;
         // Só as subtarefas não finalizadas têm alça; as posições da reordenação contam apenas elas.
@@ -113,6 +116,11 @@ class SubtarefasPanel extends JPanel {
                 item.comDireita(TaskCard.botaoConclusao(s.titulo(), s.resultado()));
             } else if (s.aguardaDirecionamento()) {
                 item.comDireita(seta(s, recolhidas), reordenacao.alca("Arraste para mudar a ordem"));
+            } else if (s.estado() == Estado.SUGERIDA) {
+                List<JComponent> direita = new ArrayList<>(TaskCard.botoesDeSugestao(() -> aoRecusar.accept(s),
+                        () -> aoAceitar.accept(s)));
+                direita.add(reordenacao.alca("Arraste para mudar a ordem"));
+                item.comDireita(direita.toArray(JComponent[]::new));
             } else {
                 item.comDireita(reordenacao.alca("Arraste para mudar a ordem"));
             }

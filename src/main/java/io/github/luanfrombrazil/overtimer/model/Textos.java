@@ -22,4 +22,10 @@ final class Textos {
         }
         return partes.isEmpty() ? null : String.join(" · ", partes);
     }
+
+    /** Ex.: "1 subtarefa sugerida", "3 subtarefas sugeridas"; null sem nenhuma. */
+    static String sugestoes(long sugeridas) {
+        return sugeridas == 0 ? null
+                : sugeridas + (sugeridas == 1 ? " subtarefa sugerida" : " subtarefas sugeridas");
+    }
 }

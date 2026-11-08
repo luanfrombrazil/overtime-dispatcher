@@ -80,11 +80,29 @@ public class ConfiguracoesDialog extends Dialogo {
     private final ModelosPagina modelos;
     private final JButton restaurarPadrao = Ui.botaoSecundario("Restaurar padrão");
 
+    /**
+     * O servidor MCP da app, como aparece em Avançado.
+     *
+     * @param endereco onde ele atende
+     * @param comando  comando que o registra no Claude Code de fora da app
+     * @param erro     por que ele não está atendendo, ou null se está
+     */
+    public record Mcp(String endereco, String comando, String erro) {
+    }
+
+    private final Mcp mcp;
+
     /** Mostra as configurações recebidas; "Salvar" entrega a versão editada para {@code aoSalvar}. */
     public ConfiguracoesDialog(JFrame dono, Configuracoes configuracoes, Consumer<Configuracoes> aoSalvar) {
+        this(dono, configuracoes, aoSalvar, null);
+    }
+
+    /** @param mcp o servidor MCP da app, mostrado em Avançado; null para não mostrar */
+    public ConfiguracoesDialog(JFrame dono, Configuracoes configuracoes, Consumer<Configuracoes> aoSalvar, Mcp mcp) {
         super(dono, Tema.BORDA);
         this.configuracoes = configuracoes;
         this.aoSalvar = aoSalvar;
+        this.mcp = mcp;
         modelos = new ModelosPagina(configuracoes.prompts());
         JPanel raiz = (JPanel) getContentPane();
         raiz.setPreferredSize(new Dimension(1120, 740));
@@ -97,6 +115,7 @@ public class ConfiguracoesDialog extends Dialogo {
                 case "Geral" -> geral();
                 case "Modelos" -> modelos;
                 case "Notificações" -> notificacoes();
+                case "Avançado" -> mcp == null ? emConstrucao() : avancado();
                 default -> Ui.margem(Ui.coluna(0, Ui.legenda("Em construção.")), 20, 24, 20, 24);
             };
             JPanel envoltorio = new JPanel(new BorderLayout());
@@ -219,9 +238,6 @@ public class ConfiguracoesDialog extends Dialogo {
         JPanel pagina = pagina();
 
         pagina.add(Ui.cabecalho(Ui.secao("Horário de funcionamento"), null));
-        pagina.add(Box.createVerticalStrut(4));
-        pagina.add(Ui.cabecalho(Ui.legenda("O agendador só começa execuções nos horários marcados. Clique e arraste "
-                + "para marcar ou desmarcar."), null));
         pagina.add(Box.createVerticalStrut(10));
         HorarioFuncionamento atual = configuracoes.horarioFuncionamento();
         barras = new BarrasHorario(atual);
@@ -246,9 +262,6 @@ public class ConfiguracoesDialog extends Dialogo {
 
         pagina.add(Box.createVerticalStrut(20));
         pagina.add(Ui.cabecalho(Ui.secao("Limite de uso"), null));
-        pagina.add(Box.createVerticalStrut(4));
-        pagina.add(Ui.cabecalho(Ui.legenda("O agendador não começa Tasks num provedor cujo uso (sessão ou semanal) "
-                + "chegou ao limite azul. Roxo: Oráculo; o resto fica para você."), null));
         pagina.add(Box.createVerticalStrut(8));
         for (int i = 0; i < Configuracoes.PROVEDORES_COM_LIMITE.size(); i++) {
             if (i > 0) {
@@ -273,9 +286,6 @@ public class ConfiguracoesDialog extends Dialogo {
                 campo("Máx. por intervalo", maximoPorIntervalo),
                 campo("Tentativas", tentativas),
                 campo("Timeout", timeout)), null));
-        pagina.add(Box.createVerticalStrut(6));
-        pagina.add(Ui.cabecalho(Ui.legenda("Máximo de execuções que o agendador começa em cada intervalo; "
-                + "0 para não limitar."), null));
         return pagina;
     }
 
@@ -351,6 +361,32 @@ public class ConfiguracoesDialog extends Dialogo {
         }
         pagina.add(Ui.largo(tipos));
         return pagina;
+    }
+
+    // ---------- Avançado ----------
+
+    private JComponent avancado() {
+        JPanel pagina = pagina();
+        pagina.add(Ui.cabecalho(Ui.secao("Servidor MCP"), null));
+        pagina.add(Box.createVerticalStrut(8));
+        JLabel endereco = mcp.erro() == null
+                ? Ui.texto(mcp.endereco(), Tema.mono(), Tema.TEXTO)
+                : Ui.texto(mcp.erro(), Tema.corpo(), Tema.VERMELHO);
+        pagina.add(Ui.cabecalho(Ui.linha(12, largura(Ui.corpo("Endereço"), 100), endereco), null));
+        pagina.add(Box.createVerticalStrut(12));
+        JButton copiar = Ui.botaoSecundario("Copiar comando do Claude Code");
+        copiar.setEnabled(mcp.erro() == null);
+        copiar.addActionListener(e -> {
+            java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .setContents(new java.awt.datatransfer.StringSelection(mcp.comando()), null);
+            copiar.setText("Copiado");
+        });
+        pagina.add(Ui.cabecalho(copiar, null));
+        return pagina;
+    }
+
+    private static JComponent emConstrucao() {
+        return Ui.margem(Ui.coluna(0, Ui.legenda("Em construção.")), 20, 24, 20, 24);
     }
 
     // ---------- Auxiliares ----------

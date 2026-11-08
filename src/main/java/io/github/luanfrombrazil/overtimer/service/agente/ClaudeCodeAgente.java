@@ -3,6 +3,7 @@ package io.github.luanfrombrazil.overtimer.service.agente;
 import io.github.luanfrombrazil.overtimer.model.Acessos;
 import io.github.luanfrombrazil.overtimer.model.Permissoes;
 import io.github.luanfrombrazil.overtimer.model.Provedor;
+import io.github.luanfrombrazil.overtimer.service.rpc.ServidorMcp;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -170,9 +171,15 @@ public class ClaudeCodeAgente implements Agente {
         linha.addAll(execucao.sessaoNova()
                 ? List.of("--session-id", execucao.sessao())
                 : List.of("--resume", execucao.sessao()));
+        List<String> liberadas = execucao.acessos() != null ? ferramentas(execucao.acessos())
+                : ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push());
+        if (execucao.mcpConfig() != null) {
+            // O servidor da app: o agente pode ler os projetos e sugerir Tasks, que esperam ser aceitas.
+            linha.addAll(List.of("--mcp-config", execucao.mcpConfig().toString()));
+            liberadas.add("mcp__" + ServidorMcp.NOME);
+        }
         linha.add("--allowedTools");
-        linha.add(String.join(",", execucao.acessos() != null ? ferramentas(execucao.acessos())
-                : ferramentas(execucao.permissoes(), execucao.usaGit(), execucao.push())));
+        linha.add(String.join(",", liberadas));
         linha.add("--disallowedTools");
         List<String> bloqueadas = new ArrayList<>(bloqueadas(execucao.usaGit(), execucao.push()));
         if (execucao.acessos() != null) {

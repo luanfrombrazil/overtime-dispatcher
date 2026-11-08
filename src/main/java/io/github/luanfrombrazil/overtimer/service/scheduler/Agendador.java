@@ -22,6 +22,7 @@ import io.github.luanfrombrazil.overtimer.service.agente.AreaDeTrabalho;
 import io.github.luanfrombrazil.overtimer.service.agente.Execucao;
 import io.github.luanfrombrazil.overtimer.service.agente.ResultadoExecucao;
 import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
+import io.github.luanfrombrazil.overtimer.service.rpc.ServidorMcp;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -166,6 +167,8 @@ public class Agendador {
     private ScheduledFuture<?> proximoProtocolo;
     /** Relógio da agenda dos protocolos; trocado nos testes. */
     private volatile Clock relogio = Clock.systemDefaultZone();
+    /** Servidor MCP da app, passado a cada execução; null para rodar sem ele. */
+    private volatile ServidorMcp servidorMcp;
 
     public Agendador(ProjetoService projetos, Agentes agentes, AreaDeTrabalho areaDeTrabalho) {
         this(projetos, null, agentes, areaDeTrabalho);
@@ -257,6 +260,11 @@ public class Agendador {
 
     public Duration intervalo() {
         return intervalo;
+    }
+
+    /** Dá a cada execução um acesso próprio ao servidor MCP da app, para o agente poder sugerir Tasks. */
+    public void usarMcp(ServidorMcp servidor) {
+        this.servidorMcp = servidor;
     }
 
     /**
@@ -726,7 +734,9 @@ public class Agendador {
         Direcionamento respondido = subtarefa == null ? task.direcionamento() : subtarefa.direcionamento();
         // Com a sessão em que o agente perguntou, basta mandar as respostas; sem ela, vai o pedido completo com elas.
         boolean continuar = respondido != null && respondido.respondido() && !sessaoNova;
-        try {
+        ServidorMcp mcp = servidorMcp;
+        // O acesso ao servidor MCP vale só enquanto o agente roda; sem servidor, a execução segue sem ele.
+        try (ServidorMcp.Sessao acesso = mcp == null ? null : mcp.abrir(projetoId).orElse(null)) {
             Path pasta = areaDeTrabalho.preparar(projeto, task);
             String sessao = sessaoNova ? UUID.randomUUID().toString() : task.sessao();
             String branch = AreaDeTrabalho.branch(task);
@@ -735,7 +745,8 @@ public class Agendador {
             Execucao execucao = new Execucao(pasta, prompt,
                     sessao, sessaoNova, subtarefa == null ? task.esforco() : subtarefa.esforcoOu(task.esforco()),
                     subtarefa == null ? Modelo.PADRAO : subtarefa.modelo(), projeto.permissoes(), projeto.usaGit(),
-                    subtarefa != null && subtarefa.push(), LIMITE_DA_EXECUCAO);
+                    subtarefa != null && subtarefa.push(), LIMITE_DA_EXECUCAO, null,
+                    acesso == null ? null : acesso.config());
             resultado = agente.get().executar(execucao, linha -> registrar(projetoId, taskId, "  " + linha));
         } catch (IOException | RuntimeException e) {
             resultado = ResultadoExecucao.falha(e.getMessage() == null ? e.toString() : e.getMessage());

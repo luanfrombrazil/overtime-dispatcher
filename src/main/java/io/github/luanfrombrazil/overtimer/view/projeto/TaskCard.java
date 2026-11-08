@@ -24,6 +24,9 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -69,22 +72,29 @@ class TaskCard extends Cartao {
             cabecalho.comDireita(new JLabel(Ui.iconeOraculo(false, 20)), recusar, aceitar, alca);
             expandido = false;
         } else {
+            List<JComponent> direita = new ArrayList<>();
+            if (task.sugerida()) {
+                // Sugestão de um agente: aceitar ou recusar tudo o que ainda é sugestão na Task.
+                direita.addAll(botoesDeSugestao(() -> ouvinte.recusar(task), () -> ouvinte.aceitar(task)));
+            }
             long falhas = task.inteira()
                     ? (task.execucao() == Estado.ERRO ? 1 : 0)
                     : task.subtarefas().stream().filter(s -> s.estado() == Estado.ERRO).count();
             if (falhas > 0) {
-                cabecalho.comDireita(botaoTentarDeNovo(task.inteira() ? "Tentar de novo a task"
+                direita.add(botaoTentarDeNovo(task.inteira() ? "Tentar de novo a task"
                         : falhas == 1 ? "Tentar de novo a subtarefa que falhou"
-                        : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)),
-                        seta, alca);
+                        : "Tentar de novo as " + falhas + " subtarefas que falharam", () -> ouvinte.tentarDeNovo(task)));
+                direita.add(seta);
+                direita.add(alca);
             } else if (finalizada) {
                 // No lugar da alça, que não move mais a Task, a mesma barra em verde mostra a conclusão.
-                cabecalho.comDireita(seta, botaoConclusao(task.titulo(), task.conclusao()));
-            } else if (alca == null) {
-                cabecalho.comDireita(seta);
+                direita.add(seta);
+                direita.add(botaoConclusao(task.titulo(), task.conclusao()));
             } else {
-                cabecalho.comDireita(seta, alca);
+                direita.add(seta);
+                direita.add(alca);
             }
+            cabecalho.comDireita(direita.stream().filter(Objects::nonNull).toArray(JComponent[]::new));
             // Sem subtarefas não há o que recolher: o cartão fica sempre aberto, só com as ações, e sem a seta.
             if (!task.inteira()) {
                 cabecalho.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -101,7 +111,9 @@ class TaskCard extends Cartao {
                         s -> ouvinte.editarSubtarefa(task, s),
                         s -> ouvinte.tentarDeNovo(task, s),
                         recolhidas,
-                        (s, respostas) -> ouvinte.responder(task, s, respostas)));
+                        (s, respostas) -> ouvinte.responder(task, s, respostas),
+                        s -> ouvinte.aceitar(task, s),
+                        s -> ouvinte.recusar(task, s)));
             } else if (task.aguardaDirecionamento()) {
                 // Sem subtarefas, as perguntas do agente ficam direto no cartão, que está sempre aberto.
                 JPanel perguntas = new JPanel(new BorderLayout());
@@ -116,6 +128,15 @@ class TaskCard extends Cartao {
         add(cabecalho);
         add(corpo);
         setExpandido(expandido);
+    }
+
+    /** "Recusar" e "Aceitar" de uma sugestão de agente, com a aparência dos botões normais. */
+    static List<JComponent> botoesDeSugestao(Runnable recusar, Runnable aceitar) {
+        JButton botaoRecusar = Ui.botaoSecundario("Recusar");
+        JButton botaoAceitar = Ui.botaoPrimario("Aceitar");
+        botaoRecusar.addActionListener(e -> recusar.run());
+        botaoAceitar.addActionListener(e -> aceitar.run());
+        return List.of(botaoRecusar, botaoAceitar);
     }
 
     /** Botão pequeno com a seta circular, ao lado do que falhou. */

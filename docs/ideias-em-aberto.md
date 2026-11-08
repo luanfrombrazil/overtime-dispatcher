@@ -15,8 +15,9 @@ Propostas feitas durante o desenho que **ainda não foram confirmadas**. Nada aq
 - Limpeza das worktrees depois do merge (o caminho e o nome já estão no [agente](modulos/agente.md)).
 
 ## RPC e MCP
-- Lista de métodos, papéis de acesso (dono × agente), tokens por execução e códigos de erro.
+- Métodos além das sugestões (avisar que editou a Task, pedir orientação, injetar em Protocolos) e papéis de acesso (dono × agente). O que já existe está em [rpc](modulos/rpc.md).
 - Comando de terminal `odctl`.
+- Aviso por notificação quando chega uma sugestão.
 
 ## Protocolos e injeção de tasks
 - Chave contra duplicatas e limites contra laços (saltos, quantidade por execução).

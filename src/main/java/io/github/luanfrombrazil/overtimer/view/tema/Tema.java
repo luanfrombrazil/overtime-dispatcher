@@ -74,6 +74,8 @@ public final class Tema {
             case PENDENTE -> CINZA;
             case ORACULO -> ROXO;
             case RASCUNHO -> BRANCO;
+            // A sugestão de um agente tem a aparência de uma Task normal na fila.
+            case SUGERIDA -> CINZA;
         };
     }
 

@@ -6,5 +6,7 @@ package io.github.luanfrombrazil.overtimer.model;
 public enum Origem {
     USUARIO,
     PROTOCOLO,
-    ORACULO
+    ORACULO,
+    /** Sugerida por um agente pelo servidor MCP da app. */
+    AGENTE
 }

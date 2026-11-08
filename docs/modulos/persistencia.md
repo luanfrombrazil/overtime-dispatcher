@@ -48,6 +48,10 @@ protocolos-rotina/<id do protocolo>/trabalho/         pasta onde o agente do pro
 
 O formato dos demais dados (consumo) ainda está em [ideias em aberto](../ideias-em-aberto.md).
 
+## Servidor MCP
+
+`servidor-mcp.json`, na pasta central: a porta e o token externo do servidor MCP, criado na primeira vez que a app abre. Detalhes em [rpc](rpc.md).
+
 ## Configurações
 
 Ficam em `configuracoes.json`, na pasta central, e são gravadas ao clicar em "Salvar" nas Configurações. Sem o arquivo, ou com ele inválido, valem os padrões. Uma seção ausente (ex.: arquivo de uma versão anterior) fica com o padrão dela, sem afetar as outras.

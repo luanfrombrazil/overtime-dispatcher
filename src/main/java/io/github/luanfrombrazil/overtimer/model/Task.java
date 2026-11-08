@@ -28,6 +28,14 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
                 List.of(), null, Estado.PENDENTE, null, null);
     }
 
+    /** Task sugerida por um agente, com as subtarefas já marcadas como sugeridas; espera ser aceita. */
+    public static Task sugerida(String titulo, String descricao, Provedor provedor, Esforco esforco,
+                                List<Subtarefa> subtarefas) {
+        return new Task(UUID.randomUUID().toString(), titulo, descricao, provedor, esforco, Origem.AGENTE,
+                subtarefas.stream().map(s -> s.comEstado(Estado.SUGERIDA, null)).toList(), null, Estado.SUGERIDA,
+                null, null);
+    }
+
     public Task comSubtarefas(List<Subtarefa> subtarefas) {
         return new Task(id, titulo, descricao, provedor, esforco, origem, subtarefas, sessao, execucao, resultado,
                 direcionamento);
@@ -57,6 +65,19 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return execucao == Estado.RASCUNHO;
     }
 
+    /**
+     * Se ainda não foi aceita: a Task sugerida por um agente ou uma Task com alguma subtarefa sugerida. Ela só conta
+     * como aceita quando todas as subtarefas forem aceitas, e até lá nenhuma delas roda.
+     */
+    public boolean sugerida() {
+        return execucao == Estado.SUGERIDA || sugestoes() > 0;
+    }
+
+    /** Subtarefas sugeridas por um agente, ainda não aceitas. */
+    public long sugestoes() {
+        return subtarefas.stream().filter(s -> s.estado() == Estado.SUGERIDA).count();
+    }
+
     /** Se é executada inteira, sem subtarefas. */
     public boolean inteira() {
         return subtarefas.isEmpty();
@@ -79,14 +100,14 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
     }
 
     /**
-     * Tasks do Oráculo aparecem em roxo; o rascunho e a Task executada inteira têm o próprio estado; as demais herdam o
-     * estado das subtarefas.
+     * Tasks do Oráculo aparecem em roxo; o rascunho, a Task sugerida e a Task executada inteira têm o próprio estado;
+     * as demais herdam o estado das subtarefas.
      */
     public Estado estado() {
         if (origem == Origem.ORACULO) {
             return Estado.ORACULO;
         }
-        if (rascunho() || inteira()) {
+        if (rascunho() || execucao == Estado.SUGERIDA || inteira()) {
             return execucao;
         }
         return Estado.resumir(subtarefas.stream().map(Subtarefa::estado).toList());
@@ -117,7 +138,8 @@ public record Task(String id, String titulo, String descricao, Provedor provedor
         return switch (estado()) {
             case ATENCAO -> Textos.pendencias(verificacoes(), direcionamentos());
             case ERRO -> "Falhou";
-            default -> null;
+            case SUGERIDA -> "Sugerida";
+            default -> Textos.sugestoes(sugestoes());
         };
     }
 }

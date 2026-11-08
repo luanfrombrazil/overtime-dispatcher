@@ -81,6 +81,16 @@ public class ProjetoPanel extends JPanel {
          * da Task executada inteira.
          */
         void responder(Task task, Subtarefa subtarefa, List<String> respostas);
+
+        /** Aceita tudo o que um agente sugeriu na Task: a própria Task, se for sugestão, e as subtarefas sugeridas. */
+        void aceitar(Task task);
+
+        /** Recusa o que um agente sugeriu na Task: a Task sugerida inteira ou as subtarefas sugeridas dela. */
+        void recusar(Task task);
+
+        void aceitar(Task task, Subtarefa subtarefa);
+
+        void recusar(Task task, Subtarefa subtarefa);
     }
 
     private static final int ALTURA_CONSOLE = 180;

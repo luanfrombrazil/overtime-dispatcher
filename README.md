@@ -66,7 +66,7 @@ Onde ficam as suas tarefas: estudos, trabalhos e projetos pessoais, cada um com 
 
 ### Configurações
 
-Define quando os agentes podem trabalhar sozinhos em cada dia da semana e como os créditos de cada assinatura se dividem entre a automação, o Oráculo e você.
+Define quando os agentes podem trabalhar sozinhos em cada dia da semana, até quanto do uso de cada assinatura vai para a automação e para o Oráculo (o resto fica para você) e o ritmo do agendador. Nas outras seções ficam a linha de comando e o prompt de cada modelo, as notificações e o endereço do servidor MCP.
 
 ![Configurações](docs/imagens/configuracoes.png)
 

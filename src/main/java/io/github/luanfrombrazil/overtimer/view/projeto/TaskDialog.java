@@ -52,7 +52,8 @@ public class TaskDialog extends Dialogo {
                 : travada ? "Task finalizada" : "Editar task"), null));
         corpo.add(Box.createVerticalStrut(14));
         // A finalizada não mostra a situação: a mensagem de conclusão fica no botão verde do cartão.
-        if (!nova && !rascunho && !travada && existente.inteira() && existente.execucao() != Estado.PENDENTE) {
+        if (!nova && !rascunho && !travada && existente.inteira() && existente.execucao() != Estado.PENDENTE
+                && existente.execucao() != Estado.SUGERIDA) {
             corpo.add(SubtarefaDialog.situacao(this, existente.execucao(), existente.resultado(),
                     existente.aguardaDirecionamento(), aoDecidir));
             corpo.add(Box.createVerticalStrut(14));

@@ -11,6 +11,7 @@ import io.github.luanfrombrazil.overtimer.service.ProtocoloService;
 import io.github.luanfrombrazil.overtimer.service.comunicacao.NotificacaoService;
 import io.github.luanfrombrazil.overtimer.service.consumo.ConsumoService;
 import io.github.luanfrombrazil.overtimer.service.persistence.ConfiguracoesRepositorio;
+import io.github.luanfrombrazil.overtimer.service.rpc.ServidorMcp;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
 import io.github.luanfrombrazil.overtimer.view.Bandeja;
 import io.github.luanfrombrazil.overtimer.view.BarraLateral;
@@ -44,6 +45,7 @@ public class MainController implements BarraLateral.Ouvinte {
     private final Agendador agendador;
     private final ConsumoService consumo;
     private final NotificacaoService notificacoes;
+    private final ServidorMcp mcp;
     private final ConfiguracoesRepositorio repositorioConfiguracoes = new ConfiguracoesRepositorio();
     private final BarraSuperior barraSuperior;
     private final BarraLateral barraLateral;
@@ -56,14 +58,17 @@ public class MainController implements BarraLateral.Ouvinte {
     /** Quando a janela foi para a bandeja; null enquanto está aberta. */
     private LocalDateTime escondidaEm;
 
+    /** @param mcp servidor MCP da app, mostrado nas configurações */
     public MainController(DadosService dados, ProjetoService projetos, ProtocoloService protocolos,
-                          Agendador agendador, ConsumoService consumo, NotificacaoService notificacoes) {
+                          Agendador agendador, ConsumoService consumo, NotificacaoService notificacoes,
+                          ServidorMcp mcp) {
         this.dados = dados;
         this.projetos = projetos;
         this.protocolos = protocolos;
         this.agendador = agendador;
         this.consumo = consumo;
         this.notificacoes = notificacoes;
+        this.mcp = mcp;
         this.barraSuperior = new BarraSuperior(consumo.consumo(), notificacoes.naoLidas());
         this.barraLateral = new BarraLateral(projetos.projetos(), protocolos.protocolos(), dados.trilhas(),
                 dados.sugestoesDoOraculo(), this);
@@ -300,7 +305,9 @@ public class MainController implements BarraLateral.Ouvinte {
     }
 
     private void configuracoes(String secao) {
-        new ConfiguracoesDialog(frame, repositorioConfiguracoes.carregar(), this::salvarConfiguracoes)
+        ConfiguracoesDialog.Mcp servidor = new ConfiguracoesDialog.Mcp(mcp.endereco(), mcp.comandoClaudeCode(),
+                mcp.erro().orElse(null));
+        new ConfiguracoesDialog(frame, repositorioConfiguracoes.carregar(), this::salvarConfiguracoes, servidor)
                 .naSecao(secao)
                 .abrir();
     }

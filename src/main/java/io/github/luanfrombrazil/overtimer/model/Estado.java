@@ -13,7 +13,12 @@ public enum Estado {
     PENDENTE,
     ORACULO,
     /** Rascunho guardado ao fechar o pop-up clicando fora; não vai para a fila até ser criado de fato. */
-    RASCUNHO;
+    RASCUNHO,
+    /**
+     * Sugerida por um agente pelo servidor MCP e ainda não aceita por você: não vai para a fila. Na Task, marca a
+     * Task inteira como sugestão; na subtarefa, só ela.
+     */
+    SUGERIDA;
 
     /**
      * Se um item (subtarefa ou Task executada inteira) espera a sua resposta a perguntas do agente. Amarelo como a

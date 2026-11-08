@@ -14,6 +14,7 @@ import io.github.luanfrombrazil.overtimer.service.persistence.NotificacoesReposi
 import io.github.luanfrombrazil.overtimer.service.persistence.PastaDados;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProjetos;
 import io.github.luanfrombrazil.overtimer.service.persistence.RepositorioProtocolos;
+import io.github.luanfrombrazil.overtimer.service.rpc.ServidorMcp;
 import io.github.luanfrombrazil.overtimer.service.scheduler.Agendador;
 import io.github.luanfrombrazil.overtimer.view.tema.Tema;
 
@@ -40,12 +41,18 @@ public final class Overtimer {
                 configuracoes.notificacoes());
         agendador.usarNotificacoes(notificacoes);
         agendador.aplicar(configuracoes);
+        ServidorMcp mcp = new ServidorMcp(projetos, pastaDados);
+        mcp.iniciar();
+        agendador.usarMcp(mcp);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(agendador::encerrar));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            agendador.encerrar();
+            mcp.close();
+        }));
         ConsumoService consumo = ConsumoService.padrao(agendador::executando);
         agendador.usarConsumo(consumo::uso);
         SwingUtilities.invokeLater(() -> {
-            new MainController(new DadosService(), projetos, protocolos, agendador, consumo, notificacoes).iniciar();
+            new MainController(new DadosService(), projetos, protocolos, agendador, consumo, notificacoes, mcp).iniciar();
             // Só depois da tela existir, para a primeira medição já chegar ao ouvinte da barra superior.
             consumo.iniciar();
         });

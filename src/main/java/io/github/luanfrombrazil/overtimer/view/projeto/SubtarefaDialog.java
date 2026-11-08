@@ -71,7 +71,7 @@ public class SubtarefaDialog extends Dialogo {
             corpo.add(Ui.cabecalho(Ui.legenda(task.titulo()), null));
             corpo.add(Box.createVerticalStrut(14));
         }
-        if (!nova && !rascunho && existente.estado() != Estado.PENDENTE) {
+        if (!nova && !rascunho && existente.estado() != Estado.PENDENTE && existente.estado() != Estado.SUGERIDA) {
             corpo.add(situacao(this, existente.estado(), existente.resultado(), existente.aguardaDirecionamento(),
                     aoDecidir));
             corpo.add(Box.createVerticalStrut(14));

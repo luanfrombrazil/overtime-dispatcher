@@ -86,6 +86,7 @@ public record Subtarefa(String id, String titulo, String instrucao, String crite
         return switch (estado) {
             case ERRO -> "Falhou";
             case ATENCAO -> aguardaDirecionamento() ? "Direcionamento" : "Verificação";
+            case SUGERIDA -> "Sugerida";
             default -> requerVerificacao ? "Verificação" : null;
         };
     }

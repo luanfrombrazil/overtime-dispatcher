@@ -347,9 +347,10 @@ public class ProjetoService {
 
     /**
      * Próximo trabalho na fila, seguindo a ordem dos projetos, das Tasks e das subtarefas: a primeira subtarefa
-     * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo
-     * esperam ser aceitas, e rascunhos (de Task ou de subtarefa) esperam ser criados. A Task com perguntas sem
-     * resposta fica parada até você responder; a fila segue para as outras.
+     * cujas dependências já foram concluídas ou, se a Task não tem subtarefas, a Task inteira. Tasks do Oráculo e
+     * sugestões de agentes esperam ser aceitas (a Task com uma subtarefa sugerida fica toda parada), e rascunhos (de
+     * Task ou de subtarefa) esperam ser criados. A Task com perguntas sem resposta fica parada até você responder; a
+     * fila segue para as outras.
      */
     public synchronized Optional<Proxima> proxima() {
         return proxima(task -> true);
@@ -359,8 +360,8 @@ public class ProjetoService {
     public synchronized Optional<Proxima> proxima(Predicate<Task> liberada) {
         for (Projeto projeto : projetos()) {
             for (Task task : projeto.tasks()) {
-                if (task.origem() == Origem.ORACULO || task.rascunho() || task.aguardaDirecionamento()
-                        || !liberada.test(task)) {
+                if (task.origem() == Origem.ORACULO || task.rascunho() || task.sugerida()
+                        || task.aguardaDirecionamento() || !liberada.test(task)) {
                     continue;
                 }
                 if (task.inteira()) {
@@ -441,6 +442,154 @@ public class ProjetoService {
         tasks.set(indice, antiga.comSubtarefas(antiga.subtarefas().stream()
                 .map(x -> x.id().equals(s.id()) ? respondida : x).toList()));
         return gravar(atual.comTasks(tasks));
+    }
+
+    // ---------- Sugestões de agentes ----------
+
+    /**
+     * Adiciona ao fim do projeto a Task sugerida por um agente ({@link Task#sugerida}), que espera ser aceita. Avisa
+     * os ouvintes de {@link #aoMudar}, porque a sugestão chega de fora da tela.
+     */
+    public synchronized Projeto sugerirTask(String projetoId, Task task) {
+        Projeto atual = projetos.get(projetoId);
+        if (atual == null) {
+            throw new IllegalArgumentException("Projeto não encontrado.");
+        }
+        exigir(task.titulo(), "Dê um título à task.");
+        task.subtarefas().forEach(s -> exigir(s.titulo(), "Dê um título a cada subtarefa."));
+        validarDependencias(task.subtarefas());
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        tasks.add(task);
+        return avisar(gravar(atual.comTasks(tasks)));
+    }
+
+    /**
+     * Adiciona ao fim de uma Task existente subtarefas sugeridas por um agente. Até você aceitar todas, a Task
+     * inteira fica fora da fila. A Task finalizada ou em andamento não recebe sugestões.
+     */
+    public synchronized Projeto sugerirSubtarefas(String projetoId, String taskId, List<Subtarefa> sugeridas) {
+        Projeto atual = projetos.get(projetoId);
+        if (atual == null) {
+            throw new IllegalArgumentException("Projeto não encontrado.");
+        }
+        if (sugeridas.isEmpty()) {
+            throw new IllegalArgumentException("Sugira ao menos uma subtarefa.");
+        }
+        sugeridas.forEach(s -> exigir(s.titulo(), "Dê um título a cada subtarefa."));
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, taskId);
+        if (indice < 0) {
+            throw new IllegalArgumentException("Task não encontrada.");
+        }
+        Task task = tasks.get(indice);
+        exigirAberta(task);
+        if (task.origem() == Origem.ORACULO || task.rascunho()) {
+            throw new IllegalArgumentException("\"" + task.titulo() + "\" não aceita sugestões.");
+        }
+        if ((task.inteira() && task.execucao() == Estado.EM_ANDAMENTO)
+                || task.subtarefas().stream().anyMatch(s -> s.estado() == Estado.EM_ANDAMENTO)) {
+            throw new IllegalArgumentException("\"" + task.titulo() + "\" está em andamento; sugira depois que o "
+                    + "agente terminar.");
+        }
+        List<Subtarefa> subtarefas = new ArrayList<>(task.subtarefas());
+        sugeridas.forEach(s -> subtarefas.add(s.comEstado(Estado.SUGERIDA, null)));
+        validarDependencias(subtarefas);
+        tasks.set(indice, task.comSubtarefas(subtarefas));
+        return avisar(gravar(atual.comTasks(tasks)));
+    }
+
+    /**
+     * Aceita tudo o que está sugerido na Task: a própria Task, se for uma sugestão, e todas as subtarefas sugeridas.
+     * Ela entra na fila como está, inclusive com o que você editou.
+     */
+    public synchronized Projeto aceitar(Projeto projeto, Task task) {
+        return alterarTask(projeto, task, antiga -> {
+            exigirSugerida(antiga);
+            Task aceita = antiga.comSubtarefas(antiga.subtarefas().stream()
+                    .map(s -> s.estado() == Estado.SUGERIDA ? s.comEstado(Estado.PENDENTE, null) : s).toList());
+            return antiga.execucao() == Estado.SUGERIDA ? aceita.comExecucao(Estado.PENDENTE, null) : aceita;
+        });
+    }
+
+    /**
+     * Aceita uma subtarefa sugerida. Aceita a última sugestão de uma Task sugerida, a Task conta como aceita e entra
+     * na fila.
+     */
+    public synchronized Projeto aceitar(Projeto projeto, Task task, Subtarefa subtarefa) {
+        return alterarTask(projeto, task, antiga -> {
+            Subtarefa sugerida = antiga.subtarefas().stream().filter(s -> s.id().equals(subtarefa.id())).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Subtarefa não encontrada."));
+            if (sugerida.estado() != Estado.SUGERIDA) {
+                throw new IllegalArgumentException("\"" + sugerida.titulo() + "\" não é uma sugestão.");
+            }
+            Task aceita = antiga.comSubtarefas(antiga.subtarefas().stream()
+                    .map(s -> s.id().equals(sugerida.id()) ? s.comEstado(Estado.PENDENTE, null) : s).toList());
+            return aceita.execucao() == Estado.SUGERIDA && aceita.sugestoes() == 0
+                    ? aceita.comExecucao(Estado.PENDENTE, null) : aceita;
+        });
+    }
+
+    /**
+     * Recusa o que está sugerido na Task: a Task sugerida é removida com as subtarefas; numa Task existente, saem
+     * só as subtarefas sugeridas.
+     */
+    public synchronized Projeto recusar(Projeto projeto, Task task) {
+        Projeto atual = atual(projeto);
+        Task antiga = atual.tasks().stream().filter(t -> t.id().equals(task.id())).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Task não encontrada."));
+        exigirSugerida(antiga);
+        if (antiga.execucao() == Estado.SUGERIDA) {
+            return excluirTask(atual, antiga);
+        }
+        Set<String> recusadas = new HashSet<>();
+        antiga.subtarefas().stream().filter(s -> s.estado() == Estado.SUGERIDA).forEach(s -> recusadas.add(s.id()));
+        return alterarSubtarefas(atual, antiga, subtarefas -> semAsSubtarefas(subtarefas, recusadas));
+    }
+
+    /**
+     * Recusa uma subtarefa sugerida, que é removida. Se as que sobram numa Task sugerida já foram todas aceitas, a
+     * Task conta como aceita; se não sobra nenhuma, ela continua sugerida, para ser aceita ou recusada inteira.
+     */
+    public synchronized Projeto recusar(Projeto projeto, Task task, Subtarefa subtarefa) {
+        return alterarTask(projeto, task, antiga -> {
+            Subtarefa sugerida = antiga.subtarefas().stream().filter(s -> s.id().equals(subtarefa.id())).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Subtarefa não encontrada."));
+            if (sugerida.estado() != Estado.SUGERIDA) {
+                throw new IllegalArgumentException("\"" + sugerida.titulo() + "\" não é uma sugestão.");
+            }
+            Task sem = antiga.comSubtarefas(semAsSubtarefas(antiga.subtarefas(), Set.of(sugerida.id())));
+            return sem.execucao() == Estado.SUGERIDA && !sem.inteira() && sem.sugestoes() == 0
+                    ? sem.comExecucao(Estado.PENDENTE, null) : sem;
+        });
+    }
+
+    private static List<Subtarefa> semAsSubtarefas(List<Subtarefa> subtarefas, Set<String> ids) {
+        return subtarefas.stream()
+                .filter(s -> !ids.contains(s.id()))
+                .map(s -> s.comDependencias(s.dependeDe().stream().filter(d -> !ids.contains(d)).toList()))
+                .toList();
+    }
+
+    private static void exigirSugerida(Task task) {
+        if (!task.sugerida()) {
+            throw new IllegalArgumentException("\"" + task.titulo() + "\" não tem sugestões.");
+        }
+    }
+
+    private Projeto alterarTask(Projeto projeto, Task task, UnaryOperator<Task> alteracao) {
+        Projeto atual = atual(projeto);
+        List<Task> tasks = new ArrayList<>(atual.tasks());
+        int indice = indiceDaTask(tasks, task.id());
+        if (indice < 0) {
+            throw new IllegalArgumentException("Task não encontrada.");
+        }
+        tasks.set(indice, alteracao.apply(tasks.get(indice)));
+        return gravar(atual.comTasks(tasks));
+    }
+
+    private Projeto avisar(Projeto projeto) {
+        ouvintes.forEach(o -> o.accept(projeto));
+        return projeto;
     }
 
     /** Guarda a sessão do agente da Task, para as próximas subtarefas continuarem a mesma conversa. */

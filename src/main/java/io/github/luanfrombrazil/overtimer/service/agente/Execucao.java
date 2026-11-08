@@ -19,26 +19,27 @@ import java.time.Duration;
  * @param usaGit     se a pasta é um worktree git, para liberar os comandos git ao agente
  * @param push       se o agente pode fazer push da branch da Task
  * @param acessos    acessos do protocolo, que substituem as permissões; null na execução de uma Task
+ * @param mcpConfig  arquivo do {@code --mcp-config} com o servidor MCP da app para esta execução, ou null sem ele
  */
 public record Execucao(Path pasta, String prompt, String sessao, boolean sessaoNova,
                        Esforco esforco, Modelo modelo, Permissoes permissoes, boolean usaGit, boolean push,
-                       Duration limite, Acessos acessos) {
+                       Duration limite, Acessos acessos, Path mcpConfig) {
 
     public Execucao {
         modelo = modelo == null ? Modelo.PADRAO : modelo;
     }
 
-    /** Execução de uma Task, com as permissões do projeto. */
+    /** Execução de uma Task, com as permissões do projeto e sem o servidor MCP da app. */
     public Execucao(Path pasta, String prompt, String sessao, boolean sessaoNova,
                     Esforco esforco, Modelo modelo, Permissoes permissoes, boolean usaGit, boolean push,
                     Duration limite) {
-        this(pasta, prompt, sessao, sessaoNova, esforco, modelo, permissoes, usaGit, push, limite, null);
+        this(pasta, prompt, sessao, sessaoNova, esforco, modelo, permissoes, usaGit, push, limite, null, null);
     }
 
     /** Execução de um protocolo na pasta de trabalho dele, sem git. */
     public static Execucao doProtocolo(Path pasta, String prompt, String sessao, boolean sessaoNova,
                                        Esforco esforco, Acessos acessos, Duration limite) {
         return new Execucao(pasta, prompt, sessao, sessaoNova, esforco, Modelo.PADRAO,
-                new Permissoes(true, false, false, false), false, false, limite, acessos);
+                new Permissoes(true, false, false, false), false, false, limite, acessos, null);
     }
 }
