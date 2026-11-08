@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.luanfrombrazil</groupId>
-    <artifactId>overtime-dispatcher</artifactId>
+    <artifactId>overtimer</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>Overtime Dispatcher</name>
+    <name>Overtimer</name>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
@@ -23,6 +23,21 @@
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
             <version>${flatlaf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf-extras</artifactId>
+            <version>${flatlaf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf-fonts-inter</artifactId>
+            <version>4.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf-fonts-jetbrains-mono</artifactId>
+            <version>2.304</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

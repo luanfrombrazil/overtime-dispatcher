@@ -4,11 +4,13 @@ Aplicação desktop que mantém uma **fila de tarefas** para agentes de IA — C
 
 Serve para qualquer tipo de projeto: desenvolvimento de software, pesquisa, escrita, organização de documentos, automações do dia a dia.
 
-> Status: **início da implementação**. A estrutura do projeto está criada; a janela principal abre vazia.
+> Status: **em desenvolvimento** (branch `dev`). Projetos, Tasks e subtarefas já são criados e salvos, e o agendador as executa no Claude Code (CLI). Horário, reserva, Codex, Gemini e as demais telas ainda são protótipo.
 
 ## Como rodar
 
-Requer JDK 25 e Maven. Abra a pasta no IntelliJ IDEA (projeto Maven) e execute `OvertimeDispatcher`, ou pelo terminal:
+Requer JDK 25 e Maven. Abra a pasta no IntelliJ IDEA (projeto Maven) e execute `Overtimer`. Para evitar o aviso de acesso nativo do FlatLaf, adicione `--enable-native-access=ALL-UNNAMED` às opções da VM na configuração de execução.
+
+Para compilar pelo terminal:
 
 ```bash
 mvn package
@@ -16,7 +18,7 @@ mvn package
 
 ## Como funciona
 
-Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks**, cada uma quebrada em **Subtarefas** pequenas. Nos horários que você liberar, a app entrega a próxima subtarefa a um agente livre e registra o resultado.
+Você organiza o trabalho em **Projetos** e, dentro deles, **Tasks**, cada uma com as suas próprias instruções e, se quiser, quebrada em **Subtarefas** pequenas. Nos horários que você liberar, a app entrega a um agente livre a próxima subtarefa (ou a Task inteira, quando ela não tem subtarefas) e registra o resultado.
 
 Além dos projetos, você cria **Protocolos**: rotinas que o agente segue de tempos em tempos, como ver as tarefas no portal da faculdade, ler o e-mail e montar um resumo, ou organizar a agenda dele com base no que encontrou.
 
@@ -38,7 +40,7 @@ O ponto de partida do dia: quanto os agentes produziram, o que aconteceu na últ
 
 ### Projeto
 
-Onde você organiza o trabalho dos agentes: quebra cada Task em subtarefas, define o que depende do quê, acompanha o que o agente está fazendo e revisa o que ficou pronto.
+Onde você organiza o trabalho dos agentes: escreve as Tasks, quebra em subtarefas as que precisarem, define o que depende do quê, acompanha o que o agente está fazendo e revisa o que ficou pronto.
 
 ![Projeto](docs/imagens/projeto.png)
 
@@ -64,7 +66,7 @@ Onde ficam as suas tarefas: estudos, trabalhos e projetos pessoais, cada um com 
 
 ### Configurações
 
-Define quando os agentes podem trabalhar sozinhos em cada dia da semana e como os créditos de cada assinatura se dividem entre a automação, o Oráculo e você.
+Define quando os agentes podem trabalhar sozinhos em cada dia da semana, até quanto do uso de cada assinatura vai para a automação e para o Oráculo (o resto fica para você) e o ritmo do agendador. Nas outras seções ficam a linha de comando e o prompt de cada modelo, as notificações e o endereço do servidor MCP.
 
 ![Configurações](docs/imagens/configuracoes.png)
 
@@ -121,7 +123,7 @@ Ele não executa nada sozinho: tudo o que sugere chega para você **aceitar ou r
 | Termo | Significado |
 |---|---|
 | **Projeto** | Agrupa Tasks com o mesmo contexto e aponta para uma pasta do seu computador, com ou sem git. |
-| **Task** | Trabalho para um agente, dividido em subtarefas pequenas. |
+| **Task** | Trabalho para um agente, executável por conta própria; pode ser dividido em subtarefas pequenas. |
 | **Protocolo** | Rotina que o agente segue de tempos em tempos (ex.: portal da faculdade, e-mail, agenda). |
 | **Trilha** | Conjunto de tarefas para você, com o tempo planejado em blocos; fica no seu vault do Obsidian. |
 | **Oráculo** | Observa tudo e sugere o que fazer: tasks, diagnósticos, roadmaps e estudos. |

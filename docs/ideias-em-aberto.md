@@ -7,17 +7,17 @@ Propostas feitas durante o desenho que **ainda não foram confirmadas**. Nada aq
 - Pausar o provedor automaticamente ao receber erro de limite.
 - Botão "Vou usar agora" para pausar a automação por algumas horas.
 - Escolha automática de provedor pela maior folga de orçamento.
-- Protocolos passando na frente das Tasks no horário deles.
 - Recuperar execuções interrompidas ao reabrir a app.
 - Número máximo de tentativas e timeout por execução.
 
 ## Git
 - Merge com squash e sem push automático.
-- Caminho e nome das worktrees.
+- Limpeza das worktrees depois do merge (o caminho e o nome já estão no [agente](modulos/agente.md)).
 
 ## RPC e MCP
-- Lista de métodos, papéis de acesso (dono × agente), tokens por execução e códigos de erro.
+- Métodos além das sugestões (avisar que editou a Task, pedir orientação, injetar em Protocolos) e papéis de acesso (dono × agente). O que já existe está em [rpc](modulos/rpc.md).
 - Comando de terminal `odctl`.
+- Aviso por notificação quando chega uma sugestão.
 
 ## Protocolos e injeção de tasks
 - Chave contra duplicatas e limites contra laços (saltos, quantidade por execução).
@@ -27,7 +27,7 @@ Propostas feitas durante o desenho que **ainda não foram confirmadas**. Nada aq
 - Menu do ícone da bandeja e opção de iniciar com o Windows.
 
 ## Dados
-- Estrutura de pastas e formato dos arquivos JSON.
+- Estrutura de pastas e formato dos arquivos JSON do consumo (os dos projetos, dos protocolos e das configurações já estão em [persistência](modulos/persistencia.md)).
 - Formato dos metadados das tarefas das Trilhas no vault (compatível com o plugin Tasks do Obsidian).
 
 ## Planejamento

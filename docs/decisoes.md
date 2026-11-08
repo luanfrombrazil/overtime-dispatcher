@@ -11,7 +11,7 @@ Decisões técnicas e de arquitetura do projeto. Regras de funcionamento estão 
 | D-03 | A interface é construída em Swing com o look and feel FlatLaf, exclusivamente no tema escuro. | 28/10/2026 |
 | D-04 | O desenho das telas é feito no Figma antes da implementação. | 28/10/2026 |
 | D-05 | Versão da linguagem: Java 25 (LTS). Ferramenta de build: Maven. | 28/10/2026 |
-| D-06 | Pacote raiz: `io.github.luanfrombrazil.overtimedispatcher`. | 28/10/2026 |
+| D-06 | Pacote raiz: `io.github.luanfrombrazil.overtimer`. | 28/10/2026 |
 | D-07 | Os dados da aplicação são persistidos em arquivos JSON, com a biblioteca Jackson, numa pasta central da aplicação. | 28/10/2026 |
 | D-08 | A distribuição final é um executável `.exe` com o runtime Java embutido e reduzido (`jpackage` e `jlink`). | 29/10/2026 |
 | D-09 | A execução dos agentes é feita pelos CLIs dos provedores (Claude Code, Codex, Gemini), atrás de uma interface comum. | 28/10/2026 |
@@ -24,6 +24,9 @@ Decisões técnicas e de arquitetura do projeto. Regras de funcionamento estão 
 | D-16 | A aplicação permanece em execução na bandeja do sistema quando a janela é fechada. | 28/10/2026 |
 | D-17 | As notificações do Windows possuem botões de ação. | 28/10/2026 |
 | D-18 | A integração com o WhatsApp reutiliza um projeto existente do autor. | 28/10/2026 |
+| D-19 | Subtarefas são opcionais: uma Task sem subtarefas é executada inteira, como uma única unidade, a partir da sua própria instrução. | 31/10/2026 |
+| D-20 | O agente pede direcionamento terminando a execução com um bloco `DIRECIONAMENTO:` de perguntas e opções; a Task fica parada em amarelo e, com as suas respostas, retoma na mesma sessão. É outra espera que não a verificação manual. | 04/11/2026 |
+| D-21 | O servidor MCP da app roda por HTTP em `127.0.0.1`, dentro da própria app, e deixa agentes (da app ou de fora dela) sugerirem Tasks e subtarefas em qualquer projeto. Sugestões têm a aparência de Tasks normais, podem ser editadas e só entram na fila depois de aceitas; uma Task só conta como aceita quando todas as subtarefas dela forem aceitas. | 05/11/2026 |
 
 ## Pendentes
 
